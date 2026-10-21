@@ -56,6 +56,13 @@ jobs:
           - preset: "win32-debug"
             tools: true
             extras: true
+          # EastWind DX9 renderer (cmake/EastWindPresets.json).
+          - preset: "win32-dx9"
+            tools: true
+            extras: true
+          - preset: "win32-dx9-debug"
+            tools: true
+            extras: true
       fail-fast: false
     uses: ./.github/workflows/reusable-build-toolchain.yml
     with:
@@ -65,6 +72,21 @@ jobs:
       extras: ${{ matrix.extras }}
       tests: true
     secrets: inherit
+
+  # DX9 files against their DX8 originals: upstream changes to port, include switches, preset drift.
+  dx9-sync-check:
+    name: DX9 Sync Check
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0 # the check diffs each DX8 file against the commit its DX9 file started from
+
+      - name: Run dx9_sync_check.py
+        run: python3 EastWind/Scripts/dx9_sync_check.py check -v
 
   # Needs trimmed retail game data. Set the repository variable EW_REPLAY_CHECK to 'true'
   # once the R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY and R2_ENDPOINT_URL secrets are configured.
