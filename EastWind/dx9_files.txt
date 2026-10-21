@@ -1,0 +1,17 @@
+# EastWind DX9 files.
+#
+# Each DX9 file sits beside the DX8 file it replaces. One line per pair:
+#
+#   <DX8 repo path> <DX9 file name> <upstream commit the DX9 file was started from>
+#
+# Naming: "dx8" in the name becomes "dx9" (dx8wrapper.cpp -> dx9wrapper.cpp,
+# DX8Backend.cpp -> DX9Backend.cpp); any other name gets "_dx9" (texture.h -> texture_dx9.h).
+#
+# The DX9 build (EW_RENDERER=DX9) compiles the DX9 file instead of the DX8 one, and shared
+# files include the DX9 header through an #ifdef EW_RENDERER_DX9 block.
+#
+# A raw D3D8 file that includes a replaced header must have a DX9 file too, or the DX9 build
+# sees both versions of the header; "add" adds those files automatically (try it with -n first).
+#
+# Start a DX9 file:      python EastWind/Scripts/dx9_sync_check.py add <DX8 repo path>...
+# After a merge of main: python EastWind/Scripts/dx9_sync_check.py
