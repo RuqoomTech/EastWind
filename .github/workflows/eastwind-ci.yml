@@ -1,0 +1,88 @@
+name: EastWind CI
+
+# CI for the EastWind development branch. Zero Hour only.
+# Kept separate from upstream's ci.yml so merges from upstream stay conflict free.
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches:
+      - eastwind/**
+  pull_request:
+    branches:
+      - eastwind/**
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # The vc6 builds are the retail compatible ones and are used by the replay check.
+  build-generalsmd-vc6:
+    name: Build GeneralsMD${{ matrix.preset && '' }}
+    permissions:
+      contents: read
+    strategy:
+      matrix:
+        include:
+          - preset: "vc6"
+            tools: true
+            extras: true
+          - preset: "vc6-releaselog"
+            tools: true
+            extras: true
+      fail-fast: false
+    uses: ./.github/workflows/reusable-build-toolchain.yml
+    with:
+      game: "GeneralsMD"
+      preset: ${{ matrix.preset }}
+      tools: ${{ matrix.tools }}
+      extras: ${{ matrix.extras }}
+    secrets: inherit
+
+  build-generalsmd-win32:
+    name: Build GeneralsMD${{ matrix.preset && '' }}
+    permissions:
+      contents: read
+    strategy:
+      matrix:
+        include:
+          - preset: "win32"
+            tools: true
+            extras: true
+          - preset: "win32-debug"
+            tools: true
+            extras: true
+      fail-fast: false
+    uses: ./.github/workflows/reusable-build-toolchain.yml
+    with:
+      game: "GeneralsMD"
+      preset: ${{ matrix.preset }}
+      tools: ${{ matrix.tools }}
+      extras: ${{ matrix.extras }}
+      tests: true
+    secrets: inherit
+
+  # Needs trimmed retail game data. Set the repository variable EW_REPLAY_CHECK to 'true'
+  # once the R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY and R2_ENDPOINT_URL secrets are configured.
+  replaycheck-generalsmd:
+    name: Replay Check GeneralsMD${{ matrix.preset && '' }}
+    needs: build-generalsmd-vc6
+    if: ${{ vars.EW_REPLAY_CHECK == 'true' }}
+    permissions:
+      contents: read
+    strategy:
+      matrix:
+        include:
+          - preset: "vc6+t+e"
+          - preset: "vc6-releaselog+t+e"
+      fail-fast: false
+    uses: ./.github/workflows/reusable-check-replays.yml
+    with:
+      game: "GeneralsMD"
+      userdata: "GeneralsReplays/GeneralsZH/1.04"
+      preset: ${{ matrix.preset }}
+    secrets: inherit
