@@ -30,7 +30,11 @@
 #pragma once
 
 #include "GameClient/TerrainVisual.h"
+#ifdef EW_RENDERER_DX9
+#include "W3DDevice/GameClient/W3DWater_dx9.h"
+#else
 #include "W3DDevice/GameClient/W3DWater.h"
+#endif
 
 // FORWARD REFERENCES /////////////////////////////////////////////////////////////////////////////
 class Matrix3D;

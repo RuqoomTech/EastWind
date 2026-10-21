@@ -56,7 +56,7 @@
 #include "W3DDevice/GameClient/W3DShadow.h"
 #include "WW3D2/statistics.h"
 #include "GameLogic/TerrainLogic.h"
-#include "WW3D2/dx8caps.h"
+#include "WW3D2/dx9caps.h"
 #include "GameClient/Drawable.h"
 #ifdef USE_WWSHADE
 #include "wwshade/shdmesh.h"

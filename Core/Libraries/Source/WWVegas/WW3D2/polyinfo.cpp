@@ -38,8 +38,16 @@
 
 
 #include "polyinfo.h"
+#ifdef EW_RENDERER_DX9
+#include "texture_dx9.h"
+#else
 #include "texture.h"
+#endif
+#ifdef EW_RENDERER_DX9
+#include "vertmaterial_dx9.h"
+#else
 #include "vertmaterial.h"
+#endif
 #include "shader.h"
 
 void PolygonInfoClass::Set_Texture(TextureClass *texture)

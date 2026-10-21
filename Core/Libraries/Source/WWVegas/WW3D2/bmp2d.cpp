@@ -40,10 +40,22 @@
 #include "bmp2d.h"
 #include "WWMath/pot.h"
 #include "ww3d.h"
+#ifdef EW_RENDERER_DX9
+#include "texture_dx9.h"
+#else
 #include "texture.h"
+#endif
+#ifdef EW_RENDERER_DX9
+#include "surfaceclass_dx9.h"
+#else
 #include "surfaceclass.h"
+#endif
 #include "assetmgr.h"
+#ifdef EW_RENDERER_DX9
+#include "textureloader_dx9.h"
+#else
 #include "textureloader.h"
+#endif
 #include "ww3dformat.h"
 
 Bitmap2DObjClass::Bitmap2DObjClass

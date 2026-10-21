@@ -39,11 +39,23 @@
 
 #include "font3d.h"
 #include "assetmgr.h"
+#ifdef EW_RENDERER_DX9
+#include "texture_dx9.h"
+#else
 #include "texture.h"
+#endif
 #include <assert.h>
 #include <WWDebug/wwdebug.h>
+#ifdef EW_RENDERER_DX9
+#include "surfaceclass_dx9.h"
+#else
 #include "surfaceclass.h"
+#endif
+#ifdef EW_RENDERER_DX9
+#include "texture_dx9.h"
+#else
 #include "texture.h"
+#endif
 #include "WWMath/vector2i.h"
 
 static	SurfaceClass	*_surface;

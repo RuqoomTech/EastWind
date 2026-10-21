@@ -25,9 +25,21 @@
 #else
 #include "dx8wrapper.h"
 #endif
+#ifdef EW_RENDERER_DX9
+#include "dx9caps.h"
+#else
 #include "dx8caps.h"
+#endif
+#ifdef EW_RENDERER_DX9
+#include "textureloader_dx9.h"
+#else
 #include "textureloader.h"
+#endif
+#ifdef EW_RENDERER_DX9
+#include "texture_dx9.h"
+#else
 #include "texture.h"
+#endif
 
 #include <memory.h>
 #ifdef _UNIX

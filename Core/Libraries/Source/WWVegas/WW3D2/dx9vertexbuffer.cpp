@@ -39,10 +39,10 @@
 
 //#define VERTEX_BUFFER_LOG
 
-#include "dx8vertexbuffer.h"
+#include "dx9vertexbuffer.h"
 #include "dx9wrapper.h"
-#include "dx8fvf.h"
-#include "dx8caps.h"
+#include "dx9fvf.h"
+#include "dx9caps.h"
 #include "WWLib/thread.h"
 #include "WWDebug/wwmemlog.h"
 #include <d3dx8core.h>

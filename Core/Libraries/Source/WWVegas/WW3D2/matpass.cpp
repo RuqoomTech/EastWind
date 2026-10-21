@@ -47,9 +47,17 @@
 
 
 #include "matpass.h"
+#ifdef EW_RENDERER_DX9
+#include "vertmaterial_dx9.h"
+#else
 #include "vertmaterial.h"
+#endif
 #include "shader.h"
+#ifdef EW_RENDERER_DX9
+#include "texture_dx9.h"
+#else
 #include "texture.h"
+#endif
 #include "statistics.h"
 #ifdef EW_RENDERER_DX9
 #include "dx9wrapper.h"

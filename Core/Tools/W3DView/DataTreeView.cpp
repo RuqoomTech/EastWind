@@ -54,7 +54,11 @@
 #include "WW3D2/bmp2d.h"
 #include "WW3D2/hlod.h"
 #include "ViewerScene.h"
+#ifdef EW_RENDERER_DX9
+#include "WW3D2/texture_dx9.h"
+#else
 #include "WW3D2/texture.h"
+#endif
 
 #ifdef RTS_DEBUG
 #define new DEBUG_NEW

@@ -23,7 +23,7 @@
 #include "WW3D2/Renderer.h"
 
 #include "WW3D2/dx9wrapper.h"
-#include "WW3D2/formconv.h"
+#include "WW3D2/formconv_dx9.h"
 #include "WWMath/vector3.h"
 #include "WW3D2/lightenvironment.h"
 #include "WWDebug/wwdebug.h"

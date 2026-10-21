@@ -52,12 +52,12 @@
 #include "WW3D2/shader.h"
 #include "WWMath/vector4.h"
 #include "WWLib/cpudetect.h"
-#include "dx8caps.h"
+#include "dx9caps.h"
 
-#include "texture.h"
-#include "dx8vertexbuffer.h"
-#include "dx8indexbuffer.h"
-#include "WW3D2/vertmaterial.h"
+#include "texture_dx9.h"
+#include "dx9vertexbuffer.h"
+#include "dx9indexbuffer.h"
+#include "WW3D2/vertmaterial_dx9.h"
 
 /*
 ** Registry value names

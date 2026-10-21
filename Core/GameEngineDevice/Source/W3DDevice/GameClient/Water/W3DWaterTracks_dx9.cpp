@@ -45,7 +45,7 @@
 
 #include "W3DDevice/GameClient/HeightMap.h"
 #include "W3DDevice/GameClient/W3DWaterTracks.h"
-#include "W3DDevice/GameClient/W3DShaderManager.h"
+#include "W3DDevice/GameClient/W3DShaderManager_dx9.h"
 #include "W3DDevice/GameClient/W3DShroud.h"
 #include "GameClient/InGameUI.h"
 #include "GameClient/Water.h"
@@ -55,7 +55,7 @@
 #include "Common/UnicodeString.h"
 #include "Common/file.h"
 #include "Common/FileSystem.h"
-#include "WW3D2/texture.h"
+#include "WW3D2/texture_dx9.h"
 #include "WWMath/colmath.h"
 #include "WW3D2/coltest.h"
 #include "WW3D2/rinfo.h"

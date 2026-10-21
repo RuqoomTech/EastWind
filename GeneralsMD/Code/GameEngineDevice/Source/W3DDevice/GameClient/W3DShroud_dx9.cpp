@@ -36,10 +36,10 @@
 #include "Common/PerfTimer.h"
 #include "W3DDevice/GameClient/HeightMap.h"
 #include "W3DDevice/GameClient/W3DPoly.h"
-#include "W3DDevice/GameClient/W3DShaderManager.h"
+#include "W3DDevice/GameClient/W3DShaderManager_dx9.h"
 #include "WW3D2/assetmgr.h"
 #include "W3DDevice/GameClient/W3DShroud.h"
-#include "WW3D2/textureloader.h"
+#include "WW3D2/textureloader_dx9.h"
 #include "Common/GlobalData.h"
 #include "GameLogic/PartitionManager.h"
 

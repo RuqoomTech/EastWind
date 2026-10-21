@@ -32,7 +32,11 @@
 
 
 #include "StdAfx.h"
+#ifdef EW_RENDERER_DX9
+#include "WW3D2/texture_dx9.h"
+#else
 #include "WW3D2/texture.h"
+#endif
 #include "W3DView.h"
 #include "TextureSettingsDialog.h"
 #include "Utils.h"

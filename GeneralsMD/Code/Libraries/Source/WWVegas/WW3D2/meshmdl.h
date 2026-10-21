@@ -43,7 +43,11 @@
 #include "WWLib/sharebuf.h"
 #include "shader.h"
 #include "WWDebug/wwdebug.h"
+#ifdef EW_RENDERER_DX9
+#include "vertmaterial_dx9.h"
+#else
 #include "vertmaterial.h"
+#endif
 #include "WWLib/bittype.h"
 #include "WWMath/colmath.h"
 #include "WWLib/simplevec.h"

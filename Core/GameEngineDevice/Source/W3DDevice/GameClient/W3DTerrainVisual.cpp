@@ -50,7 +50,11 @@
 #include "W3DDevice/GameClient/W3DScene.h"
 #include "W3DDevice/GameClient/W3DTerrainVisual.h"
 #include "W3DDevice/GameClient/WorldHeightMap.h"
+#ifdef EW_RENDERER_DX9
+#include "W3DDevice/GameClient/W3DWater_dx9.h"
+#else
 #include "W3DDevice/GameClient/W3DWater.h"
+#endif
 #include "W3DDevice/GameClient/W3DDisplay.h"
 #include "W3DDevice/GameClient/W3DDebugIcons.h"
 #include "W3DDevice/GameClient/W3DTerrainTracks.h"

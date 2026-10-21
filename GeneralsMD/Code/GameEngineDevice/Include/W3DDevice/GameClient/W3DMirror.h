@@ -27,10 +27,22 @@
 #include "WWLib/always.h"
 #include "WW3D2/rendobj.h"
 #include "WW3D2/w3d_file.h"
+#ifdef EW_RENDERER_DX9
+#include "WW3D2/dx9vertexbuffer.h"
+#else
 #include "WW3D2/dx8vertexbuffer.h"
+#endif
+#ifdef EW_RENDERER_DX9
+#include "WW3D2/dx9indexbuffer.h"
+#else
 #include "WW3D2/dx8indexbuffer.h"
+#endif
 #include "WW3D2/shader.h"
+#ifdef EW_RENDERER_DX9
+#include "WW3D2/vertmaterial_dx9.h"
+#else
 #include "WW3D2/vertmaterial.h"
+#endif
 #include "Common/GameType.h"
 
 /// Custom render object that draws mirrors, water, and skies.

@@ -46,8 +46,16 @@
 //----------------------------------------------------------------------------
 
 #include "Common/GameMemory.h"
+#ifdef EW_RENDERER_DX9
+#include "WW3D2/texture_dx9.h"
+#else
 #include "WW3D2/texture.h"
+#endif
+#ifdef EW_RENDERER_DX9
+#include "WW3D2/textureloader_dx9.h"
+#else
 #include "WW3D2/textureloader.h"
+#endif
 #include "W3DDevice/GameClient/W3DVideoBuffer.h"
 
 //----------------------------------------------------------------------------

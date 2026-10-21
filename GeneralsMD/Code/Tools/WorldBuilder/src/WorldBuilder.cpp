@@ -24,7 +24,11 @@
 #include "MainFrm.h"
 #include "OpenMap.h"
 #include "SplashScreen.h"
+#ifdef EW_RENDERER_DX9
+#include "WW3D2/textureloader_dx9.h"
+#else
 #include "WW3D2/textureloader.h"
+#endif
 #include "WorldBuilderDoc.h"
 #include "WorldBuilderView.h"
 #include "WBFrameWnd.h"

@@ -44,7 +44,7 @@
 #include "w3d_file.h"
 #include "WWDebug/wwdebug.h"
 #include "dx9wrapper.h"
-#include "dx8caps.h"
+#include "dx9caps.h"
 #include <Utility/bit_adapter.h>
 
 

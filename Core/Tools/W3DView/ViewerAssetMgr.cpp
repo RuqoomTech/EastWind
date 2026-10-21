@@ -38,7 +38,11 @@
 #include "StdAfx.h"
 
 #include "ViewerAssetMgr.h"
+#ifdef EW_RENDERER_DX9
+#include "WW3D2/texture_dx9.h"
+#else
 #include "WW3D2/texture.h"
+#endif
 #include "WW3D2/ww3d.h"
 #include "Utils.h"
 

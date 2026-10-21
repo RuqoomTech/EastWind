@@ -35,8 +35,8 @@
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 #include "render2dsentence.h"
-#include "surfaceclass.h"
-#include "texture.h"
+#include "surfaceclass_dx9.h"
+#include "texture_dx9.h"
 #include "WWDebug/wwprofile.h"
 #include "WWDebug/wwmemlog.h"
 #include "dx9wrapper.h"

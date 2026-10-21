@@ -88,7 +88,7 @@
 
 #include "htreemgr.h"
 #include "hanimmgr.h"
-#include "texture.h"
+#include "texture_dx9.h"
 #include "font3d.h"
 #include "render2dsentence.h"		// for FontCharsClass
 #include "proto.h"

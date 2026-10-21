@@ -38,9 +38,9 @@
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 #include "WWLib/always.h"
-#include "dx8caps.h"
+#include "dx9caps.h"
 #include "dx9wrapper.h"
-#include "formconv.h"
+#include "formconv_dx9.h"
 #pragma warning (disable : 4201)		// nonstandard extension - nameless struct
 #include <windows.h>
 #include <mmsystem.h>

@@ -30,7 +30,7 @@
 // $Header: $
 //******************************************************************************************
 
-#include "dx8webbrowser.h"
+#include "dx9webbrowser.h"
 #include "ww3d.h"
 #include "dx9wrapper.h"
 

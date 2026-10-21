@@ -18,11 +18,11 @@
 
 #ifdef PROFILER_ENABLED
 
-#include "../../../Include/W3DDevice/GameClient/W3DProfilerFrameCapture.h"
+#include "../../../Include/W3DDevice/GameClient/W3DProfilerFrameCapture_dx9.h"
 
 #include "WW3D2/dx9wrapper.h"
-#include "WW3D2/surfaceclass.h"
-#include "WW3D2/texture.h"
+#include "WW3D2/surfaceclass_dx9.h"
+#include "WW3D2/texture_dx9.h"
 #include "WW3D2/ww3d.h"
 #include "WW3D2/ww3dformat.h"
 #include "WWMath/wwmath.h"

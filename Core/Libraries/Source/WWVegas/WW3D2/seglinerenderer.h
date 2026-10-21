@@ -40,7 +40,11 @@
 
 #include "WWLib/always.h"
 #include "WW3D2/shader.h"
+#ifdef EW_RENDERER_DX9
+#include "texture_dx9.h"
+#else
 #include "texture.h"
+#endif
 #include "WWMath/matrix3d.h"
 #include "WWMath/vector2.h"
 

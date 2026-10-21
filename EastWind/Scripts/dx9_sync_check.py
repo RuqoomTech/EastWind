@@ -34,14 +34,18 @@ import sys
 from collections import defaultdict
 
 LIST_FILE = "EastWind/dx9_files.txt"
+SHARED_FILE = "EastWind/dx9_shared.txt"
 PRESET_FILE = "cmake/EastWindPresets.json"
 SCAN_ROOTS = ("Core/", "GeneralsMD/")
 SOURCE_EXTENSIONS = {".h", ".hpp", ".inl", ".c", ".cc", ".cpp", ".cxx"}
 SWITCH = "EW_RENDERER_DX9"
 
 # The same two-step scan the Phase 1 plan used: a file that mentions DX8 and uses raw D3D8 tokens.
-MENTIONS_DX8 = re.compile(r"IDirect3D\w*8|D3D\w+8\b|DX8\w+|dx8\w*\.h|d3d8\.h|d3dx8\w*\.h|D3DX[A-Z]\w*\(|_Get_D3D_Device8")
-RAW_D3D8 = re.compile(r"IDirect3D\w*8|D3D[A-Z_]*8\b|_Get_D3D_Device8|D3DX[A-Z]\w*|D3DRS_|D3DTSS_|D3DFMT_|D3DPOOL_|D3DUSAGE_|D3DFVF_|D3DPT_|D3DLOCK_")
+# D3D8 shaders are DWORD handles (D3D9 uses interface pointers), and the LPDIRECT3D...8 typedefs name D3D8 interfaces.
+MENTIONS_DX8 = re.compile(r"IDirect3D\w*8|LPDIRECT3D\w*8|\bDWORD\s+\w*Shader\b|D3D\w+8\b|DX8\w+|dx8\w*\.h|d3d8\.h|d3dx8\w*\.h|D3DX[A-Z]\w*\(|_Get_D3D_Device8")
+RAW_D3D8 = re.compile(r"IDirect3D\w*8|LPDIRECT3D\w*8|\bDWORD\s+\w*Shader\b|D3D[A-Z_]*8\b|_Get_D3D_Device8|D3DX[A-Z]\w*|D3DRS_|D3DTSS_|D3DFMT_|D3DPOOL_|D3DUSAGE_|D3DFVF_|D3DPT_|D3DLOCK_")
+# d3d8.h and d3d9.h cannot share a translation unit, so including a D3D8 SDK header is raw too.
+SDK_D3D8_INCLUDE = re.compile(r'^[ \t]*#[ \t]*include[ \t]*[<"](?:d3d8\w*|d3dx8\w*)\.h[>"]', re.IGNORECASE | re.MULTILINE)
 
 INCLUDE = re.compile(r'^([ \t]*)#[ \t]*include[ \t]*(["<])([^">]+)[">]')
 IFDEF_SWITCH = re.compile(r"^[ \t]*#[ \t]*ifdef[ \t]+" + SWITCH + r"\b")
@@ -75,8 +79,19 @@ def write_text(path, text):
         f.write(text.encode("latin-1"))
 
 
+# Comments and string literals, so a D3D8 name inside them (a memory pool name, a note) is not code.
+COMMENT_OR_STRING = re.compile(r'''//[^\n]*|/\*.*?\*/|"(?:\\.|[^"\\\n])*"|'(?:\\.|[^'\\\n])*\'''', re.DOTALL)
+
+
+def code_only(text):
+    # Comments keep their line breaks; strings become "".
+    return COMMENT_OR_STRING.sub(lambda m: "\n" * m.group(0).count("\n") if m.group(0).startswith("/") else '""', text)
+
+
 def is_raw_d3d8(text):
-    return bool(MENTIONS_DX8.search(text)) and bool(RAW_D3D8.search(text))
+    if SDK_D3D8_INCLUDE.search(text):
+        return True
+    return bool(MENTIONS_DX8.search(text)) and bool(RAW_D3D8.search(code_only(text)))
 
 
 class Repo:
@@ -97,6 +112,28 @@ class Repo:
         self.dx9_files = {e["dx9"] for e in self.entries}
         self.header_dx9 = {e["dx8"]: e["dx9"] for e in self.entries if e["dx8"].lower().endswith((".h", ".hpp", ".inl"))}
         self.dx9_to_dx8 = {e["dx9"]: e["dx8"] for e in self.entries}
+        self.keep_shared = self._read_shared()
+
+    def is_raw(self, f, text=None):
+        """Raw D3D8 code that needs a DX9 file, unless dx9_shared.txt says it may stay shared."""
+        if f in self.keep_shared:
+            return False
+        return is_raw_d3d8(read_text(self.path(f)) if text is None else text)
+
+    def _read_shared(self):
+        shared = {}
+        shared_path = self.path(SHARED_FILE)
+        if not os.path.exists(shared_path):
+            return shared
+        for number, line in enumerate(read_text(shared_path).splitlines(), 1):
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            path, _, reason = line.partition(" ")
+            if not reason.strip():
+                sys.exit(f"{SHARED_FILE}:{number}: expected '<repo path> <reason>'")
+            shared[path] = number
+        return shared
 
     def path(self, rel):
         return os.path.join(self.root, rel)
@@ -141,7 +178,7 @@ class Repo:
             if f in self.dx8_files or f in self.dx9_files:
                 continue
             text = read_text(self.path(f))
-            if is_raw_d3d8(text):
+            if self.is_raw(f, text):
                 continue
             yield f, text
 
@@ -270,7 +307,7 @@ def includes_of(repo, f):
 
 def raw_unported(repo):
     return [f for f in repo.sources if f not in repo.dx8_files and f not in repo.dx9_files
-            and is_raw_d3d8(read_text(repo.path(f)))]
+            and repo.is_raw(f)]
 
 
 def raw_dependents(repo, adding=()):
@@ -312,6 +349,15 @@ def cmd_check(repo, verbose):
                            f"then set the commit to HEAD:\n      " + log.replace("\n", "\n      "))
         if not is_raw_d3d8(read_text(repo.path(e["dx8"]))):
             actions.append(f"{where}: {e['dx8']} no longer uses raw D3D8; the DX9 file can probably be deleted")
+
+    for f, number in sorted(repo.keep_shared.items()):
+        where = f"{SHARED_FILE}:{number}"
+        if f not in repo.tracked:
+            actions.append(f"{where}: {f} was removed or renamed upstream")
+        elif f in repo.dx8_files:
+            actions.append(f"{where}: {f} also has a DX9 file in {LIST_FILE}; keep one of the two")
+        elif not is_raw_d3d8(read_text(repo.path(f))):
+            actions.append(f"{where}: {f} no longer uses D3D8; remove the line")
 
     actions += scan_shared(repo)
     actions += scan_dx9_files(repo)

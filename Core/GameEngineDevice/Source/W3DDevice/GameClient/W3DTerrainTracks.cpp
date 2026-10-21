@@ -48,7 +48,11 @@
 #include "Common/PerfTimer.h"
 #include "Common/GlobalData.h"
 #include "Common/Debug.h"
+#ifdef EW_RENDERER_DX9
+#include "WW3D2/texture_dx9.h"
+#else
 #include "WW3D2/texture.h"
+#endif
 #include "WWMath/colmath.h"
 #include "WW3D2/coltest.h"
 #include "WW3D2/rinfo.h"

@@ -48,7 +48,11 @@
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 #include "line3d.h"
+#ifdef EW_RENDERER_DX9
+#include "vertmaterial_dx9.h"
+#else
 #include "vertmaterial.h"
+#endif
 #include "shader.h"
 #include "WWDebug/wwdebug.h"
 #include "ww3d.h"
@@ -58,9 +62,21 @@
 #else
 #include "dx8wrapper.h"
 #endif
+#ifdef EW_RENDERER_DX9
+#include "dx9vertexbuffer.h"
+#else
 #include "dx8vertexbuffer.h"
+#endif
+#ifdef EW_RENDERER_DX9
+#include "dx9indexbuffer.h"
+#else
 #include "dx8indexbuffer.h"
+#endif
+#ifdef EW_RENDERER_DX9
+#include "dx9fvf.h"
+#else
 #include "dx8fvf.h"
+#endif
 
 // 12 Triangles for index buffer
 const unsigned short Indices[]=

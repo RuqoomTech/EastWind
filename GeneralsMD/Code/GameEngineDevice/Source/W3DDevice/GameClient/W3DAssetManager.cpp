@@ -53,15 +53,31 @@
 #include "WW3D2/matinfo.h"
 #include "WW3D2/meshmdl.h"
 #include "WW3D2/part_emt.h"
+#ifdef EW_RENDERER_DX9
+#include "WW3D2/vertmaterial_dx9.h"
+#else
 #include "WW3D2/vertmaterial.h"
+#endif
 #ifdef EW_RENDERER_DX9
 #include "WW3D2/dx9wrapper.h"
 #else
 #include "WW3D2/dx8wrapper.h"
 #endif
+#ifdef EW_RENDERER_DX9
+#include "WW3D2/texture_dx9.h"
+#else
 #include "WW3D2/texture.h"
+#endif
+#ifdef EW_RENDERER_DX9
+#include "WW3D2/surfaceclass_dx9.h"
+#else
 #include "WW3D2/surfaceclass.h"
+#endif
+#ifdef EW_RENDERER_DX9
+#include "WW3D2/textureloader_dx9.h"
+#else
 #include "WW3D2/textureloader.h"
+#endif
 #include "WW3D2/ww3dformat.h"
 #include "WW3D2/colorspace.h"
 #include <WWDebug/wwprofile.h>

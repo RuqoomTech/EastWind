@@ -48,7 +48,7 @@
 
 #include <stdlib.h>
 #include <WW3D2/assetmgr.h>
-#include <WW3D2/texture.h>
+#include <WW3D2/texture_dx9.h>
 #include <WWMath/tri.h>
 #include <WWMath/colmath.h>
 #include <WW3D2/coltest.h>
@@ -72,15 +72,15 @@
 #include "W3DDevice/GameClient/W3DTerrainTracks.h"
 #include "W3DDevice/GameClient/W3DBibBuffer.h"
 #include "W3DDevice/GameClient/W3DPropBuffer.h"
-#include "W3DDevice/GameClient/W3DTreeBuffer.h"
+#include "W3DDevice/GameClient/W3DTreeBuffer_dx9.h"
 #include "W3DDevice/GameClient/W3DRoadBuffer.h"
 #include "W3DDevice/GameClient/W3DBridgeBuffer.h"
 #include "W3DDevice/GameClient/W3DWaypointBuffer.h"
 #include "W3DDevice/GameClient/WorldHeightMap.h"
 #include "W3DDevice/GameClient/W3DScorch.h"
-#include "W3DDevice/GameClient/W3DShaderManager.h"
+#include "W3DDevice/GameClient/W3DShaderManager_dx9.h"
 #include "W3DDevice/GameClient/W3DShadow.h"
-#include "W3DDevice/GameClient/W3DWater.h"
+#include "W3DDevice/GameClient/W3DWater_dx9.h"
 #include "W3DDevice/GameClient/W3DShroud.h"
 #include "WW3D2/dx9wrapper.h"
 #include "WW3D2/Renderer.h"
@@ -95,7 +95,7 @@
 #include "W3DDevice/GameClient/HeightMap.h"
 #include "W3DDevice/GameClient/FlatHeightMap.h"
 #include "W3DDevice/GameClient/W3DSmudge.h"
-#include "W3DDevice/GameClient/W3DSnow.h"
+#include "W3DDevice/GameClient/W3DSnow_dx9.h"
 
 
 extern FlatHeightMapRenderObjClass *TheFlatHeightMap;

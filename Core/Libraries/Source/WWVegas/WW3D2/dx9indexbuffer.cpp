@@ -38,9 +38,9 @@
 
 //#define INDEX_BUFFER_LOG
 
-#include "dx8indexbuffer.h"
+#include "dx9indexbuffer.h"
 #include "dx9wrapper.h"
-#include "dx8caps.h"
+#include "dx9caps.h"
 #include "WWMath/sphere.h"
 #include "WWLib/thread.h"
 #include "WWDebug/wwmemlog.h"

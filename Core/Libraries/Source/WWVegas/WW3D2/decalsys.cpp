@@ -52,7 +52,11 @@
 #include "mesh.h"
 #include "decalmsh.h"
 #include "matrixmapper.h"
+#ifdef EW_RENDERER_DX9
+#include "texture_dx9.h"
+#else
 #include "texture.h"
+#endif
 
 
 uint32 DecalSystemClass::DecalIDGenerator = 0;

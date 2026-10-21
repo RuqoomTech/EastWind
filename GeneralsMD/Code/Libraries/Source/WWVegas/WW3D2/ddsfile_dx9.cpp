@@ -18,10 +18,10 @@
 
 // 08/06/02 KM Added cube map and volume texture support
 
-#include "ddsfile.h"
+#include "ddsfile_dx9.h"
 #include "WWLib/ffactory.h"
 #include "WWLib/bufffile.h"
-#include "formconv.h"
+#include "formconv_dx9.h"
 #include "dx9wrapper.h"
 #include "bitmaphandler.h"
 #include "colorspace.h"

@@ -55,10 +55,10 @@ enum
 //         Includes
 //-----------------------------------------------------------------------------
 
-#include "W3DDevice/GameClient/W3DTreeBuffer.h"
+#include "W3DDevice/GameClient/W3DTreeBuffer_dx9.h"
 
 #include <WW3D2/assetmgr.h>
-#include <WW3D2/texture.h>
+#include <WW3D2/texture_dx9.h>
 #include "Common/FramePacer.h"
 #include "Common/GameUtility.h"
 #include "Common/MapReaderWriterInfo.h"
@@ -77,7 +77,7 @@ enum
 #include "W3DDevice/GameClient/HeightMap.h"
 #include "W3DDevice/GameClient/W3DDynamicLight.h"
 #include "W3DDevice/GameClient/Module/W3DTreeDraw.h"
-#include "W3DDevice/GameClient/W3DShaderManager.h"
+#include "W3DDevice/GameClient/W3DShaderManager_dx9.h"
 #include "W3DDevice/GameClient/W3DShadow.h"
 #include "W3DDevice/GameClient/W3DShroud.h"
 #include "W3DDevice/GameClient/W3DProjectedShadow.h"

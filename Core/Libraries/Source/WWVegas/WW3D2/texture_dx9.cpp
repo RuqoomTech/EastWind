@@ -39,7 +39,7 @@
  *   FileListTextureClass::Load_Frame_Surface -- Load source texture                           *
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
-#include "texture.h"
+#include "texture_dx9.h"
 
 #include <d3d8.h>
 #include <d3dx8core.h>
@@ -48,11 +48,11 @@
 #include <WWLib/nstrdup.h>
 #include "w3d_file.h"
 #include "assetmgr.h"
-#include "formconv.h"
-#include "textureloader.h"
-#include "missingtexture.h"
+#include "formconv_dx9.h"
+#include "textureloader_dx9.h"
+#include "missingtexture_dx9.h"
 #include "WWLib/ffactory.h"
-#include "dx8caps.h"
+#include "dx9caps.h"
 #include "dx9texman.h"
 #include "meshmatdesc.h"
 #include "texturethumbnail.h"

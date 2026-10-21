@@ -40,7 +40,7 @@
 #pragma once
 
 #include "WWLib/always.h"
-#include "texture.h"
+#include "texture_dx9.h"
 #include "dx9wrapper.h"
 #include "ww3dformat.h"
 #include "dx8list.h"

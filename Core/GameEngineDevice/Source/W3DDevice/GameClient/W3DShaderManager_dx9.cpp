@@ -59,7 +59,7 @@
 #include "Lib/BaseType.h"
 #include "Common/file.h"
 #include "Common/FileSystem.h"
-#include "W3DDevice/GameClient/W3DShaderManager.h"
+#include "W3DDevice/GameClient/W3DShaderManager_dx9.h"
 #include "W3DDevice/GameClient/W3DShroud.h"
 #include "W3DDevice/GameClient/HeightMap.h"
 #include "W3DDevice/GameClient/W3DCustomScene.h"
@@ -72,7 +72,7 @@
 #include "Common/GlobalData.h"
 #include "Common/GameLOD.h"
 #include "d3dx8tex.h"
-#include "WW3D2/dx8caps.h"
+#include "WW3D2/dx9caps.h"
 
 
 // Turn this on to turn off pixel shaders. jba[4/3/2003]

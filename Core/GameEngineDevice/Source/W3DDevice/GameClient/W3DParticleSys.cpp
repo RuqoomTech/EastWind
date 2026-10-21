@@ -33,7 +33,11 @@
 #include "W3DDevice/GameClient/W3DDisplay.h"
 #include "W3DDevice/GameClient/HeightMap.h"
 #include "W3DDevice/GameClient/W3DSmudge.h"
+#ifdef EW_RENDERER_DX9
+#include "W3DDevice/GameClient/W3DSnow_dx9.h"
+#else
 #include "W3DDevice/GameClient/W3DSnow.h"
+#endif
 #include "W3DDevice/GameClient/W3DTerrainParticles.h"
 #include "WW3D2/camera.h"
 

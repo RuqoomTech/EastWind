@@ -35,7 +35,11 @@
 
 #include "GameClient/Display.h"
 #include "WW3D2/lightenvironment.h"
+#ifdef EW_RENDERER_DX9
+#include "W3DDevice/GameClient/W3DProfilerFrameCapture_dx9.h"
+#else
 #include "W3DDevice/GameClient/W3DProfilerFrameCapture.h"
+#endif
 
 class VideoBuffer;
 class W3DDebugDisplay;

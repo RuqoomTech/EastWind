@@ -49,7 +49,11 @@
 #include "W3DDevice/GameClient/W3DTerrainBackground.h"
 
 #include <WW3D2/assetmgr.h>
+#ifdef EW_RENDERER_DX9
+#include <WW3D2/texture_dx9.h>
+#else
 #include <WW3D2/texture.h>
+#endif
 #include "Common/GlobalData.h"
 #include "GameClient/View.h"
 #include "W3DDevice/GameClient/TerrainTex.h"

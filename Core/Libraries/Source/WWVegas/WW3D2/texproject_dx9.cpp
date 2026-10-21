@@ -75,9 +75,9 @@
 
 
 #include "texproject.h"
-#include "vertmaterial.h"
+#include "vertmaterial_dx9.h"
 #include "shader.h"
-#include "texture.h"
+#include "texture_dx9.h"
 #include "rendobj.h"
 #include "rinfo.h"
 #include "camera.h"

@@ -23,7 +23,11 @@
 
 #include "Common/MapObject.h"
 #include "Lib/BaseType.h"
+#ifdef EW_RENDERER_DX9
+#include "WW3D2/dx9fvf.h"
+#else
 #include "WW3D2/dx8fvf.h"
+#endif
 #include "WW3D2/shader.h"
 #include "WWLib/sharebuf.h"
 #include "WWMath/vector3.h"

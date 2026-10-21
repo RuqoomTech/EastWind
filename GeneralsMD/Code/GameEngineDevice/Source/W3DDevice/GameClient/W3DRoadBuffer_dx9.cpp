@@ -49,7 +49,7 @@
 #include "W3DDevice/GameClient/W3DRoadBuffer.h"
 
 #include <WW3D2/assetmgr.h>
-#include <WW3D2/texture.h>
+#include <WW3D2/texture_dx9.h>
 #include "Common/GlobalData.h"
 #include "Common/RandomValue.h"
 //#include "Common/GameFileSystem.h"
@@ -60,7 +60,7 @@
 #include "W3DDevice/GameClient/W3DAssetManager.h"
 #include "W3DDevice/GameClient/W3DDynamicLight.h"
 #include "W3DDevice/GameClient/WorldHeightMap.h"
-#include "W3DDevice/GameClient/W3DShaderManager.h"
+#include "W3DDevice/GameClient/W3DShaderManager_dx9.h"
 #include "WW3D2/camera.h"
 #include "WW3D2/dx9wrapper.h"
 #include "WW3D2/dx8renderer.h"

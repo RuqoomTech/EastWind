@@ -78,9 +78,17 @@
 #include "meshmdl.h"
 #include "aabtree.h"
 #include "matinfo.h"
+#ifdef EW_RENDERER_DX9
+#include "vertmaterial_dx9.h"
+#else
 #include "vertmaterial.h"
+#endif
 #include "shader.h"
+#ifdef EW_RENDERER_DX9
+#include "texture_dx9.h"
+#else
 #include "texture.h"
+#endif
 #include "WWLib/chunkio.h"
 #include "w3derr.h"
 #include "w3d_file.h"

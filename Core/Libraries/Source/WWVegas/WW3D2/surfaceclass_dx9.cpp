@@ -47,8 +47,8 @@
  *   SurfaceClass::Is_Monochrome -- Checks if surface is monochrome or not                     *
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
-#include "surfaceclass.h"
-#include "formconv.h"
+#include "surfaceclass_dx9.h"
+#include "formconv_dx9.h"
 #include "dx9wrapper.h"
 #include "WWMath/vector2i.h"
 #include "colorspace.h"

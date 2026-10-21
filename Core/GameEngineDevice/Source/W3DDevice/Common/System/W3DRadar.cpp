@@ -52,8 +52,16 @@
 #include "W3DDevice/Common/W3DRadar.h"
 #include "W3DDevice/GameClient/HeightMap.h"
 #include "W3DDevice/GameClient/W3DShroud.h"
+#ifdef EW_RENDERER_DX9
+#include "WW3D2/texture_dx9.h"
+#else
 #include "WW3D2/texture.h"
+#endif
+#ifdef EW_RENDERER_DX9
+#include "WW3D2/dx9caps.h"
+#else
 #include "WW3D2/dx8caps.h"
+#endif
 #include "WWMath/vector2i.h"
 
 

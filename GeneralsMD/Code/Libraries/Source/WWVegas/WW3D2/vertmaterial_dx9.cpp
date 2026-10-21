@@ -37,7 +37,7 @@
  *   Get_Preset -- retrieve presets                                                            *
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
-#include "vertmaterial.h"
+#include "vertmaterial_dx9.h"
 #include "WWLib/realcrc.h"
 #include "WWDebug/wwdebug.h"
 #include "w3d_util.h"

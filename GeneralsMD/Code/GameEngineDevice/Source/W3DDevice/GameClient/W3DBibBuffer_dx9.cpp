@@ -49,7 +49,7 @@
 #include "W3DDevice/GameClient/W3DBibBuffer.h"
 
 #include <WW3D2/assetmgr.h>
-#include <WW3D2/texture.h>
+#include <WW3D2/texture_dx9.h>
 #include "Common/GlobalData.h"
 #include "Common/RandomValue.h"
 #include "W3DDevice/GameClient/TerrainTex.h"

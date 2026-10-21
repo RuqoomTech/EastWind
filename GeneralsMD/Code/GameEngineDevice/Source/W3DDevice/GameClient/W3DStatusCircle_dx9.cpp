@@ -27,7 +27,7 @@
 
 #include <stdlib.h>
 #include <WW3D2/assetmgr.h>
-#include <WW3D2/texture.h>
+#include <WW3D2/texture_dx9.h>
 #include <WWMath/tri.h>
 #include <WWMath/colmath.h>
 #include <WW3D2/coltest.h>

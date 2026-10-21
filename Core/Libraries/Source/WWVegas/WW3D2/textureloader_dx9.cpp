@@ -38,25 +38,25 @@
  * Functions:                                                                                  *
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
-#include "textureloader.h"
+#include "textureloader_dx9.h"
 #include "WWLib/mutex.h"
 #include "WWLib/thread.h"
 #include "WWDebug/wwdebug.h"
-#include "texture.h"
+#include "texture_dx9.h"
 #include "WWLib/ffactory.h"
 #include "WWLib/wwstring.h"
 #include	"WWLib/bufffile.h"
 #include "ww3d.h"
 #include "assetmgr.h"
 #include "dx9wrapper.h"
-#include "dx8caps.h"
-#include "missingtexture.h"
+#include "dx9caps.h"
+#include "missingtexture_dx9.h"
 #include "WWLib/TARGA.h"
 #include <d3dx8tex.h>
 #include "WWDebug/wwmemlog.h"
-#include "formconv.h"
+#include "formconv_dx9.h"
 #include "texturethumbnail.h"
-#include "ddsfile.h"
+#include "ddsfile_dx9.h"
 #include "bitmaphandler.h"
 #include "WWDebug/wwprofile.h"
 

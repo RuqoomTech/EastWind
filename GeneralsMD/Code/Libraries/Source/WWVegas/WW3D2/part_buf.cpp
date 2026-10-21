@@ -48,7 +48,11 @@
 #include "WWDebug/wwprofile.h"
 #include <limits.h>
 #include "WWMath/vp.h"
+#ifdef EW_RENDERER_DX9
+#include "texture_dx9.h"
+#else
 #include "texture.h"
+#endif
 #ifdef EW_RENDERER_DX9
 #include "dx9wrapper.h"
 #else

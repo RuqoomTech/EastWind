@@ -39,11 +39,11 @@
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 #include "sortingrenderer.h"
-#include "dx8vertexbuffer.h"
-#include "dx8indexbuffer.h"
+#include "dx9vertexbuffer.h"
+#include "dx9indexbuffer.h"
 #include "dx9wrapper.h"
-#include "vertmaterial.h"
-#include "texture.h"
+#include "vertmaterial_dx9.h"
+#include "texture_dx9.h"
 #include "d3d8.h"
 #include "d3dx8math.h"
 #include "statistics.h"

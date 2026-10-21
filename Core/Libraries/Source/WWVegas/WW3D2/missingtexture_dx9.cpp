@@ -17,8 +17,8 @@
 */
 
 // 08/05/02 KM Texture class redesign
-#include "missingtexture.h"
-#include "texture.h"
+#include "missingtexture_dx9.h"
+#include "texture_dx9.h"
 #include "dx9wrapper.h"
 #include <d3dx8core.h>
 

@@ -32,12 +32,12 @@
 
 // INCLUDES ///////////////////////////////////////////////////////////////////////////////////////
 
-#include "W3DDevice/GameClient/W3DWater.h"
+#include "W3DDevice/GameClient/W3DWater_dx9.h"
 #include "W3DDevice/GameClient/HeightMap.h"
 #include "W3DDevice/GameClient/W3DShroud.h"
 #include "W3DDevice/GameClient/W3DWaterTracks.h"
 #include "W3DDevice/GameClient/W3DAssetManager.h"
-#include "WW3D2/texture.h"
+#include "WW3D2/texture_dx9.h"
 #include "WW3D2/assetmgr.h"
 #include "WW3D2/rinfo.h"
 #include "WW3D2/camera.h"
@@ -62,7 +62,7 @@
 #include "GameLogic/GameLogic.h"
 #include "GameLogic/PolygonTrigger.h"
 #include "GameLogic/ScriptEngine.h"
-#include "W3DDevice/GameClient/W3DShaderManager.h"
+#include "W3DDevice/GameClient/W3DShaderManager_dx9.h"
 #include "W3DDevice/GameClient/W3DDisplay.h"
 #include "W3DDevice/GameClient/W3DPoly.h"
 #include "W3DDevice/GameClient/W3DScene.h"

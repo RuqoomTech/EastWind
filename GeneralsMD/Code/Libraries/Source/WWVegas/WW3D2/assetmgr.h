@@ -42,7 +42,11 @@
 #include "htreemgr.h"
 #include "hanimmgr.h"
 #include "WWLib/SLIST.h"
+#ifdef EW_RENDERER_DX9
+#include "WW3D2/texture_dx9.h"
+#else
 #include "WW3D2/texture.h"
+#endif
 #include "WWLib/hashtemplate.h"
 #include "WWLib/simplevec.h"
 
