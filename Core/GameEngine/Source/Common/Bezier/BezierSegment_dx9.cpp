@@ -27,7 +27,7 @@
 #include "Common/BezierSegment_dx9.h"
 #include "Common/BezFwdIterator.h"
 
-#include <d3dx8math.h>
+#include "WWMath/ew_d3dmath.h"
 
 //-------------------------------------------------------------------------------------------------
 BezierSegment::BezierSegment()
@@ -102,18 +102,18 @@ void BezierSegment::evaluateBezSegmentAtT(Real tValue, Coord3D *outResult) const
 	if (!outResult)
 		return;
 
-	D3DXVECTOR4	tVec(tValue * tValue * tValue, tValue * tValue, tValue, 1);
+	EwD3DVector4	tVec(tValue * tValue * tValue, tValue * tValue, tValue, 1);
 
-	D3DXVECTOR4 xCoords(m_controlPoints[0].x, m_controlPoints[1].x, m_controlPoints[2].x, m_controlPoints[3].x);
-	D3DXVECTOR4 yCoords(m_controlPoints[0].y, m_controlPoints[1].y, m_controlPoints[2].y, m_controlPoints[3].y);
-	D3DXVECTOR4 zCoords(m_controlPoints[0].z, m_controlPoints[1].z, m_controlPoints[2].z, m_controlPoints[3].z);
+	EwD3DVector4 xCoords(m_controlPoints[0].x, m_controlPoints[1].x, m_controlPoints[2].x, m_controlPoints[3].x);
+	EwD3DVector4 yCoords(m_controlPoints[0].y, m_controlPoints[1].y, m_controlPoints[2].y, m_controlPoints[3].y);
+	EwD3DVector4 zCoords(m_controlPoints[0].z, m_controlPoints[1].z, m_controlPoints[2].z, m_controlPoints[3].z);
 
-	D3DXVECTOR4 tResult;
-	BezierMath::D3DXVec4Transform(&tResult, &tVec, &BezierSegment::s_bezBasisMatrix);
+	EwD3DVector4 tResult;
+	BezierMath::EwD3DVec4Transform(&tResult, &tVec, &BezierSegment::s_bezBasisMatrix);
 
-	outResult->x = BezierMath::D3DXVec4Dot(&xCoords, &tResult);
-	outResult->y = BezierMath::D3DXVec4Dot(&yCoords, &tResult);
-	outResult->z = BezierMath::D3DXVec4Dot(&zCoords, &tResult);
+	outResult->x = BezierMath::EwD3DVec4Dot(&xCoords, &tResult);
+	outResult->y = BezierMath::EwD3DVec4Dot(&yCoords, &tResult);
+	outResult->z = BezierMath::EwD3DVec4Dot(&zCoords, &tResult);
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -238,7 +238,7 @@ void BezierSegment::splitSegmentAtT(Real tValue, BezierSegment &outSeg1, BezierS
 
 //-------------------------------------------------------------------------------------------------
 // The Basis Matrix for a bezier segment
-const D3DXMATRIX BezierSegment::s_bezBasisMatrix(
+const EwD3DMatrix BezierSegment::s_bezBasisMatrix(
 	-1.0f,  3.0f, -3.0f,  1.0f,
 	 3.0f, -6.0f,  3.0f,  0.0f,
 	-3.0f,  3.0f,  0.0f,  0.0f,

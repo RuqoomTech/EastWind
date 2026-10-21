@@ -329,9 +329,9 @@ void W3DTerrainParticles::updateSettings()
 	if (m_texture)
 	{
 		DX8Wrapper::Apply_Render_State_Changes();
-		DX8Wrapper::Set_DX8_Texture_Stage_State(0, D3DTSS_ADDRESSU, D3DTADDRESS_BORDER);
-		DX8Wrapper::Set_DX8_Texture_Stage_State(0, D3DTSS_ADDRESSV, D3DTADDRESS_BORDER);
-		DX8Wrapper::Set_DX8_Texture_Stage_State(0, D3DTSS_BORDERCOLOR, 0x00000000);
+		DX8Wrapper::Set_DX8_Sampler_State(0, D3DSAMP_ADDRESSU, D3DTADDRESS_BORDER);
+		DX8Wrapper::Set_DX8_Sampler_State(0, D3DSAMP_ADDRESSV, D3DTADDRESS_BORDER);
+		DX8Wrapper::Set_DX8_Sampler_State(0, D3DSAMP_BORDERCOLOR, 0x00000000);
 	}
 }
 

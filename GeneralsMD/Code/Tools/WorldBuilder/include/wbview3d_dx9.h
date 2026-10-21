@@ -51,7 +51,14 @@ class DrawObject;
 class CWorldBuilderView;
 class BuildListInfo;
 class TransRenderObj;
-struct ID3DXFont;
+
+// EW_DX9_TODO(M4): the DX8 view drew its labels with an ID3DXFont, and the DX9 build has no D3DX.
+// Until we have our own text renderer, m3DFont stays null and the labels draw with GDI.
+struct WB3DFont
+{
+	void Release() {}
+	void DrawText(const char*, int, const RECT*, DWORD, DWORD) {}
+};
 
 /////////////////////////////////////////////////////////////////////////////
 // WbView3d view
@@ -212,7 +219,7 @@ private:
 	Bool										m_showLetterbox;
 
 
-	ID3DXFont*							m3DFont;
+	WB3DFont*							m3DFont;
 	Int											m_pickPixels;
 	Int											m_partialMapSize;
 

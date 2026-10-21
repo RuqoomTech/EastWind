@@ -45,7 +45,6 @@
 #include "dx9caps.h"
 #include "WWLib/thread.h"
 #include "WWDebug/wwmemlog.h"
-#include <d3dx8core.h>
 
 #define DEFAULT_VB_SIZE 5000
 
@@ -177,7 +176,7 @@ VertexBufferClass::WriteLockClass::WriteLockClass(VertexBufferClass* VertexBuffe
 		DX8_ErrorCode(static_cast<DX8VertexBufferClass*>(VertexBuffer)->Get_DX8_Vertex_Buffer()->Lock(
 			0,
 			0,
-			(unsigned char**)&Vertices,
+			(void**)&Vertices,
 			flags));	//flags
 		break;
 	case BUFFER_TYPE_SORTING:
@@ -243,7 +242,7 @@ VertexBufferClass::AppendLockClass::AppendLockClass(VertexBufferClass* VertexBuf
 		DX8_ErrorCode(static_cast<DX8VertexBufferClass*>(VertexBuffer)->Get_DX8_Vertex_Buffer()->Lock(
 			start_index*VertexBuffer->FVF_Info().Get_FVF_Size(),
 			index_range*VertexBuffer->FVF_Info().Get_FVF_Size(),
-			(unsigned char**)&Vertices,
+			(void**)&Vertices,
 			0));	// Default (no) flags
 		break;
 	case BUFFER_TYPE_SORTING:
@@ -427,7 +426,7 @@ void DX8VertexBufferClass::Create_Vertex_Buffer(UsageType usage)
 		(usage&USAGE_DYNAMIC) ? "D3DUSAGE_DYNAMIC" : "-",
 		(usage&USAGE_SOFTWAREPROCESSING) ? "D3DUSAGE_SOFTWAREPROCESSING" : "-",
 		fvf_name,
-		(usage&USAGE_DYNAMIC) ? "D3DPOOL_DEFAULT" : "D3DPOOL_MANAGED"));
+		"D3DPOOL_DEFAULT"));
 	_DX8VertexBufferCount++;
 	WWDEBUG_SAY(("Current vertex buffer count: %d",_DX8VertexBufferCount));
 #endif
@@ -442,12 +441,13 @@ void DX8VertexBufferClass::Create_Vertex_Buffer(UsageType usage)
 		usage_flags|=D3DUSAGE_SOFTWAREPROCESSING;
 	}
 
-	HRESULT ret=DX8Wrapper::_Get_D3D_Device8()->CreateVertexBuffer(
+	HRESULT ret=DX8Wrapper::_Get_D3D_Device9()->CreateVertexBuffer(
 		FVF_Info().Get_FVF_Size()*VertexCount,
 		usage_flags,
 		FVF_Info().Get_FVF(),
-		(usage&USAGE_DYNAMIC) ? D3DPOOL_DEFAULT : D3DPOOL_MANAGED,
-		&VertexBuffer);
+		D3DPOOL_DEFAULT,	// D3D9Ex has no managed pool; default-pool buffers survive a device reset.
+		&VertexBuffer,
+		nullptr);
 	if (SUCCEEDED(ret)) {
 		return;
 	}
@@ -463,15 +463,16 @@ void DX8VertexBufferClass::Create_Vertex_Buffer(UsageType usage)
 	WW3D::_Invalidate_Mesh_Cache();
 
 	//@todo: Find some way to invalidate the textures too
-	ret = DX8Wrapper::_Get_D3D_Device8()->ResourceManagerDiscardBytes(0);
+	ret = DX8Wrapper::_Get_D3D_Device9()->EvictManagedResources();
 
 	// Try again...
-	ret=DX8Wrapper::_Get_D3D_Device8()->CreateVertexBuffer(
+	ret=DX8Wrapper::_Get_D3D_Device9()->CreateVertexBuffer(
 		FVF_Info().Get_FVF_Size()*VertexCount,
 		usage_flags,
 		FVF_Info().Get_FVF(),
-		(usage&USAGE_DYNAMIC) ? D3DPOOL_DEFAULT : D3DPOOL_MANAGED,
-		&VertexBuffer);
+		D3DPOOL_DEFAULT,	// D3D9Ex has no managed pool; default-pool buffers survive a device reset.
+		&VertexBuffer,
+		nullptr);
 
 	if (SUCCEEDED(ret)) {
 		WWDEBUG_SAY(("...Vertex buffer creation successful"));
@@ -852,7 +853,7 @@ DynamicVBAccessClass::WriteLockClass::WriteLockClass(DynamicVBAccessClass* dynam
 		DX8_ErrorCode(static_cast<DX8VertexBufferClass*>(DynamicVBAccess->VertexBuffer)->Get_DX8_Vertex_Buffer()->Lock(
 			DynamicVBAccess->VertexBufferOffset*_DynamicDX8VertexBuffer->FVF_Info().Get_FVF_Size(),
 			DynamicVBAccess->Get_Vertex_Count()*DynamicVBAccess->VertexBuffer->FVF_Info().Get_FVF_Size(),
-			(unsigned char**)&Vertices,
+			(void**)&Vertices,
 			D3DLOCK_NOSYSLOCK | (!DynamicVBAccess->VertexBufferOffset ? D3DLOCK_DISCARD : D3DLOCK_NOOVERWRITE)));
 		break;
 	case BUFFER_TYPE_DYNAMIC_SORTING:

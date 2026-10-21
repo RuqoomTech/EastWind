@@ -47,7 +47,7 @@
 #include "dx9wrapper.h"
 #endif
 #include "dx9caps.h"
-#include <d3d8.h>
+#include <d3d9.h>
 
  /*
 	WW3D_FORMAT_UNKNOWN=0,

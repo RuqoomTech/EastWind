@@ -94,7 +94,6 @@
 #include "ImpassableOptions.h"
 
 
-#include <d3dx8.h>
 
 
 // ----------------------------------------------------------------------------
@@ -542,7 +541,7 @@ void WbView3d::ReAcquireResources()
 		TheTerrainRenderObject->worldBuilderUpdateBridgeTowers( m_assetManager, m_scene );
 	}
 	m_drawObject->initData();
-	IDirect3DDevice8* pDev = DX8Wrapper::_Get_D3D_Device8();
+	IDirect3DDevice9Ex* pDev = DX8Wrapper::_Get_D3D_Device9();
 	if (pDev) {
 
 //		CDC* pDC = GetDC();
@@ -564,7 +563,7 @@ void WbView3d::ReAcquireResources()
 
 		HFONT hFont = CreateFontIndirect(&logFont);
 		if (hFont) {
-			D3DXCreateFont(pDev, hFont, &m3DFont);
+			m3DFont = nullptr;	// EW_DX9_TODO(M4): no D3DX font, see WB3DFont.
 			DeleteObject(hFont);
 		} else {
 			m3DFont = nullptr;
@@ -2279,7 +2278,7 @@ void WbView3d::initWW3D()
 			}
 		}
 
-		IDirect3DDevice8* pDev = DX8Wrapper::_Get_D3D_Device8();
+		IDirect3DDevice9Ex* pDev = DX8Wrapper::_Get_D3D_Device9();
 		if (pDev) {
 
 //			CDC* pDC = GetDC();
@@ -2301,7 +2300,7 @@ void WbView3d::initWW3D()
 
 			HFONT hFont = CreateFontIndirect(&logFont);
 			if (hFont) {
-				D3DXCreateFont(pDev, hFont, &m3DFont);
+				m3DFont = nullptr;	// EW_DX9_TODO(M4): no D3DX font, see WB3DFont.
 				DeleteObject(hFont);
 			} else {
 				m3DFont = nullptr;

@@ -42,7 +42,7 @@
 #pragma once
 
 #include "WWLib/always.h"
-#include <d3d8.h>
+#include <d3d9.h>
 #include "WWDebug/wwdebug.h"
 
 class StringClass;
@@ -238,6 +238,9 @@ struct VertexFormatXYZNDCUBEMAP
 //	float v1;
 //	float w1;
 };
+
+// Size in bytes of one vertex of the given FVF.
+unsigned Get_FVF_Vertex_Size(unsigned fvf);
 
 // FVF info class can be created for any legal FVF. It constructs information
 // of offsets to various elements in the vertex buffer.

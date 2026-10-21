@@ -41,11 +41,33 @@
 
 #include "dx9fvf.h"
 #include "WWLib/wwstring.h"
-#include <d3dx8core.h>
 
-static unsigned Get_FVF_Vertex_Size(unsigned FVF)
+// Replaces D3DXGetFVFVertexSize.
+unsigned Get_FVF_Vertex_Size(unsigned fvf)
 {
-	return D3DXGetFVFVertexSize(FVF);
+	unsigned floats=0;
+	switch (fvf&D3DFVF_POSITION_MASK) {
+	case D3DFVF_XYZ:	floats=3; break;
+	case D3DFVF_XYZRHW:	floats=4; break;
+	case D3DFVF_XYZW:	floats=4; break;
+	case D3DFVF_XYZB1:	floats=4; break;
+	case D3DFVF_XYZB2:	floats=5; break;
+	case D3DFVF_XYZB3:	floats=6; break;
+	case D3DFVF_XYZB4:	floats=7; break;
+	case D3DFVF_XYZB5:	floats=8; break;	// A packed last beta (UBYTE4/D3DCOLOR) is 4 bytes too.
+	}
+	if (fvf&D3DFVF_NORMAL) floats+=3;
+	if (fvf&D3DFVF_PSIZE) floats+=1;
+	if (fvf&D3DFVF_DIFFUSE) floats+=1;
+	if (fvf&D3DFVF_SPECULAR) floats+=1;
+
+	const unsigned tex_count=(fvf&D3DFVF_TEXCOUNT_MASK)>>D3DFVF_TEXCOUNT_SHIFT;
+	for (unsigned i=0; i<tex_count; ++i) {
+		// Two bits per set from bit 16: 0 = 2 floats, 1 = 3, 2 = 4, 3 = 1.
+		static const unsigned coord_floats[4]={ 2, 3, 4, 1 };
+		floats+=coord_floats[(fvf>>(16+i*2))&3];
+	}
+	return floats*sizeof(float);
 }
 
 FVFInfoClass::FVFInfoClass(unsigned FVF_)

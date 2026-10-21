@@ -54,7 +54,6 @@
 #include <WW3D2/coltest.h>
 #include <WW3D2/rinfo.h>
 #include <WW3D2/camera.h>
-#include <d3dx8core.h>
 
 #include "Common/GlobalData.h"
 #include "Common/PerfTimer.h"
@@ -1451,7 +1450,7 @@ RenderObjClass *	 BaseHeightMapRenderObjClass::Clone() const
 //=============================================================================
 void BaseHeightMapRenderObjClass::loadRoadsAndBridges(W3DTerrainLogic *pTerrainLogic, Bool saveGame)
 {
-	if (DX8Wrapper::_Get_D3D_Device8() && (DX8Wrapper::_Get_D3D_Device8()->TestCooperativeLevel()) != D3D_OK)
+	if (DX8Wrapper::_Get_D3D_Device9() && (DX8Wrapper::_Get_D3D_Device9()->TestCooperativeLevel()) != D3D_OK)
 		return;	//device not ready to render anything
 
 #ifdef DO_ROADS
