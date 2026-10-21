@@ -64,6 +64,10 @@ int TextureLoader::TextureInactiveOverrideTime = 0;
 
 // D3D9Ex has no managed pool, so USE_MANAGED_TEXTURES stays off: each load fills a SYSTEMMEM
 // texture and UpdateTexture copies it into a DEFAULT one. DEFAULT textures survive ResetEx.
+// DX8 kept loaded textures in the managed pool, which the CPU can read, and the game reads them
+// back (team colours recolour a copy of a unit's texture). The wrapper turns a managed request
+// into a lockable DEFAULT + DYNAMIC texture (Ex_Pool_Usage), so the final textures ask for it.
+static const D3DPOOL Loaded_Texture_Pool = D3DPOOL_MANAGED;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -504,7 +508,7 @@ IDirect3DTexture9* TextureLoader::Load_Thumbnail(const StringClass& filename, co
 		thumb->Get_Height(),
 		dest_format,
 		MIP_LEVELS_ALL,
-		D3DPOOL_DEFAULT);
+		Loaded_Texture_Pool);
 	DX8CALL(UpdateTexture(sysmem_texture,d3d_texture));
 	sysmem_texture->Release();
 
@@ -1664,7 +1668,7 @@ void TextureLoadTaskClass::Unlock_Surfaces()
 	}
 
 #ifndef USE_MANAGED_TEXTURES
-	IDirect3DTexture9* tex = DX8Wrapper::_Create_DX8_Texture(Width, Height, Format, Texture->MipLevelCount,D3DPOOL_DEFAULT);
+	IDirect3DTexture9* tex = DX8Wrapper::_Create_DX8_Texture(Width, Height, Format, Texture->MipLevelCount,Loaded_Texture_Pool);
 	DX8CALL(UpdateTexture(Peek_D3D_Texture(),tex));
 	Peek_D3D_Texture()->Release();
 	D3DTexture=tex;
@@ -2051,7 +2055,7 @@ void CubeTextureLoadTaskClass::Unlock_Surfaces()
 		Height,
 		Format,
 		Texture->MipLevelCount,
-		D3DPOOL_DEFAULT
+		Loaded_Texture_Pool
 	);
 	DX8CALL(UpdateTexture(Peek_D3D_Cube_Texture(),tex));
 	Peek_D3D_Cube_Texture()->Release();
@@ -2358,7 +2362,7 @@ void VolumeTextureLoadTaskClass::Unlock_Surfaces()
 	}
 
 #ifndef USE_MANAGED_TEXTURES
-	IDirect3DVolumeTexture9* tex = DX8Wrapper::_Create_DX8_Volume_Texture(Width, Height, Depth, Format, Texture->MipLevelCount,D3DPOOL_DEFAULT);
+	IDirect3DVolumeTexture9* tex = DX8Wrapper::_Create_DX8_Volume_Texture(Width, Height, Depth, Format, Texture->MipLevelCount,Loaded_Texture_Pool);
 	DX8CALL(UpdateTexture(Peek_D3D_Volume_Texture(),tex));
 	Peek_D3D_Volume_Texture()->Release();
 	D3DTexture=tex;
