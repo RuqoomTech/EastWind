@@ -50,7 +50,11 @@
 // Note: It does NOT addref to textures because it is called in the texture
 // destructor
 
+#ifdef EW_RENDERER_DX9
+#include "dx9texman.h"
+#else
 #include "dx8texman.h"
+#endif
 
 TextureTrackerList DX8TextureManagerClass::Managed_Textures;
 

@@ -33,7 +33,11 @@
 #include "TeamObjectProperties.h"
 #include "WorldBuilderDoc.h"
 #include "CUndoable.h"
+#ifdef EW_RENDERER_DX9
+#include "wbview3d_dx9.h"
+#else
 #include "wbview3d.h"
+#endif
 
 static Int thePrevCurTeam = 0;
 

@@ -68,7 +68,11 @@
 #include "W3DDevice/GameClient/W3DShadow.h"
 #include "W3DDevice/GameClient/W3DWater.h"
 #include "W3DDevice/GameClient/W3DShroud.h"
+#ifdef EW_RENDERER_DX9
+#include "WW3D2/dx9wrapper.h"
+#else
 #include "WW3D2/dx8wrapper.h"
+#endif
 #include "WW3D2/light.h"
 #include "WW3D2/scene.h"
 #include "W3DDevice/GameClient/W3DPoly.h"

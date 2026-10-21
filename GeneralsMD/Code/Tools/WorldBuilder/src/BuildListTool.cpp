@@ -30,7 +30,11 @@
 #include "ObjectTool.h"
 #include "PointerTool.h"
 #include "PickUnitDialog.h"
+#ifdef EW_RENDERER_DX9
+#include "wbview3d_dx9.h"
+#else
 #include "wbview3d.h"
+#endif
 #include "WHeightMapEdit.h"
 #include "WorldBuilderDoc.h"
 #include "WorldBuilderView.h"

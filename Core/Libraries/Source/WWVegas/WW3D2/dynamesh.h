@@ -39,7 +39,11 @@
 #include "matinfo.h"
 #include "rendobj.h"
 #include "polyinfo.h"
+#ifdef EW_RENDERER_DX9
+#include "dx9wrapper.h"
+#else
 #include "dx8wrapper.h"
+#endif
 
 class	ShaderClass;
 class	IntersectionClass;

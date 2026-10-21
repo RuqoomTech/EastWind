@@ -75,7 +75,11 @@
 #include "ww3d.h"
 #include "Renderer.h"
 #include "WWMath/matrix4.h"
+#ifdef EW_RENDERER_DX9
+#include "dx9wrapper.h"
+#else
 #include "dx8wrapper.h"
+#endif
 
 
 /***********************************************************************************************

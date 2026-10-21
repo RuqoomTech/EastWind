@@ -29,7 +29,11 @@
 #include "WW3D2/w3d_file.h"
 #include "WW3D2/dx8vertexbuffer.h"
 #include "WW3D2/dx8indexbuffer.h"
+#ifdef EW_RENDERER_DX9
+#include "WW3D2/dx9wrapper.h"
+#else
 #include "WW3D2/dx8wrapper.h"
+#endif
 #include "WW3D2/shader.h"
 #include "WW3D2/vertmaterial.h"
 #include "Lib/BaseType.h"

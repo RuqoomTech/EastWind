@@ -41,7 +41,11 @@
 #include "linegrp.h"
 #include "texture.h"
 #include "vertmaterial.h"
+#ifdef EW_RENDERER_DX9
+#include "dx9wrapper.h"
+#else
 #include "dx8wrapper.h"
+#endif
 #include "WWMath/wwmath.h"
 #include "rinfo.h"
 #include "camera.h"

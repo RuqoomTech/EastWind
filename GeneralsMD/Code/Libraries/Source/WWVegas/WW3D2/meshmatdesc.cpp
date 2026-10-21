@@ -40,7 +40,11 @@
 #include "texture.h"
 #include "vertmaterial.h"
 #include "WWLib/realcrc.h"
+#ifdef EW_RENDERER_DX9
+#include	"dx9wrapper.h"
+#else
 #include	"dx8wrapper.h"
+#endif
 #include "dx8caps.h"
 #include "meshmdl.h"
 

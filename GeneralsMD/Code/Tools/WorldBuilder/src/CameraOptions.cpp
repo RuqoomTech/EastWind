@@ -24,7 +24,11 @@
 #include "resource.h"
 #include "WorldBuilder.h"
 #include "CameraOptions.h"
+#ifdef EW_RENDERER_DX9
+#include "wbview3d_dx9.h"
+#else
 #include "wbview3d.h"
+#endif
 #include "WorldBuilderDoc.h"
 
 

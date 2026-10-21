@@ -97,7 +97,11 @@
 #include "rinfo.h"
 #include "coltest.h"
 #include "inttest.h"
+#ifdef EW_RENDERER_DX9
+#include "dx9wrapper.h"
+#else
 #include "dx8wrapper.h"
+#endif
 #include "dx8indexbuffer.h"
 #include "dx8vertexbuffer.h"
 #include "dx8fvf.h"

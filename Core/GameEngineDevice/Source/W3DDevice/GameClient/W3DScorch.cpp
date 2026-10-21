@@ -24,7 +24,11 @@
 #include "Common/MapObject.h"
 #include "W3DDevice/GameClient/TerrainTex.h"
 #include "W3DDevice/GameClient/WorldHeightMap.h"
+#ifdef EW_RENDERER_DX9
+#include "WW3D2/dx9wrapper.h"
+#else
 #include "WW3D2/dx8wrapper.h"
+#endif
 
 W3DScorch::W3DScorch(bool deduplicateScorches)
   : m_vertexScorch(nullptr)

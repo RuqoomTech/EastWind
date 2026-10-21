@@ -28,7 +28,11 @@
 #include "WorldBuilderDoc.h"
 #include "WorldBuilderView.h"
 #include "WBFrameWnd.h"
+#ifdef EW_RENDERER_DX9
+#include "wbview3d_dx9.h"
+#else
 #include "wbview3d.h"
+#endif
 
 //#include <wsys/StdFileSystem.h>
 #include "W3DDevice/GameClient/W3DFileSystem.h"

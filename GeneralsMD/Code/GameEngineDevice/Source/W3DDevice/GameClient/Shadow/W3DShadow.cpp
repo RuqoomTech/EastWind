@@ -36,7 +36,11 @@
 #include "GameClient/View.h"
 #include "WW3D2/camera.h"
 #include "WW3D2/light.h"
+#ifdef EW_RENDERER_DX9
+#include "WW3D2/dx9wrapper.h"
+#else
 #include "WW3D2/dx8wrapper.h"
+#endif
 #include "WW3D2/hlod.h"
 #include "WW3D2/mesh.h"
 #include "WW3D2/meshmdl.h"

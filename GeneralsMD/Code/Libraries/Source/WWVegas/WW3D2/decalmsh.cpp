@@ -62,7 +62,11 @@
 #include "dx8indexbuffer.h"
 #include "WWLib/simplevec.h"
 #include "texture.h"
+#ifdef EW_RENDERER_DX9
+#include "dx9wrapper.h"
+#else
 #include "dx8wrapper.h"
+#endif
 #include "dx8caps.h"
 
 #define DISABLE_CLIPPING	0

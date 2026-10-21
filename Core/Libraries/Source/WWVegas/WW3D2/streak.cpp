@@ -43,7 +43,11 @@
 #include "coltest.h"
 #include "w3d_file.h"
 #include "texture.h"
+#ifdef EW_RENDERER_DX9
+#include "dx9wrapper.h"
+#else
 #include "dx8wrapper.h"
+#endif
 #include "WWMath/vp.h"
 #include "WWMath/Vector3i.h"
 #include "sortingrenderer.h"

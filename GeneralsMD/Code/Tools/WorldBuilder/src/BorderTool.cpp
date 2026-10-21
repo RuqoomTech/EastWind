@@ -22,7 +22,11 @@
 #include "BorderTool.h"
 #include "DrawObject.h"
 #include "MainFrm.h"
+#ifdef EW_RENDERER_DX9
+#include "wbview3d_dx9.h"
+#else
 #include "wbview3d.h"
+#endif
 #include "WorldBuilderDoc.h"
 
 const long BOUNDARY_PICK_DISTANCE = 5.0f;

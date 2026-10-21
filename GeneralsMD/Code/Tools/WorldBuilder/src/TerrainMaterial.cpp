@@ -28,7 +28,11 @@
 #include "WHeightMapEdit.h"
 #include "WorldBuilderDoc.h"
 #include "TileTool.h"
+#ifdef EW_RENDERER_DX9
+#include "wbview3d_dx9.h"
+#else
 #include "wbview3d.h"
+#endif
 #include "Common/TerrainTypes.h"
 #include "W3DDevice/GameClient/TerrainTex.h"
 #include "W3DDevice/GameClient/HeightMap.h"

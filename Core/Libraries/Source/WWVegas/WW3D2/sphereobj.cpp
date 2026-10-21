@@ -85,7 +85,11 @@
 #include "WWLib/wwstring.h"
 #include "camera.h"
 #include "statistics.h"
+#ifdef EW_RENDERER_DX9
+#include "dx9wrapper.h"
+#else
 #include "dx8wrapper.h"
+#endif
 #include "dx8vertexbuffer.h"
 #include "dx8indexbuffer.h"
 #include "sortingrenderer.h"

@@ -43,7 +43,11 @@
 #include "dx8list.h"
 #include "sortingrenderer.h"
 #include "WW3D2/mesh.h"
+#ifdef EW_RENDERER_DX9
+#include "dx9wrapper.h"
+#else
 #include "dx8wrapper.h"
+#endif
 
 class DX8PolygonRendererClass;
 class DX8TextureCategoryClass;

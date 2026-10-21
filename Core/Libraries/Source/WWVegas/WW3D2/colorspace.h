@@ -38,7 +38,11 @@
 
 #pragma once
 
+#ifdef EW_RENDERER_DX9
+#include "dx9wrapper.h"
+#else
 #include "dx8wrapper.h"
+#endif
 #include <WWMath/wwmath.h>
 
 void RGB_To_HSV(Vector3 &hsv,const Vector3 &rgb);

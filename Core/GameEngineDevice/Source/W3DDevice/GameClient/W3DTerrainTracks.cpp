@@ -54,7 +54,11 @@
 #include "WW3D2/rinfo.h"
 #include "WW3D2/camera.h"
 #include "WW3D2/assetmgr.h"
+#ifdef EW_RENDERER_DX9
+#include "WW3D2/dx9wrapper.h"
+#else
 #include "WW3D2/dx8wrapper.h"
+#endif
 #include "WW3D2/scene.h"
 #include "GameLogic/TerrainLogic.h"
 #include "GameLogic/Object.h"

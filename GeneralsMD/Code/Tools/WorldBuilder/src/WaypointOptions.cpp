@@ -26,7 +26,11 @@
 #include "WaypointOptions.h"
 #include "WorldBuilder.h"
 #include "WorldBuilderDoc.h"
+#ifdef EW_RENDERER_DX9
+#include "wbview3d_dx9.h"
+#else
 #include "wbview3d.h"
+#endif
 #include "PolygonTool.h"
 #include "WaypointTool.h"
 #include "GameLogic/PolygonTrigger.h"

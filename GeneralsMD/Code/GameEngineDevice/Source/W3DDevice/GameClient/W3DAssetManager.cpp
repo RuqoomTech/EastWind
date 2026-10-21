@@ -54,7 +54,11 @@
 #include "WW3D2/meshmdl.h"
 #include "WW3D2/part_emt.h"
 #include "WW3D2/vertmaterial.h"
+#ifdef EW_RENDERER_DX9
+#include "WW3D2/dx9wrapper.h"
+#else
 #include "WW3D2/dx8wrapper.h"
+#endif
 #include "WW3D2/texture.h"
 #include "WW3D2/surfaceclass.h"
 #include "WW3D2/textureloader.h"
