@@ -1250,7 +1250,7 @@ Int W3DTreeBuffer::addTreeType(const W3DTreeDrawModuleData *data)
 {
 	if (m_numTreeTypes>=MAX_TYPES) {
 		DEBUG_CRASH(("Too many kinds of trees in map.  Reduce kinds of trees, or raise tree limit. jba."));
-		return 0;
+		return -1; // EastWind: 0 is a valid type; addTree skips < 0
 	}
 	m_needToUpdateTexture = true;
 
@@ -1260,7 +1260,7 @@ Int W3DTreeBuffer::addTreeType(const W3DTreeDrawModuleData *data)
 
 	if (robj==nullptr) {
 		DEBUG_CRASH(("Unable to find model for tree %s", data->m_modelName.str()));
-		return 0;
+		return -1; // EastWind: 0 is a valid type; addTree skips < 0
 	}
 	AABoxClass box;
 
@@ -1279,7 +1279,8 @@ Int W3DTreeBuffer::addTreeType(const W3DTreeDrawModuleData *data)
 
 	if (m_treeTypes[m_numTreeTypes].m_mesh==nullptr) {
 		DEBUG_CRASH(("Tree %s is not simple mesh. Tell artist to re-export. Don't Ignore!!!", data->m_modelName.str()));
-		return 0;
+		REF_PTR_RELEASE(robj);
+		return -1; // EastWind: 0 is a valid type; addTree skips < 0
 	}
 
 	Int numVertex = m_treeTypes[m_numTreeTypes].m_mesh->Peek_Model()->Get_Vertex_Count();
