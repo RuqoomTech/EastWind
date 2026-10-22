@@ -45,6 +45,19 @@ set(EW_SHADERS
     flat_terrain_noise2_ps  terrain.hlsl     FlatTerrainNoise2PS  ps_2_0
     monochrome_ps           monochrome.hlsl  MonochromePS         ps_2_0
     profiler_swizzle_ps     profiler.hlsl    ProfilerSwizzlePS    ps_2_0
+    mesh_n_t0_vs            mesh.hlsl        MeshVS_N_T0          vs_3_0
+    mesh_nd_t0_vs           mesh.hlsl        MeshVS_ND_T0         vs_3_0
+    mesh_ns_t0_vs           mesh.hlsl        MeshVS_NS_T0         vs_3_0
+    mesh_nds_t0_vs          mesh.hlsl        MeshVS_NDS_T0        vs_3_0
+    mesh_n_t1_vs            mesh.hlsl        MeshVS_N_T1          vs_3_0
+    mesh_nd_t1_vs           mesh.hlsl        MeshVS_ND_T1         vs_3_0
+    mesh_ns_t1_vs           mesh.hlsl        MeshVS_NS_T1         vs_3_0
+    mesh_nds_t1_vs          mesh.hlsl        MeshVS_NDS_T1        vs_3_0
+    mesh_n_t2_vs            mesh.hlsl        MeshVS_N_T2          vs_3_0
+    mesh_nd_t2_vs           mesh.hlsl        MeshVS_ND_T2         vs_3_0
+    mesh_ns_t2_vs           mesh.hlsl        MeshVS_NS_T2         vs_3_0
+    mesh_nds_t2_vs          mesh.hlsl        MeshVS_NDS_T2        vs_3_0
+    mesh_ps                 mesh.hlsl        MeshPS               ps_3_0
 )
 
 file(GLOB _ew_shader_includes CONFIGURE_DEPENDS "${EW_SHADER_SOURCE_DIR}/*.h")

@@ -34,6 +34,21 @@ public:
 	{
 		VS_TREES,		// trees.hlsl, was Trees.vso
 		VS_WAVE,		// wave.hlsl, was wave.vso
+
+		// mesh.hlsl lit-mesh variants, ordered so Mesh_Vertex_Id() can compute the id:
+		// N normal only, ND + diffuse, NS + specular, NDS both; T0..T2 texcoord sets.
+		VS_MESH_N_T0,
+		VS_MESH_ND_T0,
+		VS_MESH_NS_T0,
+		VS_MESH_NDS_T0,
+		VS_MESH_N_T1,
+		VS_MESH_ND_T1,
+		VS_MESH_NS_T1,
+		VS_MESH_NDS_T1,
+		VS_MESH_N_T2,
+		VS_MESH_ND_T2,
+		VS_MESH_NS_T2,
+		VS_MESH_NDS_T2,
 		VS_COUNT
 	};
 
@@ -52,6 +67,7 @@ public:
 		PS_FLAT_TERRAIN_NOISE2,		// terrain.hlsl, was fterrainnoise2.pso
 		PS_MONOCHROME,				// monochrome.hlsl, was monochrome.pso
 		PS_PROFILER_SWIZZLE,		// profiler.hlsl, was assembled at runtime in W3DProfilerFrameCapture.cpp
+		PS_MESH,					// mesh.hlsl, lit meshes (M3.1a)
 		PS_COUNT
 	};
 
@@ -60,6 +76,15 @@ public:
 	// support for the shader's profile or creation failed.
 	static IDirect3DVertexShader9 *Vertex(VertexShaderId id);
 	static IDirect3DPixelShader9 *Pixel(PixelShaderId id);
+
+	// As above but without adding a reference, for code that binds a shader for one draw.
+	static IDirect3DVertexShader9 *Peek_Vertex(VertexShaderId id);
+	static IDirect3DPixelShader9 *Peek_Pixel(PixelShaderId id);
+
+	static VertexShaderId Mesh_Vertex_Id(bool diffuse, bool specular, int texcoord_sets)
+	{
+		return VertexShaderId(VS_MESH_N_T0 + texcoord_sets * 4 + (diffuse ? 1 : 0) + (specular ? 2 : 0));
+	}
 
 	// Releases the store's references. Called before the device is released.
 	static void Shutdown();

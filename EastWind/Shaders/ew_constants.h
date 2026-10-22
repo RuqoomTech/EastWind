@@ -33,4 +33,30 @@
 #define EW_MONO_PS_COLOR         1   // c1: filter colour
 #define EW_MONO_PS_FADE          2   // c2: blend factor between original and filtered image
 
+// --- mesh.hlsl (vertex + pixel), M3.1a lit meshes; set by ewmeshshader_dx9.cpp ---
+// Matrices are uploaded as their columns, so the shader computes out.k = dot(v, c[k]).
+#define EW_MESH_VS_WVP               0   // c0..c3: world * view * projection
+#define EW_MESH_VS_WORLD             4   // c4..c6: world
+#define EW_MESH_VS_WORLD_NORMAL      7   // c7..c9: inverse transpose of world (3x3)
+#define EW_MESH_VS_WORLDVIEW         10  // c10..c12: world * view
+#define EW_MESH_VS_WORLDVIEW_NORMAL  13  // c13..c15: inverse transpose of world * view (3x3)
+#define EW_MESH_VS_TEXGEN            16  // c16..c17: per stage (source, uv set, transform count, projected)
+#define EW_MESH_VS_TEXMATRIX         18  // c18..c25: per stage 4 registers, texture transform
+#define EW_MESH_VS_OPTIONS           26  // c26: x range fog
+#define EW_MESH_VS_COUNT             27
+
+#define EW_MESH_MAX_LIGHTS           4
+#define EW_MESH_PS_STAGE             0   // c0..c7: per stage colour op/args, colour modifiers, alpha op/args, alpha modifiers
+#define EW_MESH_PS_TFACTOR           8   // c8: D3DRS_TEXTUREFACTOR
+#define EW_MESH_PS_AMBIENT           9   // c9: D3DRS_AMBIENT
+#define EW_MESH_PS_MATERIAL          10  // c10..c13: material diffuse, ambient, specular, emissive
+#define EW_MESH_PS_MATSOURCE         14  // c14: colour source of the four material colours
+#define EW_MESH_PS_OPTIONS           15  // c15: specular power, specular enable, stage 0/1 has a texture
+#define EW_MESH_PS_FOG               16  // c16: enable, end, 1 / (end - start)
+#define EW_MESH_PS_FOGCOLOR          17  // c17: D3DRS_FOGCOLOR
+#define EW_MESH_PS_CAMERA            18  // c18: camera world position, w local viewer
+#define EW_MESH_PS_VIEWDIR           19  // c19: world direction to the viewer without local viewer
+#define EW_MESH_PS_LIGHTS            20  // c20..c39: EW_MESH_MAX_LIGHTS lights, 5 registers each
+#define EW_MESH_PS_COUNT             40
+
 #endif // EW_CONSTANTS_H

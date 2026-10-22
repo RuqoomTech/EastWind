@@ -88,6 +88,7 @@
 
 #include "shdlib.h"
 #include "ewshaders_dx9.h"
+#include "ewmeshshader_dx9.h"
 
 const int DEFAULT_RESOLUTION_WIDTH = 640;
 const int DEFAULT_RESOLUTION_HEIGHT = 480;
@@ -2088,6 +2089,7 @@ void DX8Wrapper::Draw_Sorting_IB_VB(
 	DX8_RECORD_INDEX_BUFFER_CHANGE();
 
 	DX8_RECORD_DRAW_CALLS();
+	const bool mesh_shader = EwMeshShader::Begin();
 	DX8CALL(DrawIndexedPrimitive(
 		D3DPT_TRIANGLELIST,
 		_Base_Vertex_Index,
@@ -2095,6 +2097,8 @@ void DX8Wrapper::Draw_Sorting_IB_VB(
 		vertex_count,
 		dyn_ib_access.IndexBufferOffset,
 		polygon_count));
+	if (mesh_shader)
+		EwMeshShader::End();
 
 	DX8_RECORD_RENDER(polygon_count,vertex_count,render_state.shader);
 }
@@ -2202,6 +2206,7 @@ void DX8Wrapper::Draw(
 				}*/
 				DX8_RECORD_RENDER(polygon_count,vertex_count,render_state.shader);
 				DX8_RECORD_DRAW_CALLS();
+				const bool mesh_shader = EwMeshShader::Begin();
 				DX8CALL(DrawIndexedPrimitive(
 					(D3DPRIMITIVETYPE)primitive_type,
 					_Base_Vertex_Index,
@@ -2209,6 +2214,8 @@ void DX8Wrapper::Draw(
 					vertex_count,
 					start_index+render_state.iba_offset,
 					polygon_count));
+				if (mesh_shader)
+					EwMeshShader::End();
 			}
 			break;
 		case BUFFER_TYPE_SORTING:

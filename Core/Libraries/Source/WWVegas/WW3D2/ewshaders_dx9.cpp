@@ -35,6 +35,19 @@
 #include "flat_terrain_noise2_ps.h"
 #include "monochrome_ps.h"
 #include "profiler_swizzle_ps.h"
+#include "mesh_n_t0_vs.h"
+#include "mesh_nd_t0_vs.h"
+#include "mesh_ns_t0_vs.h"
+#include "mesh_nds_t0_vs.h"
+#include "mesh_n_t1_vs.h"
+#include "mesh_nd_t1_vs.h"
+#include "mesh_ns_t1_vs.h"
+#include "mesh_nds_t1_vs.h"
+#include "mesh_n_t2_vs.h"
+#include "mesh_nd_t2_vs.h"
+#include "mesh_ns_t2_vs.h"
+#include "mesh_nds_t2_vs.h"
+#include "mesh_ps.h"
 
 namespace
 {
@@ -48,6 +61,18 @@ namespace
 	{
 		{ g_ew_trees_vs, "trees_vs" },
 		{ g_ew_wave_vs, "wave_vs" },
+		{ g_ew_mesh_n_t0_vs, "mesh_n_t0_vs" },
+		{ g_ew_mesh_nd_t0_vs, "mesh_nd_t0_vs" },
+		{ g_ew_mesh_ns_t0_vs, "mesh_ns_t0_vs" },
+		{ g_ew_mesh_nds_t0_vs, "mesh_nds_t0_vs" },
+		{ g_ew_mesh_n_t1_vs, "mesh_n_t1_vs" },
+		{ g_ew_mesh_nd_t1_vs, "mesh_nd_t1_vs" },
+		{ g_ew_mesh_ns_t1_vs, "mesh_ns_t1_vs" },
+		{ g_ew_mesh_nds_t1_vs, "mesh_nds_t1_vs" },
+		{ g_ew_mesh_n_t2_vs, "mesh_n_t2_vs" },
+		{ g_ew_mesh_nd_t2_vs, "mesh_nd_t2_vs" },
+		{ g_ew_mesh_ns_t2_vs, "mesh_ns_t2_vs" },
+		{ g_ew_mesh_nds_t2_vs, "mesh_nds_t2_vs" },
 	};
 	static_assert(sizeof(VertexCode) / sizeof(VertexCode[0]) == EwShaders::VS_COUNT, "VertexCode must match EwShaders::VertexShaderId");
 
@@ -66,6 +91,7 @@ namespace
 		{ g_ew_flat_terrain_noise2_ps, "flat_terrain_noise2_ps" },
 		{ g_ew_monochrome_ps, "monochrome_ps" },
 		{ g_ew_profiler_swizzle_ps, "profiler_swizzle_ps" },
+		{ g_ew_mesh_ps, "mesh_ps" },
 	};
 	static_assert(sizeof(PixelCode) / sizeof(PixelCode[0]) == EwShaders::PS_COUNT, "PixelCode must match EwShaders::PixelShaderId");
 
@@ -78,6 +104,22 @@ namespace
 }
 
 IDirect3DVertexShader9 *EwShaders::Vertex(VertexShaderId id)
+{
+	IDirect3DVertexShader9 *shader = Peek_Vertex(id);
+	if (shader)
+		shader->AddRef();
+	return shader;
+}
+
+IDirect3DPixelShader9 *EwShaders::Pixel(PixelShaderId id)
+{
+	IDirect3DPixelShader9 *shader = Peek_Pixel(id);
+	if (shader)
+		shader->AddRef();
+	return shader;
+}
+
+IDirect3DVertexShader9 *EwShaders::Peek_Vertex(VertexShaderId id)
 {
 	WWASSERT(id >= 0 && id < VS_COUNT);
 	if (!VertexShaders[id] && !VertexFailed[id])
@@ -93,12 +135,10 @@ IDirect3DVertexShader9 *EwShaders::Vertex(VertexShaderId id)
 			VertexFailed[id] = true;
 		}
 	}
-	if (VertexShaders[id])
-		VertexShaders[id]->AddRef();
 	return VertexShaders[id];
 }
 
-IDirect3DPixelShader9 *EwShaders::Pixel(PixelShaderId id)
+IDirect3DPixelShader9 *EwShaders::Peek_Pixel(PixelShaderId id)
 {
 	WWASSERT(id >= 0 && id < PS_COUNT);
 	if (!PixelShaders[id] && !PixelFailed[id])
@@ -114,8 +154,6 @@ IDirect3DPixelShader9 *EwShaders::Pixel(PixelShaderId id)
 			PixelFailed[id] = true;
 		}
 	}
-	if (PixelShaders[id])
-		PixelShaders[id]->AddRef();
 	return PixelShaders[id];
 }
 
