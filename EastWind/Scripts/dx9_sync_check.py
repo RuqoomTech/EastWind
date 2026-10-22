@@ -4,7 +4,8 @@
 EastWind DX9 file tool.
 
 Our DX9 files sit beside the DX8 files they replace (dx9wrapper.cpp next to dx8wrapper.cpp)
-and are listed in EastWind/dx9_files.txt. Shared files include a replaced header through:
+and are listed in EastWind/dx9_files.txt. Files that only the DX9 build has (no DX8 original)
+are listed in EastWind/dx9_new_files.txt. Shared files include a replaced header through:
 
     #ifdef EW_RENDERER_DX9
     #include "dx9wrapper.h"
@@ -16,7 +17,8 @@ Commands:
     check                 (default) Run after every merge of main. Reports DX8 files changed
                           since their DX9 file was started, DX8 files that no longer use raw
                           D3D8 (the DX9 file can go), include sites that are not switched,
-                          and drift between our presets and upstream's.
+                          and drift between our presets and upstream's. Also checks that
+                          only DX9 files include the DX9-only files.
     add <DX8 path>...     Start DX9 files: copy each DX8 file to its DX9 name, record the
                           upstream commit, and switch the includes in shared files.
     fix-includes          Switch every include of a listed DX8 header in shared files, and
@@ -34,6 +36,7 @@ import sys
 from collections import defaultdict
 
 LIST_FILE = "EastWind/dx9_files.txt"
+NEW_FILE = "EastWind/dx9_new_files.txt"
 SHARED_FILE = "EastWind/dx9_shared.txt"
 PRESET_FILE = "cmake/EastWindPresets.json"
 SCAN_ROOTS = ("Core/", "GeneralsMD/")
@@ -113,6 +116,8 @@ class Repo:
         self.header_dx9 = {e["dx8"]: e["dx9"] for e in self.entries if e["dx8"].lower().endswith((".h", ".hpp", ".inl"))}
         self.dx9_to_dx8 = {e["dx9"]: e["dx8"] for e in self.entries}
         self.keep_shared = self._read_shared()
+        self.new_entries = self._read_new_list()
+        self.new_files = {e["path"] for e in self.new_entries}
 
     def is_raw(self, f, text=None):
         """Raw D3D8 code that needs a DX9 file, unless dx9_shared.txt says it may stay shared."""
@@ -154,6 +159,21 @@ class Repo:
             entries.append({"dx8": dx8, "dx9": os.path.dirname(dx8) + "/" + name, "commit": commit, "line": number})
         return entries
 
+    def _read_new_list(self):
+        entries = []
+        list_path = self.path(NEW_FILE)
+        if not os.path.exists(list_path):
+            return entries
+        for number, line in enumerate(read_text(list_path).splitlines(), 1):
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            fields = line.split()
+            if len(fields) != 2:
+                sys.exit(f"{NEW_FILE}:{number}: expected '<repo path of the new file> <repo path of its anchor DX9 file>'")
+            entries.append({"path": fields[0], "anchor": fields[1], "line": number})
+        return entries
+
     def resolve(self, including, text):
         """Repo path an include names, or None. Same folder first, then the nearest file of that name."""
         local = os.path.normpath(os.path.join(os.path.dirname(including), text)).replace("\\", "/")
@@ -173,9 +193,9 @@ class Repo:
         return candidates[0] if shared(candidates[0]) > shared(candidates[1]) else None
 
     def shared_files(self):
-        """Files compiled in both builds: not a listed DX8 or DX9 file, and not an unported raw D3D8 file."""
+        """Files compiled in both builds: not a listed DX8, DX9 or DX9-only file, and not an unported raw D3D8 file."""
         for f in self.sources:
-            if f in self.dx8_files or f in self.dx9_files:
+            if f in self.dx8_files or f in self.dx9_files or f in self.new_files:
                 continue
             text = read_text(self.path(f))
             if self.is_raw(f, text):
@@ -231,6 +251,10 @@ def scan_shared(repo, fix=False):
                       and repo.resolve(f, INCLUDE.match(lines[i + 2]).group(3)) == repo.dx9_to_dx8[target])
                 if not ok:
                     problems.append(f"{f}:{i + 1}: includes DX9 file {target} outside an {SWITCH} block")
+            elif target in repo.new_files:
+                # The DX8 build does not have the file at all, so it may only appear under the switch.
+                if not (i >= 1 and IFDEF_SWITCH.match(lines[i - 1])):
+                    problems.append(f"{f}:{i + 1}: includes DX9-only file {target} outside an {SWITCH} block")
             out.append(line)
         if changed:
             write_text(repo.path(f), "".join(out))
@@ -239,9 +263,9 @@ def scan_shared(repo, fix=False):
 
 
 def scan_dx9_files(repo, fix=False):
-    """DX9 files include DX9 headers directly."""
+    """DX9 files (and DX9-only files) include DX9 headers directly."""
     problems = []
-    for f in sorted(repo.dx9_files):
+    for f in sorted(repo.dx9_files | repo.new_files):
         if not os.path.exists(repo.path(f)):
             continue
         lines = read_text(repo.path(f)).splitlines(keepends=True)
@@ -307,7 +331,7 @@ def includes_of(repo, f):
 
 def raw_unported(repo):
     return [f for f in repo.sources if f not in repo.dx8_files and f not in repo.dx9_files
-            and repo.is_raw(f)]
+            and f not in repo.new_files and repo.is_raw(f)]
 
 
 def raw_dependents(repo, adding=()):
@@ -350,6 +374,17 @@ def cmd_check(repo, verbose):
         if not is_raw_d3d8(read_text(repo.path(e["dx8"]))):
             actions.append(f"{where}: {e['dx8']} no longer uses raw D3D8; the DX9 file can probably be deleted")
 
+    for e in repo.new_entries:
+        where = f"{NEW_FILE}:{e['line']}"
+        if not os.path.exists(repo.path(e["path"])):
+            actions.append(f"{where}: {e['path']} is missing")
+        elif e["path"] not in repo.tracked:
+            actions.append(f"{where}: {e['path']} is not tracked; git add it")
+        if e["path"] in repo.dx8_files or e["path"] in repo.dx9_files:
+            actions.append(f"{where}: {e['path']} is also in {LIST_FILE}; keep one of the two")
+        if e["anchor"] not in repo.dx9_files:
+            actions.append(f"{where}: anchor {e['anchor']} is not a DX9 file from {LIST_FILE}")
+
     for f, number in sorted(repo.keep_shared.items()):
         where = f"{SHARED_FILE}:{number}"
         if f not in repo.tracked:
@@ -367,7 +402,8 @@ def cmd_check(repo, verbose):
     actions += check_presets(repo.root)
 
     raw_left = raw_unported(repo)
-    print(f"DX9 files: {len(repo.entries)}. Raw D3D8 files without a DX9 file: {len(raw_left)}.")
+    print(f"DX9 files: {len(repo.entries)}. DX9-only files: {len(repo.new_entries)}. "
+          f"Raw D3D8 files without a DX9 file: {len(raw_left)}.")
     if verbose:
         for f in raw_left:
             print(f"  {f}")

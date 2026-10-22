@@ -46,6 +46,8 @@
 #include "WW3D2/Renderer.h"
 #include "WW3D2/light.h"
 #include "WWMath/ew_d3dmath.h"
+#include "WW3D2/ewshaders_dx9.h"
+#include "ew_constants.h"
 #include "WWLib/simplevec.h"
 #include "WW3D2/mesh.h"
 #include "WW3D2/matinfo.h"
@@ -896,13 +898,11 @@ void WaterRenderObjClass::ReAcquireResources()
 			return;
 
 
-		hr = W3DShaderManager::LoadAndCreateD3DShader("shaders\\wave.pso", &m_dwWavePixelShader);
-		if (FAILED(hr))
-			return;
-
-		hr = W3DShaderManager::LoadAndCreateD3DShader("shaders\\wave.vso", &m_dwWaveVertexShader);
-		if (FAILED(hr))
-			return;
+		// EastWind: embedded HLSL ports of wave.vso and wave.pso (EastWind/Shaders/wave.hlsl).
+		// DX8 returned here when a shader failed to load, which also skipped the reflection texture
+		// and the water tracks below. Without the shaders the sea now draws without them instead.
+		m_dwWaveVertexShader = EwShaders::Vertex(EwShaders::VS_WAVE);
+		m_dwWavePixelShader = EwShaders::Pixel(EwShaders::PS_WAVE);
 
 		// Create reflection texture
 		m_pReflectionTexture = DX8Wrapper::Create_Render_Target (SEA_REFLECTION_SIZE, SEA_REFLECTION_SIZE);
@@ -911,9 +911,14 @@ void WaterRenderObjClass::ReAcquireResources()
 	if (m_waterTrackSystem)
 		m_waterTrackSystem->ReAcquireResources();
 
-	// EW_DX9_TODO(M3): the river, water and trapezoid pixel shaders were ps.1.1 assembly that
-	// D3DXAssembleShader built at runtime (see W3DWater.cpp). They come back as compiled HLSL;
-	// until then they stay null and the water draws the way it does on cards without pixel shaders.
+	if (W3DShaderManager::getChipset() >= DC_GENERIC_PIXEL_SHADER_1_1)
+	{
+		// EastWind: DX8 assembled these from ps.1.1 text at runtime; now they are embedded HLSL
+		// (EastWind/Shaders/water.hlsl). The third one, m_waterPixelShader, was never drawn with
+		// and stays null.
+		m_riverWaterPixelShader = EwShaders::Pixel(EwShaders::PS_RIVER);
+		m_trapezoidWaterPixelShader = EwShaders::Pixel(EwShaders::PS_TRAPEZOID);
+	}
 
 	//W3D Invalidate textures after losing the device and since we peek at the textures directly, it won't
 	//know to reinit them for us.  Do it here manually:
@@ -1843,7 +1848,14 @@ void WaterRenderObjClass::drawSea(RenderInfoClass & rinfo)
 	m_pDev->SetVertexShaderConstantF(CV_ZERO,   EwD3DVector4(0.0f, 0.0f, 0.0f, 0.0f), 1);
 	m_pDev->SetVertexShaderConstantF(CV_ONE,    EwD3DVector4(1.0f, 1.0f, 1.0f, 1.0f), 1);
 
-	m_pDev->SetVertexShader(m_dwWaveVertexShader);
+	// The bump offset that ps.1.1 texbem read from D3DTSS_BUMPENVMAT* is a constant in ps_2_0.
+	m_pDev->SetPixelShaderConstantF(EW_WAVE_PS_BUMPMAT, EwD3DVector4(m_fBumpScale, 0.0f, 0.0f, m_fBumpScale), 1);
+
+	// D3D9 builds the vertex declaration from the FVF, which DX8 took from the shader declaration.
+	// Bound through the wrapper so the Set_Vertex_Shader at the end unbinds the shader again.
+	static_assert(CV_WORLDVIEWPROJ_0 == EW_WAVE_VS_WVP && CV_TEXPROJ_0 == EW_WAVE_VS_TEXPROJ, "wave.hlsl registers changed");
+	DX8Wrapper::Set_Vertex_Shader(DX8_FVF_XYZDUV1);
+	DX8Wrapper::Set_Vertex_Shader_Program(m_dwWaveVertexShader);
 	m_pDev->SetPixelShader(m_dwWavePixelShader);
 
 //	Make reflection brighter to compensate for darker coloring on sea floor
@@ -1918,7 +1930,7 @@ void WaterRenderObjClass::drawSea(RenderInfoClass & rinfo)
 	DX8Wrapper::_Set_DX8_Transform(D3DTS_PROJECTION, matProj);
 
 	m_pDev->SetPixelShader(0);	//turn off pixel shader
-	m_pDev->SetFVF(DX8_FVF_XYZDUV1);	//turn off custom vertex shader
+	DX8Wrapper::Set_Vertex_Shader(DX8_FVF_XYZDUV1);	//turn off custom vertex shader (SetFVF alone keeps it bound in D3D9)
 
 	DX8Wrapper::Invalidate_Cached_Render_States();
 

@@ -102,6 +102,8 @@ static void drawFramerateBar();
 #include "WW3D2/meshmatdesc.h"
 #include "WW3D2/meshmdl.h"
 #include "WW3D2/rddesc_dx9.h"
+#include "WW3D2/ewgraphicsoptions_dx9.h"
+#include "Common/OptionPreferences.h"
 #include "WWLib/TARGA.h"
 
 #include "GameLogic/ScriptEngine.h"		// For TheScriptEngine - jkmcd
@@ -745,6 +747,23 @@ void W3DDisplay::init2DScene()
 /** Initialize or re-initialize the W3D display system.  Here we need to
   * create our window, and get our 3D hardware setup and online */
 //=============================================================================
+// EastWind: reads the DX9 shader feature switches from Options.ini. Every key is optional;
+// a missing key keeps the classic DX8 look.
+static void ewLoadGraphicsOptions()
+{
+	OptionPreferences prefs;
+	EwGraphicsOptions &options = EwGraphics();
+	options.PerPixelLighting = prefs.getBool("EwPerPixelLighting", options.PerPixelLighting);
+	options.NormalMaps = prefs.getBool("EwNormalMaps", options.NormalMaps);
+	options.WaterQuality = prefs.getInt("EwWaterQuality", options.WaterQuality);
+	options.ShadowMapSize = prefs.getInt("EwShadowMapSize", options.ShadowMapSize);
+	options.Bloom = prefs.getBool("EwBloom", options.Bloom);
+	options.ToneMapping = prefs.getBool("EwToneMapping", options.ToneMapping);
+	options.ColorGrading = prefs.getBool("EwColorGrading", options.ColorGrading);
+	options.FXAA = prefs.getBool("EwFXAA", options.FXAA);
+	options.Validate();
+}
+
 void W3DDisplay::init()
 {
 
@@ -844,6 +863,8 @@ void W3DDisplay::init()
 		// create a 2D renderer helper
 		m_2DRender = NEW Render2DClass;
 		DEBUG_ASSERTCRASH( m_2DRender, ("Cannot create Render2DClass") );
+
+		ewLoadGraphicsOptions();
 
 		WW3DErrorType renderDeviceError;
 		Int attempt = 0;

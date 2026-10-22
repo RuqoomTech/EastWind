@@ -1,0 +1,10 @@
+# EastWind DX9: new files that exist only in the DX9 build (no DX8 original).
+#
+# cmake/eastwind_dx9.cmake adds each file to every target that builds its anchor, a DX9 file
+# from dx9_files.txt, and gives those targets the fxc shader headers (ew_shaders).
+# dx9_sync_check.py checks that only DX9 files include them. One line per file:
+#
+#   <repo path of the new file> <repo path of its anchor DX9 file>
+Core/Libraries/Source/WWVegas/WW3D2/ewshaders_dx9.h Core/Libraries/Source/WWVegas/WW3D2/dx9wrapper.cpp
+Core/Libraries/Source/WWVegas/WW3D2/ewshaders_dx9.cpp Core/Libraries/Source/WWVegas/WW3D2/dx9wrapper.cpp
+Core/Libraries/Source/WWVegas/WW3D2/ewgraphicsoptions_dx9.h Core/Libraries/Source/WWVegas/WW3D2/dx9wrapper.cpp

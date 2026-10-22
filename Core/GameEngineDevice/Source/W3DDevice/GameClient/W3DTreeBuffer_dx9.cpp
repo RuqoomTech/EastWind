@@ -88,6 +88,8 @@ enum
 #include "WW3D2/mesh.h"
 #include "WW3D2/meshmdl.h"
 #include "WWMath/ew_d3dmath.h"
+#include "WW3D2/ewshaders_dx9.h"
+#include "ew_constants.h"
 
 
 // If TEST_AND_BLEND is defined, it will do an alpha test and blend.  Otherwise just alpha test. jba. [5/30/2003]
@@ -1165,14 +1167,9 @@ void W3DTreeBuffer::allocateTreeBuffers()
 	m_anythingChanged = true;
 
 
-	HRESULT hr;
-	hr = W3DShaderManager::LoadAndCreateD3DShader("shaders\\Trees.vso", &m_dwTreeVertexShader);
-	if (FAILED(hr))
-		return;
-
-	hr = W3DShaderManager::LoadAndCreateD3DShader("shaders\\Trees.pso", &m_dwTreePixelShader);
-	if (FAILED(hr))
-		return;
+	// EastWind: the sway vertex shader is the embedded HLSL port of Trees.vso (EastWind/Shaders/trees.hlsl).
+	// The pixel stages stay fixed-function, so Trees.pso is not loaded; DX8 never used it either.
+	m_dwTreeVertexShader = EwShaders::Vertex(EwShaders::VS_TREES);
 }
 
 //=============================================================================
@@ -1650,14 +1647,15 @@ void W3DTreeBuffer::drawTrees(CameraClass * camera, RefRenderObjListIterator *pD
 		EwD3DMatrixTranspose( &mat, &mat );
 
 		// c4  - Composite World-View-Projection Matrix
-		DX8Wrapper::_Get_D3D_Device9()->SetVertexShaderConstantF(  4, (const float*)&mat,  4 );
+		DX8Wrapper::_Get_D3D_Device9()->SetVertexShaderConstantF(  EW_TREES_VS_WVP, (const float*)&mat,  4 );
 		Vector4 noSway(0,0,0,0);
-		DX8Wrapper::_Get_D3D_Device9()->SetVertexShaderConstantF(  8, (const float*)&noSway,  1 );
+		DX8Wrapper::_Get_D3D_Device9()->SetVertexShaderConstantF(  EW_TREES_VS_WAVE, (const float*)&noSway,  1 );
 
 		// c8 - c8+MAX_SWAY_TYPES - the sway amount.
+		static_assert(MAX_SWAY_TYPES == EW_TREES_MAX_SWAY, "trees.hlsl must have room for every sway type");
 		for	(i=0; i<MAX_SWAY_TYPES; i++) {
 			Vector4 sway4(swayFactor[i].X, swayFactor[i].Y, swayFactor[i].Z, 0);
-			DX8Wrapper::_Get_D3D_Device9()->SetVertexShaderConstantF(  9+i, (const float*)&sway4,  1 );
+			DX8Wrapper::_Get_D3D_Device9()->SetVertexShaderConstantF(  EW_TREES_VS_WAVE+1+i, (const float*)&sway4,  1 );
 		}
 
 		W3DShroud *shroud;
@@ -1671,16 +1669,16 @@ void W3DTreeBuffer::drawTrees(CameraClass * camera, RefRenderObjListIterator *pD
 			xoffset = -(float)shroud->getDrawOriginX() + width;
 			yoffset = -(float)shroud->getDrawOriginY() + height;
 			Vector4 offset(xoffset, yoffset, 0, 0);
-			DX8Wrapper::_Get_D3D_Device9()->SetVertexShaderConstantF(  32, (const float*)&offset,  1 );
+			DX8Wrapper::_Get_D3D_Device9()->SetVertexShaderConstantF(  EW_TREES_VS_SHROUD_OFS, (const float*)&offset,  1 );
 			width = 1.0f/(width*shroud->getTextureWidth());
 			height = 1.0f/(height*shroud->getTextureHeight());
 			offset.Set(width, height, 1, 1);
-			DX8Wrapper::_Get_D3D_Device9()->SetVertexShaderConstantF(  33, (const float*)&offset,  1 );
+			DX8Wrapper::_Get_D3D_Device9()->SetVertexShaderConstantF(  EW_TREES_VS_SHROUD_SCALE, (const float*)&offset,  1 );
 
 		} else {
 			Vector4 offset(0,0,0,0);
-			DX8Wrapper::_Get_D3D_Device9()->SetVertexShaderConstantF(  32, (const float*)&offset,  1 );
-			DX8Wrapper::_Get_D3D_Device9()->SetVertexShaderConstantF(  33, (const float*)&offset,  1 );
+			DX8Wrapper::_Get_D3D_Device9()->SetVertexShaderConstantF(  EW_TREES_VS_SHROUD_OFS, (const float*)&offset,  1 );
+			DX8Wrapper::_Get_D3D_Device9()->SetVertexShaderConstantF(  EW_TREES_VS_SHROUD_SCALE, (const float*)&offset,  1 );
 		}
 
 		DX8Wrapper::Set_Vertex_Shader_Program(m_dwTreeVertexShader);
@@ -1708,7 +1706,9 @@ void W3DTreeBuffer::drawTrees(CameraClass * camera, RefRenderObjListIterator *pD
 		// Render the waving grass
 		DX8Wrapper::Apply_Render_State_Changes();
 		if (m_dwTreeVertexShader) {
-			DX8Wrapper::_Get_D3D_Device9()->SetVertexShader(m_dwTreeVertexShader);
+			// Apply_Render_State_Changes set the buffer's FVF, which dropped the shader. Rebind it through
+			// the wrapper, not the device, so the Set_Vertex_Shader after the loop unbinds it again.
+			DX8Wrapper::Set_Vertex_Shader_Program(m_dwTreeVertexShader);
 			DX8Wrapper::_Get_D3D_Device9()->SetTextureStageState(0,  D3DTSS_TEXCOORDINDEX, 0);
 			DX8Wrapper::_Get_D3D_Device9()->SetTextureStageState(1,  D3DTSS_TEXCOORDINDEX, 1);
 			DX8Wrapper::_Get_D3D_Device9()->SetTextureStageState(1,  D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_DISABLE);

@@ -21,6 +21,7 @@
 #include "../../../Include/W3DDevice/GameClient/W3DProfilerFrameCapture_dx9.h"
 
 #include "WW3D2/dx9wrapper.h"
+#include "WW3D2/ewshaders_dx9.h"
 #include "WW3D2/surfaceclass_dx9.h"
 #include "WW3D2/texture_dx9.h"
 #include "WW3D2/ww3d.h"
@@ -61,8 +62,10 @@ void W3DProfilerFrameCapture::Capture(UnsignedInt displayWidth, UnsignedInt disp
 		return;
 	}
 
-	// EW_DX9_TODO(M3): the BGRA to RGBA swizzle shader was ps.1.4 assembly that D3DXAssembleShader
-	// built at runtime. It comes back as compiled HLSL; until then DX9 sends no profiler frames.
+	// EastWind: DX8 assembled the BGRA to RGBA swizzle from ps.1.4 text here; now it is embedded
+	// HLSL (EastWind/Shaders/profiler.hlsl).
+	if (!m_swizzleShader)
+		m_swizzleShader = EwShaders::Pixel(EwShaders::PS_PROFILER_SWIZZLE);
 	if (!m_swizzleShader)
 		return;
 
@@ -162,13 +165,8 @@ void W3DProfilerFrameCapture::Capture(UnsignedInt displayWidth, UnsignedInt disp
 	DX8Wrapper::Set_Viewport(&viewport);
 
 	// bind swizzle shader
+	// The ps.1.4 version built the swizzle from mask constants c0-c2; the HLSL one is a plain .bgra.
 	DX8Wrapper::Set_Pixel_Shader(m_swizzleShader);
-	static const Real kMaskR[4] = {1.0f, 0.0f, 0.0f, 0.0f};
-	static const Real kMaskG[4] = {0.0f, 1.0f, 0.0f, 0.0f};
-	static const Real kMaskB[4] = {0.0f, 0.0f, 1.0f, 0.0f};
-	device->SetPixelShaderConstantF(0, kMaskR, 1);
-	device->SetPixelShaderConstantF(1, kMaskG, 1);
-	device->SetPixelShaderConstantF(2, kMaskB, 1);
 
 	// draw texture scaled-down onto a small surface
 	struct QuadVertex

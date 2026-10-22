@@ -73,6 +73,18 @@
 #include "Common/GameLOD.h"
 #include "WWMath/ew_d3dmath.h"
 #include "WW3D2/dx9caps.h"
+#include "WW3D2/ewshaders_dx9.h"
+#include "ew_constants.h"
+
+/// EastWind: takes the embedded HLSL port of a game shader (EastWind/Shaders). The game's ps.1.x
+/// file still loads when the card refuses ps_2_0, so such cards keep the DX8 look.
+static HRESULT ewCreatePixelShader(EwShaders::PixelShaderId id, const char *gameShaderFile, IDirect3DPixelShader9 **pHandle)
+{
+	*pHandle = EwShaders::Pixel(id);
+	if (*pHandle)
+		return S_OK;
+	return W3DShaderManager::LoadAndCreateD3DShader(gameShaderFile, pHandle);
+}
 
 
 // Turn this on to turn off pixel shaders. jba[4/3/2003]
@@ -292,7 +304,7 @@ Int ScreenBWFilter::init()
 			//this shader needs some assets that need to be loaded
 
 			//Monochrome pixel shader.
-			hr = W3DShaderManager::LoadAndCreateD3DShader("shaders\\monochrome.pso", &m_dwBWPixelShader);
+			hr = ewCreatePixelShader(EwShaders::PS_MONOCHROME, "shaders\\monochrome.pso", &m_dwBWPixelShader);
 			if (FAILED(hr))
 				return FALSE;
 
@@ -417,7 +429,7 @@ Int ScreenBWFilter::set(FilterModes mode)
 		DX8Wrapper::Apply_Render_State_Changes();	//force update of view and projection matrices
 
 		hr=DX8Wrapper::_Get_D3D_Device9()->SetPixelShader(m_dwBWPixelShader);
-		DX8Wrapper::_Get_D3D_Device9()->SetPixelShaderConstantF(0,   EwD3DVector4(0.3f, 0.59f, 0.11f, 1.0f), 1);
+		DX8Wrapper::_Get_D3D_Device9()->SetPixelShaderConstantF(EW_MONO_PS_LUMINANCE,   EwD3DVector4(0.3f, 0.59f, 0.11f, 1.0f), 1);
 
 		EwD3DVector4	color(1.0f,1.0f,1.0f,1.0f);	//multiply color
 
@@ -447,8 +459,8 @@ Int ScreenBWFilter::set(FilterModes mode)
 			color.z = 0.0f;
 		}
 
-		DX8Wrapper::_Get_D3D_Device9()->SetPixelShaderConstantF(1,   color, 1);
-		DX8Wrapper::_Get_D3D_Device9()->SetPixelShaderConstantF(2,	EwD3DVector4(m_curFadeValue, m_curFadeValue, m_curFadeValue, 1.0f), 1);
+		DX8Wrapper::_Get_D3D_Device9()->SetPixelShaderConstantF(EW_MONO_PS_COLOR,   color, 1);
+		DX8Wrapper::_Get_D3D_Device9()->SetPixelShaderConstantF(EW_MONO_PS_FADE,	EwD3DVector4(m_curFadeValue, m_curFadeValue, m_curFadeValue, 1.0f), 1);
 /*		DX8Wrapper::_Get_D3D_Device9()->SetPixelShaderConstantF(2,   EwD3DVector4(150.0f/255.0f, 150.0f/255.0f, 150.0f/255.0f, 0.0f), 1);
 		DX8Wrapper::_Get_D3D_Device9()->SetPixelShaderConstantF(3,   EwD3DVector4((765.0f/450.0f)/3, (765.0f/450.0f)/3, (765.0f/450.0f)/3, 1.0f), 1);
 		DX8Wrapper::_Get_D3D_Device9()->SetPixelShaderConstantF(4,   EwD3DVector4(0.5f, 0.5f, 0.5f, 0), 1);
@@ -1974,17 +1986,17 @@ Int TerrainShaderPixelShader::init()
 			//this shader needs some assets that need to be loaded
 
 			//base version which doesn't apply any noise textures.
-			HRESULT hr = W3DShaderManager::LoadAndCreateD3DShader("shaders\\terrain.pso", &m_dwBasePixelShader);
+			HRESULT hr = ewCreatePixelShader(EwShaders::PS_TERRAIN, "shaders\\terrain.pso", &m_dwBasePixelShader);
 			if (FAILED(hr))
 				return FALSE;
 
 			//version which blends 1 noise texture.
-			hr = W3DShaderManager::LoadAndCreateD3DShader("shaders\\terrainnoise.pso", &m_dwBaseNoise1PixelShader);
+			hr = ewCreatePixelShader(EwShaders::PS_TERRAIN_NOISE1, "shaders\\terrainnoise.pso", &m_dwBaseNoise1PixelShader);
 			if (FAILED(hr))
 				return FALSE;
 
 			//version which blends 2 noise textures.
-			hr = W3DShaderManager::LoadAndCreateD3DShader("shaders\\terrainnoise2.pso", &m_dwBaseNoise2PixelShader);
+			hr = ewCreatePixelShader(EwShaders::PS_TERRAIN_NOISE2, "shaders\\terrainnoise2.pso", &m_dwBaseNoise2PixelShader);
 			if (FAILED(hr))
 				return FALSE;
 
@@ -2261,7 +2273,7 @@ Int RoadShaderPixelShader::init()
 			//this shader needs some assets that need to be loaded
 
 			//version which blends 2 noise textures.
-			HRESULT hr = W3DShaderManager::LoadAndCreateD3DShader("shaders\\roadnoise2.pso", &m_dwBaseNoise2PixelShader);
+			HRESULT hr = ewCreatePixelShader(EwShaders::PS_ROAD_NOISE2, "shaders\\roadnoise2.pso", &m_dwBaseNoise2PixelShader);
 			if (FAILED(hr))
 				return FALSE;
 
@@ -3093,9 +3105,9 @@ HRESULT W3DShaderManager::LoadAndCreateD3DShader(const char* strFilePath, IDirec
 
 HRESULT W3DShaderManager::LoadAndCreateD3DShader(const char* strFilePath, IDirect3DVertexShader9** pHandle)
 {
-	// EW_DX9_TODO(M3): the game's .vso files are D3D8 vs.1.1 bytecode. D3D9 needs dcl_ instructions
-	// in the shader, and these got their register mapping from a D3D8 declaration instead. They
-	// come back as HLSL; until then the callers take the paths they use without vertex shaders.
+	// The game's .vso files are D3D8 vs.1.1 bytecode without the dcl_ instructions D3D9 needs; their
+	// register mapping came from a D3D8 declaration. EwShaders has HLSL ports of the ones the game
+	// draws with (Trees, wave), so this never loads a .vso.
 	(void)strFilePath;
 	*pHandle = nullptr;
 	return E_FAIL;
@@ -3546,22 +3558,22 @@ Int FlatTerrainShaderPixelShader::init()
 			//this shader needs some assets that need to be loaded
 
 			//base version which doesn't apply any noise textures.
-			HRESULT hr = W3DShaderManager::LoadAndCreateD3DShader("shaders\\fterrain.pso", &m_dwBasePixelShader);
+			HRESULT hr = ewCreatePixelShader(EwShaders::PS_FLAT_TERRAIN, "shaders\\fterrain.pso", &m_dwBasePixelShader);
 			if (FAILED(hr))
 				return FALSE;
 
 			//base version which doesn't apply any shroud textures.
-			hr = W3DShaderManager::LoadAndCreateD3DShader("shaders\\fterrain0.pso", &m_dwBase0PixelShader);
+			hr = ewCreatePixelShader(EwShaders::PS_FLAT_TERRAIN0, "shaders\\fterrain0.pso", &m_dwBase0PixelShader);
 			if (FAILED(hr))
 				return FALSE;
 
 			//version which blends 1 noise texture.
-			hr = W3DShaderManager::LoadAndCreateD3DShader("shaders\\fterrainnoise.pso", &m_dwBaseNoise1PixelShader);
+			hr = ewCreatePixelShader(EwShaders::PS_FLAT_TERRAIN_NOISE1, "shaders\\fterrainnoise.pso", &m_dwBaseNoise1PixelShader);
 			if (FAILED(hr))
 				return FALSE;
 
 			//version which blends 2 noise textures.
-			hr = W3DShaderManager::LoadAndCreateD3DShader("shaders\\fterrainnoise2.pso", &m_dwBaseNoise2PixelShader);
+			hr = ewCreatePixelShader(EwShaders::PS_FLAT_TERRAIN_NOISE2, "shaders\\fterrainnoise2.pso", &m_dwBaseNoise2PixelShader);
 			if (FAILED(hr))
 				return FALSE;
 

@@ -87,6 +87,7 @@
 #include <Utility/bit_adapter.h>
 
 #include "shdlib.h"
+#include "ewshaders_dx9.h"
 
 const int DEFAULT_RESOLUTION_WIDTH = 640;
 const int DEFAULT_RESOLUTION_HEIGHT = 480;
@@ -557,6 +558,7 @@ void DX8Wrapper::Do_Onetime_Device_Dependent_Shutdowns()
 	SHD_SHUTDOWN;
 	TheDX8MeshRenderer.Shutdown();
 	MissingTexture::_Deinit();
+	EwShaders::Shutdown();
 
 	delete CurrentCaps;
 	CurrentCaps=nullptr;
