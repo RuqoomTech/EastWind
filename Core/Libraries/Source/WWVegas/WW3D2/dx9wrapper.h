@@ -215,6 +215,7 @@ struct RenderStateStruct
 	VertexBufferClass* vertex_buffers[MAX_VERTEX_STREAMS];
 	IndexBufferClass* index_buffer;
 	unsigned short index_base_offset;
+	unsigned EwHouseColor;	// EastWind M3.1b: 0x00RRGGBB house colour of the object drawn, 0 for none
 
 	RenderStateStruct();
 	~RenderStateStruct();
@@ -313,6 +314,12 @@ public:
 
 	static void Get_Render_State(RenderStateStruct& state);
 	static void Set_Render_State(const RenderStateStruct& state);
+
+	// EastWind M3.1b (EwMeshShader): the house colour travels with the render state, so the
+	// sorting renderer replays it with the deferred draws.
+	static void Set_Ew_House_Color(unsigned color) { render_state.EwHouseColor = color; }
+	static unsigned Get_Ew_House_Color() { return render_state.EwHouseColor; }
+	static TextureBaseClass *Peek_Render_State_Texture(unsigned stage) { return render_state.Textures[stage]; }
 	static void Release_Render_State();
 
 	static void Set_DX8_Material(const D3DMATERIAL9* mat);
@@ -1403,7 +1410,8 @@ WWINLINE void DX8Wrapper::Release_Render_State()
 WWINLINE RenderStateStruct::RenderStateStruct()
 	:
 	material(0),
-	index_buffer(0)
+	index_buffer(0),
+	EwHouseColor(0)
 {
 	unsigned i;
 	for (i=0;i<MAX_VERTEX_STREAMS;++i) vertex_buffers[i]=0;
@@ -1468,6 +1476,7 @@ WWINLINE RenderStateStruct& RenderStateStruct::operator= (const RenderStateStruc
 	vba_count=src.vba_count;
 	iba_offset=src.iba_offset;
 	index_base_offset=src.index_base_offset;
+	EwHouseColor=src.EwHouseColor;
 
 	return *this;
 }

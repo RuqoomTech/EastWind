@@ -68,6 +68,7 @@ public:
 		PS_MONOCHROME,				// monochrome.hlsl, was monochrome.pso
 		PS_PROFILER_SWIZZLE,		// profiler.hlsl, was assembled at runtime in W3DProfilerFrameCapture.cpp
 		PS_MESH,					// mesh.hlsl, lit meshes (M3.1a)
+		PS_MESH_MATERIAL,			// mesh.hlsl, lit meshes with normal map and SpecMap (M3.1b)
 		PS_COUNT
 	};
 

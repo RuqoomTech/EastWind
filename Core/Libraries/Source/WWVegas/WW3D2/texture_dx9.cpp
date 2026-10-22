@@ -108,6 +108,14 @@ TextureBaseClass::TextureBaseClass
 
 
 //**********************************************************************************************
+// EastWind M3.1b: releases the material maps this texture holds.
+TextureClass::EwMaterialMapsStruct::~EwMaterialMapsStruct()
+{
+	REF_PTR_RELEASE(Normal);
+	REF_PTR_RELEASE(Spec);
+}
+
+//**********************************************************************************************
 //! Base texture class destructor
 /*! KJM
 */

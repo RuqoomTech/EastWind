@@ -21,9 +21,18 @@
 #include "ew_constants.h"
 #include "dx9wrapper.h"
 #include "dx9caps.h"
+#include "texture_dx9.h"
+#include "assetmgr.h"
+#include "rendobj.h"
+#include "WWLib/ffactory.h"
+#include "WWLib/WWFILE.h"
+#include "WWLib/wwstring.h"
+#include "WWLib/hashtemplate.h"
 #include "WWDebug/wwdebug.h"
 
+#include <ctype.h>
 #include <math.h>
+#include <stdio.h>
 #include <string.h>
 
 // All state is read from the device, not from the wrapper's caches: the game sets some
@@ -89,6 +98,143 @@ namespace
 
 	IDirect3DDevice9Ex *Device;
 	bool RestoreFog;
+
+	// --- M3.1b material maps ---
+
+	// Which map files exist for a diffuse base name, so the disk is searched once per name:
+	// bits 0-1 the normal map, bits 2-3 the SpecMap (MAP_NONE, MAP_DDS or MAP_TGA).
+	HashTemplateClass<StringClass, int> MapFiles;
+	enum { MAP_NONE, MAP_DDS, MAP_TGA };
+	const char *const MapExtensions[] = { nullptr, ".dds", ".tga" };
+
+	const DWORD MAP_SAMPLER_NORMAL = 2;
+	const DWORD MAP_SAMPLER_SPEC = 3;
+	const D3DSAMPLERSTATETYPE MapSamplerStates[] =
+	{
+		D3DSAMP_ADDRESSU, D3DSAMP_ADDRESSV, D3DSAMP_MAGFILTER, D3DSAMP_MINFILTER, D3DSAMP_MIPFILTER, D3DSAMP_MAXANISOTROPY,
+	};
+	const int MAP_SAMPLER_STATE_COUNT = sizeof(MapSamplerStates) / sizeof(MapSamplerStates[0]);
+
+	// What samplers 2 and 3 held before Begin() bound the maps. End() puts it back, so the
+	// device matches the wrapper's caches again.
+	bool RestoreMaps;
+	IDirect3DBaseTexture9 *SavedMapTexture[2];
+	DWORD SavedMapSamplerState[2][MAP_SAMPLER_STATE_COUNT];
+
+	// "Name.tga" -> "name". A texture the game recoloured is named "#<colour>#name.tga"
+	// (W3DAssetManager), and its maps are those of the original.
+	void Base_Name(char *out, size_t size, const char *name)
+	{
+		if (name[0] == '#')
+		{
+			const char *end = strchr(name + 1, '#');
+			if (end != nullptr)
+				name = end + 1;
+		}
+		size_t length = strlen(name);
+		const char *dot = strrchr(name, '.');
+		if (dot != nullptr)
+			length = size_t(dot - name);
+		if (length >= size)
+			length = size - 1;
+		for (size_t i = 0; i < length; ++i)
+			out[i] = char(tolower((unsigned char)name[i]));
+		out[length] = '\0';
+	}
+
+	// Which file of <base><suffix> exists: MAP_DDS, MAP_TGA or MAP_NONE. Checking first keeps the
+	// asset manager from making a missing-texture placeholder for maps the art does not have.
+	int Find_Map(const char *base, const char *suffix)
+	{
+		for (int ext = MAP_DDS; ext <= MAP_TGA; ++ext)
+		{
+			char name[260];
+			snprintf(name, sizeof(name), "%s%s%s", base, suffix, MapExtensions[ext]);
+			FileClass *file = _TheFileFactory->Get_File(name);
+			if (file == nullptr)
+				continue;
+			const bool found = file->Is_Available() != 0;
+			_TheFileFactory->Return_File(file);
+			if (found)
+			{
+				WWDEBUG_SAY(("EwMeshShader: material map %s", name));
+				return ext;
+			}
+		}
+		return MAP_NONE;
+	}
+
+	TextureClass *Load_Map(const char *base, const char *suffix, int ext)
+	{
+		if (ext == MAP_NONE)
+			return nullptr;
+		char name[260];
+		snprintf(name, sizeof(name), "%s%s%s", base, suffix, MapExtensions[ext]);
+		return WW3DAssetManager::Get_Instance()->Get_Texture(name);
+	}
+
+	// Finds a diffuse texture's maps the first time it is drawn, and keeps them on the texture.
+	TextureClass::EwMaterialMapsStruct &Resolve_Maps(TextureClass *diffuse)
+	{
+		TextureClass::EwMaterialMapsStruct &maps = diffuse->Ew_Material_Maps();
+		if (maps.Resolved)
+			return maps;
+		maps.Resolved = true;
+
+		const char *name = diffuse->Get_Texture_Name().str();
+		if (name == nullptr || name[0] == '\0')
+			return maps;
+		maps.Recolored = (name[0] == '#');
+
+		char base[260];
+		Base_Name(base, sizeof(base), name);
+		StringClass key(base, true);
+		int found = 0;
+		if (!MapFiles.Get(key, found))
+		{
+			found = Find_Map(base, "_nrm") | (Find_Map(base, "_spm") << 2);
+			MapFiles.Insert(key, found);
+		}
+		maps.Normal = Load_Map(base, "_nrm", found & 3);
+		maps.Spec = Load_Map(base, "_spm", (found >> 2) & 3);
+		return maps;
+	}
+
+	// The map's D3D texture, loading it on first use as TextureClass::Apply does.
+	IDirect3DBaseTexture9 *Map_Texture(TextureClass *map)
+	{
+		if (map == nullptr)
+			return nullptr;
+		if (!map->Is_Initialized())
+			map->Init();
+		return map->Peek_D3D_Base_Texture();
+	}
+
+	// Binds a map with stage 0's addressing and filtering, saving what the sampler held.
+	void Bind_Map(int slot, DWORD sampler, IDirect3DBaseTexture9 *texture)
+	{
+		Device->GetTexture(sampler, &SavedMapTexture[slot]);
+		Device->SetTexture(sampler, texture);
+		for (int i = 0; i < MAP_SAMPLER_STATE_COUNT; ++i)
+		{
+			DWORD value = 0;
+			Device->GetSamplerState(sampler, MapSamplerStates[i], &SavedMapSamplerState[slot][i]);
+			Device->GetSamplerState(0, MapSamplerStates[i], &value);
+			Device->SetSamplerState(sampler, MapSamplerStates[i], value);
+		}
+	}
+
+	void Unbind_Map(int slot, DWORD sampler)
+	{
+		Device->SetTexture(sampler, SavedMapTexture[slot]);
+		if (SavedMapTexture[slot] != nullptr)
+		{
+			SavedMapTexture[slot]->Release();
+			SavedMapTexture[slot] = nullptr;
+		}
+		for (int i = 0; i < MAP_SAMPLER_STATE_COUNT; ++i)
+			Device->SetSamplerState(sampler, MapSamplerStates[i], SavedMapSamplerState[slot][i]);
+	}
 
 	DWORD Render_State(D3DRENDERSTATETYPE state)
 	{
@@ -405,6 +551,41 @@ bool EwMeshShader::Begin()
 		}
 	}
 
+	// Material maps: only for the diffuse texture the wrapper bound on stage 0, read through its
+	// texture coordinates, and with stage 1 unused (the material pixel shader runs stage 0 only).
+	// The texture must be the one the wrapper bound: code that sets device textures directly
+	// draws something else.
+	IDirect3DBaseTexture9 *normal_map = nullptr;
+	IDirect3DBaseTexture9 *spec_map = nullptr;
+	unsigned house_color = 0;
+	TextureBaseClass *stage0 = DX8Wrapper::Peek_Render_State_Texture(0);
+	TextureClass *diffuse = (stage0 != nullptr) ? stage0->As_TextureClass() : nullptr;
+	if (EwGraphics().NormalMaps && diffuse != nullptr && has_texture[0] > 0.5f && texgen[0].x == 0.0f
+		&& stage_constants[4].x == float(D3DTOP_DISABLE))
+	{
+		IDirect3DBaseTexture9 *bound = nullptr;
+		Device->GetTexture(0, &bound);
+		if (bound != nullptr)
+		{
+			if (bound == diffuse->Peek_D3D_Base_Texture())
+			{
+				TextureClass::EwMaterialMapsStruct &maps = Resolve_Maps(diffuse);
+				normal_map = Map_Texture(maps.Normal);
+				spec_map = Map_Texture(maps.Spec);
+				house_color = maps.Recolored ? 0 : (DX8Wrapper::Get_Ew_House_Color() & 0xffffff);
+			}
+			bound->Release();
+		}
+	}
+	const bool use_material = normal_map != nullptr || spec_map != nullptr;
+	if (use_material)
+	{
+		IDirect3DPixelShader9 *material_shader = EwShaders::Peek_Pixel(EwShaders::PS_MESH_MATERIAL);
+		if (material_shader == nullptr)
+			return Fallback(REASON_NO_SHADER, 1);
+		pixel_shader = material_shader;
+	}
+
 	// Lights: the wrapper uses indices 0..3, the same count the shader has.
 	Float4 lights[EW_MESH_MAX_LIGHTS * 5];
 	memset(lights, 0, sizeof(lights));
@@ -511,11 +692,28 @@ bool EwMeshShader::Begin()
 	ps[EW_MESH_PS_CAMERA] = camera;
 	ps[EW_MESH_PS_VIEWDIR] = view_dir;
 	memcpy(&ps[EW_MESH_PS_LIGHTS], lights, sizeof(lights));
+	if (use_material)
+	{
+		ps[EW_MESH_PS_MATERIAL_OPTIONS].x = (normal_map != nullptr) ? 1.0f : 0.0f;
+		ps[EW_MESH_PS_MATERIAL_OPTIONS].y = (spec_map != nullptr) ? 1.0f : 0.0f;
+		ps[EW_MESH_PS_MATERIAL_OPTIONS].z = (house_color != 0) ? 1.0f : 0.0f;
+		ps[EW_MESH_PS_MATERIAL_OPTIONS].w = 0.5f;	// ambient light from below, relative to the sky
+		ps[EW_MESH_PS_HOUSECOLOR] = Color(D3DCOLOR(house_color));
+		// W3D materials rarely set a shininess, so the SpecMap highlight falls back to a tight one.
+		ps[EW_MESH_PS_HOUSECOLOR].w = (material.Power > 1.0f) ? material.Power : 32.0f;
+	}
 
 	Device->SetVertexShaderConstantF(0, &vs[0].x, EW_MESH_VS_COUNT);
 	Device->SetPixelShaderConstantF(0, &ps[0].x, EW_MESH_PS_COUNT);
 	Device->SetVertexShader(vertex_shader);
 	Device->SetPixelShader(pixel_shader);
+
+	RestoreMaps = use_material;
+	if (use_material)
+	{
+		Bind_Map(0, MAP_SAMPLER_NORMAL, normal_map);
+		Bind_Map(1, MAP_SAMPLER_SPEC, spec_map);
+	}
 
 	// The pixel shader fogs itself. The wrapper's cache keeps TRUE, and End() puts it back.
 	RestoreFog = fog_enabled;
@@ -533,7 +731,40 @@ void EwMeshShader::End()
 		Device->SetRenderState(D3DRS_FOGENABLE, TRUE);
 		RestoreFog = false;
 	}
+	if (RestoreMaps)
+	{
+		Unbind_Map(0, MAP_SAMPLER_NORMAL);
+		Unbind_Map(1, MAP_SAMPLER_SPEC);
+		RestoreMaps = false;
+	}
+}
+
+void EwMeshShader::Set_Object(const RenderObjClass *object)
+{
+	// The game sets the team colour on the top object of a model, not on its meshes.
+	unsigned colour = 0;
+	if (EwGraphics().NormalMaps)
+	{
+		for (const RenderObjClass *o = object; o != nullptr; o = o->Get_Container())
+		{
+			colour = o->Get_ObjectColor() & 0xffffff;
+			if (colour != 0)
+				break;
+		}
+	}
+	DX8Wrapper::Set_Ew_House_Color(colour);
+}
+
+void EwMeshShader::Clear_Object()
+{
+	DX8Wrapper::Set_Ew_House_Color(0);
+}
+
+void EwMeshShader::Shutdown()
+{
+	MapFiles.Remove_All();
 }
 
 static_assert(EW_MESH_VS_WVP == 0 && EW_MESH_VS_OPTIONS + 1 == EW_MESH_VS_COUNT, "mesh vertex constants are uploaded as one block from c0");
-static_assert(EW_MESH_PS_STAGE == 0 && EW_MESH_PS_LIGHTS + EW_MESH_MAX_LIGHTS * 5 == EW_MESH_PS_COUNT, "mesh pixel constants are uploaded as one block from c0");
+static_assert(EW_MESH_PS_STAGE == 0 && EW_MESH_PS_HOUSECOLOR + 1 == EW_MESH_PS_COUNT, "mesh pixel constants are uploaded as one block from c0");
+static_assert(EW_MESH_PS_LIGHTS + EW_MESH_MAX_LIGHTS * 5 == EW_MESH_PS_MATERIAL_OPTIONS, "mesh pixel constants must not overlap");

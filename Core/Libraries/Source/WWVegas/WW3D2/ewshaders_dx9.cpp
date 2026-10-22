@@ -48,6 +48,7 @@
 #include "mesh_ns_t2_vs.h"
 #include "mesh_nds_t2_vs.h"
 #include "mesh_ps.h"
+#include "mesh_material_ps.h"
 
 namespace
 {
@@ -92,6 +93,7 @@ namespace
 		{ g_ew_monochrome_ps, "monochrome_ps" },
 		{ g_ew_profiler_swizzle_ps, "profiler_swizzle_ps" },
 		{ g_ew_mesh_ps, "mesh_ps" },
+		{ g_ew_mesh_material_ps, "mesh_material_ps" },
 	};
 	static_assert(sizeof(PixelCode) / sizeof(PixelCode[0]) == EwShaders::PS_COUNT, "PixelCode must match EwShaders::PixelShaderId");
 

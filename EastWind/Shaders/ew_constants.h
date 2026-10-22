@@ -33,7 +33,7 @@
 #define EW_MONO_PS_COLOR         1   // c1: filter colour
 #define EW_MONO_PS_FADE          2   // c2: blend factor between original and filtered image
 
-// --- mesh.hlsl (vertex + pixel), M3.1a lit meshes; set by ewmeshshader_dx9.cpp ---
+// --- mesh.hlsl (vertex + pixel), M3.1 lit meshes and materials; set by ewmeshshader_dx9.cpp ---
 // Matrices are uploaded as their columns, so the shader computes out.k = dot(v, c[k]).
 #define EW_MESH_VS_WVP               0   // c0..c3: world * view * projection
 #define EW_MESH_VS_WORLD             4   // c4..c6: world
@@ -57,6 +57,8 @@
 #define EW_MESH_PS_CAMERA            18  // c18: camera world position, w local viewer
 #define EW_MESH_PS_VIEWDIR           19  // c19: world direction to the viewer without local viewer
 #define EW_MESH_PS_LIGHTS            20  // c20..c39: EW_MESH_MAX_LIGHTS lights, 5 registers each
-#define EW_MESH_PS_COUNT             40
+#define EW_MESH_PS_MATERIAL_OPTIONS  40  // c40: M3.1b normal map, SpecMap, house colour on, ground ambient scale
+#define EW_MESH_PS_HOUSECOLOR        41  // c41: rgb house colour, w SpecMap specular power
+#define EW_MESH_PS_COUNT             42
 
 #endif // EW_CONSTANTS_H

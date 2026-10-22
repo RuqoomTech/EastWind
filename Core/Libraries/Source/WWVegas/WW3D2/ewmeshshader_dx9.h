@@ -26,8 +26,22 @@
 // logged once. Draws that bring their own shaders, and unlit draws, are left alone.
 // Binding only around one draw means code that drives the device directly (terrain, water,
 // shadows) never sees these shaders, and the wrapper's shader caches stay correct.
+//
+// M3.1b (Options.ini EwNormalMaps): RA3-style material maps. For a diffuse texture "name.tga"
+// (or .dds), "name_nrm" is a tangent-space normal map and "name_spm" a SpecMap (R specular,
+// G glow, B house colour); each is optional, looked up once (.dds, then .tga) and cached.
+// The maps are found the first time a texture is drawn on stage 0 of a lit draw, and the
+// texture keeps them (TextureClass::Ew_Material_Maps), so they are freed with it. Begin() then
+// uses the material pixel shader and binds the maps to samplers 2 and 3 for that draw only.
+// The house colour is the object colour the game gives team-coloured objects
+// (RenderObjClass::Get_ObjectColor). DX8TextureCategoryClass::Render puts it in the render
+// state around each mesh, so sorted (transparent) draws replay it too. Textures the game
+// already recolours on the CPU (ZHC*) keep that and ignore the SpecMap's house colour mask.
 
 #pragma once
+
+class TextureClass;
+class RenderObjClass;
 
 class EwMeshShader
 {
@@ -36,4 +50,12 @@ public:
 	// Returns true if it did; the caller then calls End() after the draw.
 	static bool Begin();
 	static void End();
+
+	// Sets the house colour for the draws of object (a mesh) until Clear_Object(). The colour
+	// is taken from the first container that has one.
+	static void Set_Object(const RenderObjClass *object);
+	static void Clear_Object();
+
+	// Forgets which map files exist. Called from DX8Wrapper::Shutdown.
+	static void Shutdown();
 };

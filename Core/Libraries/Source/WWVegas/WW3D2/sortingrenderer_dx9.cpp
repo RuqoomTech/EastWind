@@ -365,6 +365,7 @@ void SortingRendererClass::Insert_To_Sorting_Pool(SortingNodeStruct* state)
 static void Apply_Render_State(RenderStateStruct& render_state)
 {
 	DX8Wrapper::Set_Shader(render_state.shader);
+	DX8Wrapper::Set_Ew_House_Color(render_state.EwHouseColor);
 
 	DX8Wrapper::Set_Material(render_state.material);
 

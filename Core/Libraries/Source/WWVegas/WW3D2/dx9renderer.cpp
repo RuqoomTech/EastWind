@@ -47,6 +47,7 @@
 #include "dx9indexbuffer.h"
 #include "dx9fvf.h"
 #include "dx9caps.h"
+#include "ewmeshshader_dx9.h"
 #include "dx8rendererdebugger.h"
 #include "WWDebug/wwdebug.h"
 #include "WWDebug/wwprofile.h"
@@ -1870,6 +1871,10 @@ void DX8TextureCategoryClass::Render()
 		//(gth) this if statement's contents are not tabbed to avoid perforce merge problems...
 		if (!DX8RendererDebugger::Is_Enabled() || !mesh->Is_Disabled_By_Debugger()) {
 
+		// EastWind M3.1b: the house colour of this mesh's object, for its material maps. It is part
+		// of the render state, so sorted draws capture it too.
+		EwMeshShader::Set_Object(mesh);
+
 		if ((!!mesh->Peek_Model()->Get_Flag(MeshGeometryClass::SORT)) && WW3D::Is_Sorting_Enabled()) {
 			renderer->Render_Sorted(mesh->Get_Base_Vertex_Offset(),mesh->Get_Bounding_Sphere());
 		} else {
@@ -1929,6 +1934,8 @@ void DX8TextureCategoryClass::Render()
 			else
 				renderer->Render(mesh->Get_Base_Vertex_Offset());
 		}
+
+		EwMeshShader::Clear_Object();
 //--------------------------------------------------------------------
 		if (mesh->Get_ObjectScale() != 1.0f)
 			DX8Wrapper::Set_DX8_Render_State(D3DRS_NORMALIZENORMALS, FALSE);

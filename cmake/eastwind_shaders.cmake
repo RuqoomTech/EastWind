@@ -58,6 +58,7 @@ set(EW_SHADERS
     mesh_ns_t2_vs           mesh.hlsl        MeshVS_NS_T2         vs_3_0
     mesh_nds_t2_vs          mesh.hlsl        MeshVS_NDS_T2        vs_3_0
     mesh_ps                 mesh.hlsl        MeshPS               ps_3_0
+    mesh_material_ps        mesh.hlsl        MeshMaterialPS       ps_3_0
 )
 
 file(GLOB _ew_shader_includes CONFIGURE_DEPENDS "${EW_SHADER_SOURCE_DIR}/*.h")

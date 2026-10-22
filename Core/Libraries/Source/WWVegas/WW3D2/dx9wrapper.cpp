@@ -546,6 +546,7 @@ void DX8Wrapper::Do_Onetime_Device_Dependent_Shutdowns()
 	REF_PTR_RELEASE(render_state.index_buffer);
 	REF_PTR_RELEASE(render_state.material);
 	for (i=0;i<CurrentCaps->Get_Max_Textures_Per_Pass();++i) REF_PTR_RELEASE(render_state.Textures[i]);
+	EwMeshShader::Shutdown();
 
 
 	TextureLoader::Deinit();

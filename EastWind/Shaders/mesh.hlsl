@@ -12,6 +12,14 @@
 //
 // One vertex shader per vertex layout, so a shader never reads an element the FVF lacks:
 // MeshVS_<N|ND|NS|NDS>_T<0|1|2> (D = diffuse colour, S = specular colour, T = texcoord sets).
+//
+// Two pixel shaders: MeshPS reproduces fixed-function, MeshMaterialPS (M3.1b, EwNormalMaps) adds
+// the RA3 material maps that sit beside the diffuse texture (see ewmeshshader_dx9.cpp):
+//   - <diffuse>_nrm: tangent-space normal map, DirectX convention (green = +v, down the image).
+//     The tangent frame comes from screen-space derivatives, so meshes need no tangent data.
+//   - <diffuse>_spm: SpecMap. R specular strength, G glow (self-illumination), B house colour.
+// MeshMaterialPS runs texture stage 0 only, which keeps it within the ps_3_0 slot limit;
+// meshes that use stage 1 get MeshPS without the material maps.
 
 #include "ew_constants.h"
 
@@ -163,8 +171,13 @@ float4 Lights[EW_MESH_MAX_LIGHTS * 5] : EW_REG(EW_MESH_PS_LIGHTS);
 // Per light: diffuse (rgb, w type: 0 off, 1 point, 3 directional), specular, ambient,
 // vector (direction to the light, or position), attenuation (a0, a1, a2, range).
 
+float4 MaterialOptions        : EW_REG(EW_MESH_PS_MATERIAL_OPTIONS);	// x normal map, y SpecMap, z house colour on, w ground ambient scale
+float4 HouseColor             : EW_REG(EW_MESH_PS_HOUSECOLOR);		// rgb house colour, w SpecMap specular power
+
 sampler2D Stage0Texture : register(s0);
 sampler2D Stage1Texture : register(s1);
+sampler2D NormalMap     : register(s2);
+sampler2D SpecMap       : register(s3);
 
 struct PsIn
 {
@@ -184,8 +197,11 @@ float4 SourceColor(float source, float4 material, float4 vertexDiffuse, float4 v
 	return c;
 }
 
-void AddLight(int l, float3 P, float3 N, float3 V, float power,
-	inout float3 ambient, inout float3 diffuse, inout float3 specular)
+// mapSpecular collects the SpecMap highlight. It takes the light's specular colour, or its
+// diffuse colour when the light has none (the game's sun lights have none, as in RA3, where the
+// highlight is the light colour scaled by the map).
+void AddLight(int l, float3 P, float3 N, float3 V, float power, uniform bool material,
+	inout float3 ambient, inout float3 diffuse, inout float3 specular, inout float3 mapSpecular)
 {
 	float4 lightDiffuse = Lights[l * 5 + 0];
 	float4 lightVector = Lights[l * 5 + 3];
@@ -213,6 +229,12 @@ void AddLight(int l, float3 P, float3 N, float3 V, float power,
 			float nh = saturate(dot(N, normalize(L + V)));
 			float s = (power > 0.0) ? pow(nh, power) : 1.0;
 			specular += atten * s * Lights[l * 5 + 1].rgb;
+			if (material)
+			{
+				float3 lightSpecular = Lights[l * 5 + 1].rgb;
+				float3 highlight = (dot(lightSpecular, 1.0) > 0.001) ? lightSpecular : lightDiffuse.rgb;
+				mapSpecular += atten * pow(nh, HouseColor.w) * highlight;
+			}
 		}
 	}
 }
@@ -280,12 +302,53 @@ float4 RunStage(int s, float4 diffuse, float4 current, float4 tex, float4 specul
 	return saturate(r);
 }
 
-float4 MeshPS(PsIn i) : COLOR0
+// Turns a tangent-space normal into a world normal. The cotangent frame from screen-space
+// derivatives (Schueler, "Normal Mapping Without Precomputed Tangents") gives the surface
+// directions of +u and +v; W3D flips v on load, so +v runs down the image as DirectX maps expect.
+float3 PerturbNormal(float3 N, float3 P, float2 uv, float3 tangentNormal)
+{
+	float3 dp1 = ddx(P);
+	float3 dp2 = ddy(P);
+	float2 duv1 = ddx(uv);
+	float2 duv2 = ddy(uv);
+	float3 dp2perp = cross(dp2, N);
+	float3 dp1perp = cross(N, dp1);
+	float3 T = dp2perp * duv1.x + dp1perp * duv2.x;
+	float3 B = dp2perp * duv1.y + dp1perp * duv2.y;
+	float scale = rsqrt(max(max(dot(T, T), dot(B, B)), 1e-20));
+	return normalize((tangentNormal.x * scale) * T + (tangentNormal.y * scale) * B + tangentNormal.z * N);
+}
+
+// material: MeshMaterialPS. The material maps are read with stage 0's texture coordinates,
+// as they belong to the diffuse texture on stage 0.
+float4 ShadeMesh(PsIn i, uniform bool material)
 {
 	float3 P = i.worldPosFog.xyz;
 	float3 N = normalize(i.worldNormal);
 	float3 V = (Camera.w > 0.5) ? normalize(Camera.xyz - P) : ViewDir.xyz;
 	float power = PsOptions.x;
+
+	// A stage without a texture reads opaque white.
+	float2 uv0 = i.uv0.xy / i.uv0.w;
+	float4 tex0 = (PsOptions.z > 0.5) ? tex2D(Stage0Texture, uv0) : float4(1.0, 1.0, 1.0, 1.0);
+	float4 tex1 = float4(1.0, 1.0, 1.0, 1.0);
+	if (!material)
+		tex1 = (PsOptions.w > 0.5) ? tex2D(Stage1Texture, i.uv1.xy / i.uv1.w) : tex1;
+
+	float3 spm = float3(0.0, 0.0, 0.0);
+	if (material)
+	{
+		float3 tangentNormal = tex2D(NormalMap, uv0).xyz * 2.0 - 1.0;
+		N = (MaterialOptions.x > 0.5) ? PerturbNormal(N, P, uv0, tangentNormal) : N;
+		spm = (MaterialOptions.y > 0.5) ? tex2D(SpecMap, uv0).rgb : spm;
+
+		// House colour: the masked part of the diffuse is painted grey and tinted with an overlay
+		// blend, so mid grey gives the house colour itself, darker paint darkens it and lighter
+		// paint (highlights, scratches) lightens it instead of clipping to the full colour.
+		float3 base = tex0.rgb;
+		float3 tinted = lerp(2.0 * base * HouseColor.rgb, 1.0 - 2.0 * (1.0 - base) * (1.0 - HouseColor.rgb), step(0.5, base));
+		tex0.rgb = lerp(base, saturate(tinted), spm.b * MaterialOptions.z);
+	}
 
 	float4 matDiffuse = SourceColor(MaterialSource.x, Material[0], i.diffuse, i.specular);
 	float4 matAmbient = SourceColor(MaterialSource.y, Material[1], i.diffuse, i.specular);
@@ -295,28 +358,40 @@ float4 MeshPS(PsIn i) : COLOR0
 	float3 ambient = GlobalAmbient.rgb;
 	float3 diffuse = 0.0;
 	float3 specular = 0.0;
-	AddLight(0, P, N, V, power, ambient, diffuse, specular);
-	AddLight(1, P, N, V, power, ambient, diffuse, specular);
-	AddLight(2, P, N, V, power, ambient, diffuse, specular);
-	AddLight(3, P, N, V, power, ambient, diffuse, specular);
+	float3 mapSpecular = 0.0;
+	AddLight(0, P, N, V, power, material, ambient, diffuse, specular, mapSpecular);
+	AddLight(1, P, N, V, power, material, ambient, diffuse, specular, mapSpecular);
+	AddLight(2, P, N, V, power, material, ambient, diffuse, specular, mapSpecular);
+	AddLight(3, P, N, V, power, material, ambient, diffuse, specular, mapSpecular);
+
+	// Hemisphere ambient: full from the sky (+z), scaled down towards the ground, so normal-mapped
+	// detail stays visible in the shade.
+	if (material)
+		ambient *= lerp(MaterialOptions.w, 1.0, saturate(N.z * 0.5 + 0.5));
 
 	float4 litDiffuse = float4(saturate(matAmbient.rgb * ambient + matDiffuse.rgb * diffuse + matEmissive.rgb), matDiffuse.a);
 	float4 litSpecular = float4(saturate(matSpecular.rgb * specular) * PsOptions.y, 0.0);
-
-	// A stage without a texture reads opaque white.
-	float4 tex0 = (PsOptions.z > 0.5) ? tex2D(Stage0Texture, i.uv0.xy / i.uv0.w) : float4(1.0, 1.0, 1.0, 1.0);
-	float4 tex1 = (PsOptions.w > 0.5) ? tex2D(Stage1Texture, i.uv1.xy / i.uv1.w) : float4(1.0, 1.0, 1.0, 1.0);
 
 	// Stage 0 disabled leaves the lit diffuse colour; stage 1 runs only after an enabled stage 0.
 	float4 current = litDiffuse;
 	[branch] if (Stage[0].x != OP_DISABLE)
 	{
 		current = RunStage(0, litDiffuse, current, tex0, litSpecular);
-		[branch] if (Stage[4].x != OP_DISABLE)
-			current = RunStage(1, litDiffuse, current, tex1, litSpecular);
+		if (!material)
+		{
+			[branch] if (Stage[4].x != OP_DISABLE)
+				current = RunStage(1, litDiffuse, current, tex1, litSpecular);
+		}
 	}
 
 	current.rgb = saturate(current.rgb + litSpecular.rgb);
+
+	if (material)
+	{
+		current.rgb = saturate(current.rgb + spm.r * mapSpecular);
+		// Glow shows the (house-coloured) texture unlit.
+		current.rgb = lerp(current.rgb, tex0.rgb, spm.g);
+	}
 
 	[branch] if (Fog.x > 0.5)
 	{
@@ -325,3 +400,6 @@ float4 MeshPS(PsIn i) : COLOR0
 	}
 	return current;
 }
+
+float4 MeshPS(PsIn i) : COLOR0         { return ShadeMesh(i, false); }
+float4 MeshMaterialPS(PsIn i) : COLOR0 { return ShadeMesh(i, true); }
