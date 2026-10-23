@@ -324,7 +324,18 @@ void W3DSmudgeManager::render(RenderInfoClass &rinfo)
 		return;
 	}
 
-	SurfaceClass *backBuffer = DX8Wrapper::_Get_DX8_Back_Buffer();
+	// EastWind: copy from the target the scene draws into, which is the post-processing scene
+	// texture (EwPostProcess) rather than the back buffer when a post effect is on.
+	SurfaceClass *backBuffer = nullptr;
+	{
+		IDirect3DSurface9 *current = nullptr;
+		DX8Wrapper::_Get_D3D_Device9()->GetRenderTarget(0, &current);
+		if (current)
+		{
+			backBuffer = NEW_REF(SurfaceClass, (current));
+			current->Release();
+		}
+	}
 
 	if (!backBuffer)
 		return;

@@ -52,6 +52,7 @@ public:
 		VS_TERRAIN_LIT,		// terrain_lit.hlsl, per-pixel lit terrain (M3.1c)
 		VS_ROAD_LIT,		// terrain_lit.hlsl, per-pixel lit roads and blend tiles (M3.1d)
 		VS_TREES_LIT,		// trees.hlsl, per-pixel lit trees (M3.1d), replaces VS_TREES
+		VS_POST,			// post.hlsl, screen quad for the post-processing passes (M3.2)
 		VS_COUNT
 	};
 
@@ -79,6 +80,11 @@ public:
 		PS_ROAD_LIT_NOISE1,			// terrain_lit.hlsl, with one noise stage
 		PS_ROAD_LIT_NOISE2,			// terrain_lit.hlsl, with two noise stages, replaces PS_ROAD_NOISE2
 		PS_TREES_LIT,				// trees.hlsl, per-pixel lit trees (M3.1d)
+		PS_POST_COPY,				// post.hlsl, copies the scene texture to the back buffer (M3.2a)
+		PS_POST_BRIGHT,				// post.hlsl, bloom bright pass and first downsample (M3.2b)
+		PS_POST_DOWN,				// post.hlsl, bloom downsample (M3.2b)
+		PS_POST_BLUR,				// post.hlsl, bloom Gaussian blur (M3.2b)
+		PS_POST_BLOOM,				// post.hlsl, scene plus bloom onto the back buffer (M3.2b)
 		PS_COUNT
 	};
 

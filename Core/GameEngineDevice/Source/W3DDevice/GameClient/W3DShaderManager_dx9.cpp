@@ -76,6 +76,7 @@
 #include "WW3D2/ewshaders_dx9.h"
 #include "ew_constants.h"
 #include "W3DDevice/GameClient/EwTerrainLighting_dx9.h"
+#include "W3DDevice/GameClient/EwPostProcess_dx9.h"
 
 /// EastWind: takes the embedded HLSL port of a game shader (EastWind/Shaders). The game's ps.1.x
 /// file still loads when the card refuses ps_2_0, so such cards keep the DX8 look.
@@ -2717,6 +2718,7 @@ void W3DShaderManager::shutdown()
 	}
 
 	EwTerrainLighting::Release();
+	EwPostProcess::Release();
 }
 
 //=============================================================================
@@ -2863,6 +2865,20 @@ void W3DShaderManager::startRenderToTexture()
 	HRESULT hr = m_oldDepthSurface->GetDesc(&depthDesc);
 	if (hr == S_OK && depthDesc.MultiSampleType != D3DMULTISAMPLE_NONE)
 		hr = E_FAIL;
+	// EastWind: return to the target the scene draws into, which is the post-processing scene
+	// texture (EwPostProcess) rather than the back buffer when a post effect is on.
+	if (hr == S_OK)
+	{
+		IDirect3DSurface9 *current = nullptr;
+		hr = DX8Wrapper::_Get_D3D_Device9()->GetRenderTarget(0, &current);
+		if (hr == S_OK && current)
+		{
+			SAFE_RELEASE(m_oldRenderSurface);
+			m_oldRenderSurface = current;
+		}
+		else if (hr == S_OK)
+			hr = E_FAIL;
+	}
 	if (hr == S_OK)
 		hr = DX8Wrapper::_Get_D3D_Device9()->SetRenderTarget(0,m_newRenderSurface);
 	if (hr == S_OK)

@@ -82,4 +82,10 @@
 #define EW_TERRAIN_PS_DEBUG          29  // c29: debug keys, x per-vertex light, y light only
 #define EW_TERRAIN_PS_COUNT          30  // the pixel constants start at EW_TERRAIN_SUN
 
+// --- post.hlsl (pixel), M3.2 post-processing; set by EwPostProcess_dx9.cpp ---
+#define EW_POST_PS_TEXEL         0   // c0: xy one source texel in uv, zw blur step in uv
+#define EW_POST_PS_BLOOM         1   // c1: x threshold, y 1 / (1 - threshold), z strength
+#define EW_POST_PS_BLOOM_WEIGHTS 2   // c2: xyz weights of the 1/4, 1/8 and 1/16 size levels
+#define EW_POST_PS_COUNT         3
+
 #endif // EW_CONSTANTS_H

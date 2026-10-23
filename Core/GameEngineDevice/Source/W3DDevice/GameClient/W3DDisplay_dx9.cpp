@@ -84,6 +84,7 @@ static void drawFramerateBar();
 #include "W3DDevice/GameClient/W3DScreenshot.h"
 #include "W3DDevice/GameClient/W3DShroud.h"
 #include "W3DDevice/GameClient/EwTerrainLighting_dx9.h"
+#include "W3DDevice/GameClient/EwPostProcess_dx9.h"
 #include "WWMath/wwmath.h"
 #include "WWLib/registry.h"
 #include "WW3D2/ww3d.h"
@@ -768,7 +769,7 @@ static void ewLoadGraphicsOptions()
 
 // EastWind (EwDebugKeys = yes): Ctrl+Shift+F8..F12 switch the DX9 features while the game runs,
 // so the new and the classic look can be compared at the same spot. The keys are read straight
-// from the keyboard, and the game still sees them; Ctrl+Shift+F8..F12 are unbound in ZH.
+// from the keyboard, and the game still sees them; Ctrl+Shift+F7..F12 are unbound in ZH.
 // One status line: how many passes of the last frame used a shader, or why it did not run.
 static void ewShowShaderStatus(const WideChar *name, unsigned passes, const char *reason)
 {
@@ -791,16 +792,20 @@ static void ewShowGraphicsStatus()
 		: o.DebugAllOff ? L"classic" : o.DebugTerrainLightingOff ? L"per vertex (classic)" : L"per pixel (new)";
 	const WideChar *meshes = !o.PerPixelLighting ? L"off in Options.ini" : o.MeshLighting() ? L"per pixel (new)" : L"classic";
 	const WideChar *normal_maps = !o.NormalMaps ? L"off in Options.ini" : o.MeshNormalMaps() ? L"on" : L"off";
+	const WideChar *post = !o.PostProcessWanted() ? L"off in Options.ini" : o.PostProcess() ? L"on" : L"off";
 
 	TheInGameUI->message(L"EastWind graphics: %s   [Ctrl+Shift+F9]", o.DebugAllOff ? L"ALL OFF (classic)" : L"ON");
 	TheInGameUI->message(L"Terrain light: %s   [Ctrl+Shift+F10]", terrain);
 	TheInGameUI->message(L"Unit and building light: %s   [Ctrl+Shift+F11]", meshes);
 	TheInGameUI->message(L"Normal maps and SpecMaps: %s   [Ctrl+Shift+F12]", normal_maps);
 	TheInGameUI->message(L"Terrain light-only view: %s   [Ctrl+Shift+F8]", o.DebugTerrainLightOnly ? L"on" : L"off");
+	TheInGameUI->message(L"Post-processing: %s   [Ctrl+Shift+F7]", post);
 
 	ewShowShaderStatus(L"Terrain shader", EwTerrainLighting::Last_Frame_Passes(), EwTerrainLighting::Last_Reason());
 	ewShowShaderStatus(L"Road and blend tile shader", EwTerrainLighting::Last_Frame_Road_Passes(), EwTerrainLighting::Last_Road_Reason());
 	ewShowShaderStatus(L"Tree shader", EwTerrainLighting::Last_Frame_Tree_Passes(), EwTerrainLighting::Last_Tree_Reason());
+	ewShowShaderStatus(L"Post-processing scene texture", EwPostProcess::Last_Frame_Passes(), EwPostProcess::Last_Reason());
+	ewShowShaderStatus(L"Bloom", EwPostProcess::Last_Frame_Bloom_Passes(), EwPostProcess::Last_Bloom_Reason());
 }
 
 static void ewPollGraphicsDebugKeys()
@@ -824,6 +829,7 @@ static void ewPollGraphicsDebugKeys()
 	};
 	const Key keys[] =
 	{
+		{ VK_F7, &o.DebugPostOff },
 		{ VK_F8, &o.DebugTerrainLightOnly },
 		{ VK_F9, &o.DebugAllOff },
 		{ VK_F10, &o.DebugTerrainLightingOff },
@@ -1982,6 +1988,7 @@ void W3DDisplay::draw()
 
 	// EastWind: debug keys for the DX9 features (EwDebugKeys).
 	EwTerrainLighting::New_Frame();
+	EwPostProcess::New_Frame();
 	ewPollGraphicsDebugKeys();
 
 	updateAverageFPS();

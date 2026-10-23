@@ -59,6 +59,12 @@
 #include "road_lit_noise2_ps.h"
 #include "trees_lit_vs.h"
 #include "trees_lit_ps.h"
+#include "post_vs.h"
+#include "post_copy_ps.h"
+#include "post_bright_ps.h"
+#include "post_down_ps.h"
+#include "post_blur_ps.h"
+#include "post_bloom_ps.h"
 
 namespace
 {
@@ -87,6 +93,7 @@ namespace
 		{ g_ew_terrain_lit_vs, "terrain_lit_vs" },
 		{ g_ew_road_lit_vs, "road_lit_vs" },
 		{ g_ew_trees_lit_vs, "trees_lit_vs" },
+		{ g_ew_post_vs, "post_vs" },
 	};
 	static_assert(sizeof(VertexCode) / sizeof(VertexCode[0]) == EwShaders::VS_COUNT, "VertexCode must match EwShaders::VertexShaderId");
 
@@ -114,6 +121,11 @@ namespace
 		{ g_ew_road_lit_noise1_ps, "road_lit_noise1_ps" },
 		{ g_ew_road_lit_noise2_ps, "road_lit_noise2_ps" },
 		{ g_ew_trees_lit_ps, "trees_lit_ps" },
+		{ g_ew_post_copy_ps, "post_copy_ps" },
+		{ g_ew_post_bright_ps, "post_bright_ps" },
+		{ g_ew_post_down_ps, "post_down_ps" },
+		{ g_ew_post_blur_ps, "post_blur_ps" },
+		{ g_ew_post_bloom_ps, "post_bloom_ps" },
 	};
 	static_assert(sizeof(PixelCode) / sizeof(PixelCode[0]) == EwShaders::PS_COUNT, "PixelCode must match EwShaders::PixelShaderId");
 

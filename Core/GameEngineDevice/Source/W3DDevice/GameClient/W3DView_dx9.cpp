@@ -96,6 +96,7 @@
 #include "WW3D2/Renderer.h"
 
 #include "W3DDevice/GameClient/CameraShakeSystem.h"
+#include "W3DDevice/GameClient/EwPostProcess_dx9.h"
 
 // 30 fps
 Real TheW3DFrameLengthInMsec = MSEC_PER_LOGICFRAME_REAL; // default is 33msec/frame == 30fps. but we may change it depending on sys config.
@@ -1841,6 +1842,9 @@ void W3DView::draw()
 	CustomScenePassModes customScenePassMode  = SCENE_PASS_DEFAULT;
 	Bool preRenderResult = false;
 
+	// EastWind: with a post effect on, the 3D scene draws into a scene texture (M3.2).
+	const Bool ewPostScene = EwPostProcess::Begin_Scene(TheWaterTransparency->m_minWaterOpacity);
+
 	if (m_viewFilterMode &&
 			m_viewFilter > FT_NULL_FILTER &&
 			m_viewFilter < FT_MAX)
@@ -1915,6 +1919,14 @@ void W3DView::draw()
 		W3DDisplay::m_3DScene->doRender( m_3DCamera );
 		Coord2D deltaScroll;
 		W3DShaderManager::filterPostRender(m_viewFilter, m_viewFilterMode, deltaScroll, doExtraRender);
+	}
+
+	// EastWind: the post passes draw the scene onto the back buffer, under the 2D scene and UI.
+	if (ewPostScene)
+	{
+		Int originX, originY;
+		getOrigin(&originX, &originY);
+		EwPostProcess::End_Scene(originX, originY, getWidth(), getHeight());
 	}
 
 	if( TheGlobalData->m_debugAI )

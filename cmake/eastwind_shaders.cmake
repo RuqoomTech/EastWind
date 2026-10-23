@@ -69,6 +69,12 @@ set(EW_SHADERS
     road_lit_noise2_ps      terrain_lit.hlsl RoadLitNoise2PS      ps_3_0
     trees_lit_vs            trees.hlsl       TreesLitVS           vs_3_0
     trees_lit_ps            trees.hlsl       TreesLitPS           ps_3_0
+    post_vs                 post.hlsl        PostVS               vs_3_0
+    post_copy_ps            post.hlsl        PostCopyPS           ps_3_0
+    post_bright_ps          post.hlsl        PostBrightPS         ps_3_0
+    post_down_ps            post.hlsl        PostDownPS           ps_3_0
+    post_blur_ps            post.hlsl        PostBlurPS           ps_3_0
+    post_bloom_ps           post.hlsl        PostBloomPS          ps_3_0
 )
 
 file(GLOB _ew_shader_includes CONFIGURE_DEPENDS "${EW_SHADER_SOURCE_DIR}/*.h")

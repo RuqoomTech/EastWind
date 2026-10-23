@@ -12,3 +12,5 @@ Core/Libraries/Source/WWVegas/WW3D2/ewmeshshader_dx9.h Core/Libraries/Source/WWV
 Core/Libraries/Source/WWVegas/WW3D2/ewmeshshader_dx9.cpp Core/Libraries/Source/WWVegas/WW3D2/dx9wrapper.cpp
 Core/GameEngineDevice/Include/W3DDevice/GameClient/EwTerrainLighting_dx9.h Core/GameEngineDevice/Source/W3DDevice/GameClient/HeightMap_dx9.cpp
 Core/GameEngineDevice/Source/W3DDevice/GameClient/EwTerrainLighting_dx9.cpp Core/GameEngineDevice/Source/W3DDevice/GameClient/HeightMap_dx9.cpp
+Core/GameEngineDevice/Include/W3DDevice/GameClient/EwPostProcess_dx9.h Core/GameEngineDevice/Source/W3DDevice/GameClient/W3DView_dx9.cpp
+Core/GameEngineDevice/Source/W3DDevice/GameClient/EwPostProcess_dx9.cpp Core/GameEngineDevice/Source/W3DDevice/GameClient/W3DView_dx9.cpp
