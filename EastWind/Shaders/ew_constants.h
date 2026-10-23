@@ -86,6 +86,9 @@
 #define EW_POST_PS_TEXEL         0   // c0: xy one source texel in uv, zw blur step in uv
 #define EW_POST_PS_BLOOM         1   // c1: x threshold, y 1 / (1 - threshold), z strength
 #define EW_POST_PS_BLOOM_WEIGHTS 2   // c2: xyz weights of the 1/4, 1/8 and 1/16 size levels
-#define EW_POST_PS_COUNT         3
+#define EW_POST_PS_FINAL         3   // c3: final pass, x bloom on, y tone mapping on, z colour grading on
+#define EW_POST_PS_TONE          4   // c4: x exposure, y 1 / curve(exposure), so white stays white
+#define EW_POST_PS_CLAMP         5   // c5: FXAA, xy lowest and zw highest uv inside the view rectangle
+#define EW_POST_PS_COUNT         6
 
 #endif // EW_CONSTANTS_H

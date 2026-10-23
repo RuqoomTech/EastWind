@@ -34,7 +34,7 @@ struct EwGraphicsOptions
 	bool ToneMapping;		// EwToneMapping (M3.2)
 	bool ColorGrading;		// EwColorGrading (M3.2)
 	bool FXAA;				// EwFXAA (M3.2)
-	bool DebugKeys;			// EwDebugKeys: Ctrl+Shift+F7..F12 switch the features above while the game runs
+	bool DebugKeys;			// EwDebugKeys: Ctrl+Shift+F4..F12 switch the features above while the game runs
 
 	// Set by the debug keys (W3DDisplay), never saved. They only turn features off that
 	// Options.ini turned on, so with the keys unused the game looks as Options.ini says.
@@ -44,6 +44,9 @@ struct EwGraphicsOptions
 	bool DebugNormalMapsOff;		// Ctrl+Shift+F12: no normal maps or SpecMaps
 	bool DebugTerrainLightOnly;		// Ctrl+Shift+F8: terrain shows its light only, no textures
 	bool DebugPostOff;				// Ctrl+Shift+F7: no post-processing, the scene draws straight to the screen
+	bool DebugToneMappingOff;		// Ctrl+Shift+F5: no tone mapping
+	bool DebugColorGradingOff;		// Ctrl+Shift+F6: no colour grading
+	bool DebugFxaaOff;				// Ctrl+Shift+F4: no FXAA
 
 	EwGraphicsOptions()
 		: PerPixelLighting(false)
@@ -61,6 +64,9 @@ struct EwGraphicsOptions
 		, DebugNormalMapsOff(false)
 		, DebugTerrainLightOnly(false)
 		, DebugPostOff(false)
+		, DebugToneMappingOff(false)
+		, DebugColorGradingOff(false)
+		, DebugFxaaOff(false)
 	{
 	}
 
@@ -73,6 +79,9 @@ struct EwGraphicsOptions
 	// Post-processing (M3.2) runs when any post effect is on.
 	bool PostProcessWanted() const { return Bloom || ToneMapping || ColorGrading || FXAA; }
 	bool PostProcess() const { return PostProcessWanted() && !DebugAllOff && !DebugPostOff; }
+	bool PostToneMapping() const { return ToneMapping && !DebugToneMappingOff; }
+	bool PostColorGrading() const { return ColorGrading && !DebugColorGradingOff; }
+	bool PostFxaa() const { return FXAA && !DebugFxaaOff; }
 
 	// Brings values read from Options.ini into range.
 	void Validate()

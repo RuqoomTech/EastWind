@@ -16,11 +16,20 @@
 */
 
 #include "W3DDevice/GameClient/EwPostProcess_dx9.h"
+#include "Common/GlobalData.h"
+#include "Common/FileSystem.h"
+#include "Common/file.h"
+#include "Utility/stringex.h"
 #include "WW3D2/dx9wrapper.h"
 #include "WW3D2/ewshaders_dx9.h"
 #include "WW3D2/ewgraphicsoptions_dx9.h"
 #include "WWDebug/wwdebug.h"
 #include "ew_constants.h"
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <vector>
 
 // The render target is set on the device directly, not with DX8Wrapper::Set_Render_Target: the
 // water reflection and the projected shadows switch targets with the wrapper, which saves the
@@ -36,6 +45,16 @@ namespace
 	const float BLOOM_STRENGTH = 0.8f;
 	const float BLOOM_WEIGHTS[3] = { 0.45f, 0.35f, 0.30f };	// the 1/4, 1/8 and 1/16 size levels
 
+	// Tone mapping strength, until it moves to INI data. Near 0 the curve changes nothing; larger
+	// values give deeper shadows, brighter mid-tones and softer highlights.
+	const float TONE_EXPOSURE = 0.6f;
+
+	// Colour grading: a 256x16 TGA strip (see post.hlsl). The map's own LUT wins over the default.
+	const char *const LUT_DEFAULT_FILE = "Art\\Textures\\EwColorGrading.tga";
+	const char *const LUT_MAP_FILE = "ColorGrading.tga";	// in the map's folder, beside map.str
+	const int LUT_WIDTH = 256;
+	const int LUT_HEIGHT = 16;
+
 	enum Reason
 	{
 		REASON_OFF,
@@ -45,8 +64,13 @@ namespace
 		REASON_CREATE_FAILED,
 		REASON_SET_FAILED,
 		REASON_NOT_DRAWN,
-		REASON_BLOOM_OFF,
+		REASON_EFFECT_OFF,
 		REASON_BLOOM_CREATE_FAILED,
+		REASON_TONE_DEBUG_OFF,
+		REASON_GRADE_DEBUG_OFF,
+		REASON_LUT_CREATE_FAILED,
+		REASON_FXAA_DEBUG_OFF,
+		REASON_FXAA_CREATE_FAILED,
 		REASON_COUNT
 	};
 
@@ -61,10 +85,25 @@ namespace
 		"no 3D view was drawn",
 		"off in Options.ini",
 		"the bloom textures could not be created (HRESULT)",
+		"switched off with Ctrl+Shift+F5",
+		"switched off with Ctrl+Shift+F6",
+		"the colour LUT texture could not be created (HRESULT)",
+		"switched off with Ctrl+Shift+F4",
+		"the FXAA texture could not be created (HRESULT)",
 	};
 	static_assert(sizeof(ReasonText) / sizeof(ReasonText[0]) == REASON_COUNT, "ReasonText must match Reason");
 
 	bool Logged[REASON_COUNT];
+
+	// Per effect: passes drawn this frame and the last, and why the effect did not run.
+	struct EffectStats
+	{
+		unsigned Passes;
+		unsigned LastPasses;
+		const char *Reason;
+		const char *LastReason;
+	};
+	EffectStats Stats[EwPostProcess::EFFECT_COUNT];
 
 	IDirect3DTexture9 *SceneTexture = nullptr;		// what the post passes read
 	IDirect3DSurface9 *SceneSurface = nullptr;		// level 0 of SceneTexture
@@ -86,32 +125,47 @@ namespace
 	BloomLevel Bloom[BLOOM_LEVELS];
 	bool BloomFailed = false;
 
+	// Colour grading. The pixels stay in memory, so a device reset only uploads them again.
+	unsigned LutPixels[LUT_WIDTH * LUT_HEIGHT];	// A8R8G8B8, rows from the top
+	bool LutChosen = false;					// LutPixels hold the LUT for LutMap
+	bool LutUploaded = false;				// LutTexture holds LutPixels
+	// Plain arrays, not AsciiString: a static AsciiString would free its text after the game's
+	// memory manager has shut down.
+	char LutMap[_MAX_PATH];					// the map the LUT was chosen for
+	char LutFile[_MAX_PATH];				// the file in LutPixels; empty for the built-in neutral LUT
+	IDirect3DTexture9 *LutTexture = nullptr;
+	bool LutFailed = false;
+
+	// FXAA after bloom, tone mapping or colour grading: the final pass draws here, the size and
+	// format of the scene texture, and FXAA reads it. FXAA alone reads the scene texture.
+	IDirect3DTexture9 *FinalTexture = nullptr;
+	IDirect3DSurface9 *FinalSurface = nullptr;
+	bool FinalFailed = false;
+
 	// Set between Begin_Scene and End_Scene.
 	IDirect3DSurface9 *BackBuffer = nullptr;
 	IDirect3DSurface9 *DepthBuffer = nullptr;
 
-	unsigned FramePasses = 0;
-	unsigned LastFramePasses = 0;
-	const char *FrameReason = ReasonText[REASON_NOT_DRAWN];
-	const char *LastReason = ReasonText[REASON_NOT_DRAWN];
-	unsigned BloomFramePasses = 0;
-	unsigned LastBloomFramePasses = 0;
-	const char *BloomFrameReason = ReasonText[REASON_NOT_DRAWN];
-	const char *LastBloomReason = ReasonText[REASON_NOT_DRAWN];
-
 	void Log_Once(Reason reason, unsigned value)
 	{
-		if (!Logged[reason] && reason != REASON_OFF && reason != REASON_DEBUG_OFF && reason != REASON_BLOOM_OFF)
+		if (!Logged[reason] && reason != REASON_OFF && reason != REASON_DEBUG_OFF && reason != REASON_EFFECT_OFF
+			&& reason != REASON_TONE_DEBUG_OFF && reason != REASON_GRADE_DEBUG_OFF && reason != REASON_FXAA_DEBUG_OFF)
 		{
 			Logged[reason] = true;
 			WWDEBUG_SAY(("EwPostProcess: %s, value 0x%x (logged once)", ReasonText[reason], value));
 		}
 	}
 
+	void Set_Reason(EwPostProcess::Effect effect, Reason reason)
+	{
+		Stats[effect].Reason = ReasonText[reason];
+	}
+
+	// The scene texture is not used, so no effect runs.
 	bool Fail(Reason reason, unsigned value = 0)
 	{
-		FrameReason = ReasonText[reason];
-		BloomFrameReason = ReasonText[reason];
+		for (int i = 0; i < EwPostProcess::EFFECT_COUNT; ++i)
+			Stats[i].Reason = ReasonText[reason];
 		Log_Once(reason, value);
 		return false;
 	}
@@ -149,6 +203,9 @@ namespace
 		Release_Com(MsaaSurface);
 		Release_Com(SceneSurface);
 		Release_Com(SceneTexture);
+		Release_Com(FinalSurface);
+		Release_Com(FinalTexture);
+		FinalFailed = false;
 		Release_Bloom();
 	}
 
@@ -185,7 +242,7 @@ namespace
 			return true;
 		if (BloomFailed)
 		{
-			BloomFrameReason = ReasonText[REASON_BLOOM_CREATE_FAILED];
+			Set_Reason(EwPostProcess::BLOOM, REASON_BLOOM_CREATE_FAILED);
 			return false;
 		}
 
@@ -211,11 +268,207 @@ namespace
 		{
 			Release_Bloom();
 			BloomFailed = true;
-			BloomFrameReason = ReasonText[REASON_BLOOM_CREATE_FAILED];
+			Set_Reason(EwPostProcess::BLOOM, REASON_BLOOM_CREATE_FAILED);
 			Log_Once(REASON_BLOOM_CREATE_FAILED, hr);
 			return false;
 		}
 		return true;
+	}
+
+	// Creates the texture the final pass draws into before FXAA, once.
+	bool Final_Ready(IDirect3DDevice9 *device)
+	{
+		if (FinalTexture != nullptr)
+			return true;
+		HRESULT hr = FinalFailed ? E_FAIL : device->CreateTexture(TargetDesc.Width, TargetDesc.Height, 1,
+			D3DUSAGE_RENDERTARGET, TargetDesc.Format, D3DPOOL_DEFAULT, &FinalTexture, nullptr);
+		if (SUCCEEDED(hr))
+			hr = FinalTexture->GetSurfaceLevel(0, &FinalSurface);
+		if (FAILED(hr))
+		{
+			Release_Com(FinalSurface);
+			Release_Com(FinalTexture);
+			if (!FinalFailed)
+				Log_Once(REASON_FXAA_CREATE_FAILED, hr);
+			FinalFailed = true;
+			Set_Reason(EwPostProcess::FXAA, REASON_FXAA_CREATE_FAILED);
+			return false;
+		}
+		return true;
+	}
+
+	// The identity LUT: grading with it changes nothing.
+	void Neutral_Lut(unsigned *pixels)
+	{
+		for (int y = 0; y < LUT_HEIGHT; ++y)
+		{
+			for (int x = 0; x < LUT_WIDTH; ++x)
+			{
+				const unsigned r = (unsigned)(x % 16) * 17;
+				const unsigned g = (unsigned)y * 17;
+				const unsigned b = (unsigned)(x / 16) * 17;
+				pixels[y * LUT_WIDTH + x] = 0xff000000u | (r << 16) | (g << 8) | b;
+			}
+		}
+	}
+
+	// Reads a LUT_WIDTH x LUT_HEIGHT TGA, 24 or 32 bits, uncompressed or RLE, through the game's
+	// file system (so it can be in a .big file). Alpha is ignored.
+	bool Read_Lut_File(const char *path, unsigned *pixels)
+	{
+		File *file = TheFileSystem ? TheFileSystem->openFile(path, File::READ | File::BINARY) : nullptr;
+		if (file == nullptr)
+			return false;
+		const int size = file->size();
+		std::vector<unsigned char> data(size > 0 ? size : 1);
+		const int read = size > 0 ? file->read(&data[0], size) : 0;
+		file->close();
+
+		const unsigned char *h = &data[0];
+		if (size < 18 || read != size)
+		{
+			WWDEBUG_SAY(("EwPostProcess: colour LUT %s could not be read", path));
+			return false;
+		}
+		const int id_length = h[0];
+		const int colormap_type = h[1];
+		const int type = h[2];
+		const int width = h[12] | (h[13] << 8);
+		const int height = h[14] | (h[15] << 8);
+		const int depth = h[16];
+		const int descriptor = h[17];
+		if (colormap_type != 0 || (type != 2 && type != 10) || (depth != 24 && depth != 32)
+			|| width != LUT_WIDTH || height != LUT_HEIGHT)
+		{
+			WWDEBUG_SAY(("EwPostProcess: colour LUT %s must be a %dx%d true-colour TGA (24 or 32 bits), it is %dx%d type %d, %d bits",
+				path, LUT_WIDTH, LUT_HEIGHT, width, height, type, depth));
+			return false;
+		}
+
+		const size_t bytes = (size_t)depth / 8;
+		const int count = width * height;
+		size_t pos = 18 + (size_t)id_length;
+		int i = 0;
+		bool short_data = false;
+		while (i < count && !short_data)
+		{
+			int run = 1;
+			bool repeat = false;
+			if (type == 10)
+			{
+				if (pos >= data.size())
+				{
+					short_data = true;
+					break;
+				}
+				const unsigned char packet = data[pos++];
+				run = (packet & 0x7f) + 1;
+				repeat = (packet & 0x80) != 0;
+			}
+			unsigned pixel = 0;
+			for (int k = 0; k < run && i < count; ++k, ++i)
+			{
+				if (k == 0 || !repeat)
+				{
+					if (pos + bytes > data.size())
+					{
+						short_data = true;
+						break;
+					}
+					pixel = 0xff000000u | ((unsigned)data[pos + 2] << 16) | ((unsigned)data[pos + 1] << 8) | data[pos];
+					pos += bytes;
+				}
+				// TGA rows go from the bottom unless descriptor bit 5 is set; bit 4 mirrors x.
+				const int fx = i % width;
+				const int fy = i / width;
+				const int x = (descriptor & 0x10) ? width - 1 - fx : fx;
+				const int y = (descriptor & 0x20) ? fy : height - 1 - fy;
+				pixels[y * width + x] = pixel;
+			}
+		}
+		if (short_data || i < count)
+		{
+			WWDEBUG_SAY(("EwPostProcess: colour LUT %s is cut short", path));
+			return false;
+		}
+		return true;
+	}
+
+	// Picks the LUT for the map: the map's own, else the default file, else the neutral one.
+	void Choose_Lut(const char *map)
+	{
+		strlcpy(LutMap, map, sizeof(LutMap));
+		LutFile[0] = '\0';
+		LutChosen = true;
+		LutUploaded = false;
+
+		const char *slash = strrchr(map, '\\');
+		const char *forward = strrchr(map, '/');
+		if (forward != nullptr && (slash == nullptr || forward > slash))
+			slash = forward;
+		if (slash != nullptr)
+		{
+			char path[_MAX_PATH];
+			snprintf(path, sizeof(path), "%.*s%s", (int)(slash - map + 1), map, LUT_MAP_FILE);
+			if (Read_Lut_File(path, LutPixels))
+			{
+				strlcpy(LutFile, path, sizeof(LutFile));
+				return;
+			}
+		}
+		if (Read_Lut_File(LUT_DEFAULT_FILE, LutPixels))
+		{
+			strlcpy(LutFile, LUT_DEFAULT_FILE, sizeof(LutFile));
+			return;
+		}
+		Neutral_Lut(LutPixels);
+	}
+
+	// Makes the LUT texture hold the current map's LUT.
+	bool Lut_Ready(IDirect3DDevice9 *device)
+	{
+		const char *map = TheGlobalData ? TheGlobalData->m_mapName.str() : "";
+		if (!LutChosen || strcmp(map, LutMap) != 0)
+			Choose_Lut(map);
+		if (LutFailed)
+		{
+			Set_Reason(EwPostProcess::COLOR_GRADING, REASON_LUT_CREATE_FAILED);
+			return false;
+		}
+
+		HRESULT hr = S_OK;
+		if (LutTexture == nullptr)
+		{
+			hr = device->CreateTexture(LUT_WIDTH, LUT_HEIGHT, 1, D3DUSAGE_DYNAMIC, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT,
+				&LutTexture, nullptr);
+			LutUploaded = false;
+		}
+		if (SUCCEEDED(hr) && !LutUploaded)
+		{
+			D3DLOCKED_RECT rect;
+			hr = LutTexture->LockRect(0, &rect, nullptr, D3DLOCK_DISCARD);
+			if (SUCCEEDED(hr))
+			{
+				for (int y = 0; y < LUT_HEIGHT; ++y)
+					memcpy((unsigned char *)rect.pBits + y * rect.Pitch, LutPixels + y * LUT_WIDTH, LUT_WIDTH * 4);
+				LutTexture->UnlockRect(0);
+				LutUploaded = true;
+			}
+		}
+		if (FAILED(hr))
+		{
+			Release_Com(LutTexture);
+			LutFailed = true;
+			Set_Reason(EwPostProcess::COLOR_GRADING, REASON_LUT_CREATE_FAILED);
+			Log_Once(REASON_LUT_CREATE_FAILED, hr);
+			return false;
+		}
+		return true;
+	}
+
+	float Filmic_Curve(float x)
+	{
+		return (x * (2.51f * x + 0.03f)) / (x * (2.43f * x + 0.59f) + 0.14f);
 	}
 
 	struct PostVertex
@@ -272,7 +525,7 @@ namespace
 		device->SetPixelShader(EwShaders::Peek_Pixel(shader));
 		Set_Texture(device, 0, source, true);
 		Draw_Quad(device, 0, 0, width, height, 0.0f, 0.0f, 1.0f, 1.0f);
-		++BloomFramePasses;
+		++Stats[EwPostProcess::BLOOM].Passes;
 	}
 
 	// Builds the three blurred bloom levels from the scene texture. Ends with the back buffer and
@@ -310,6 +563,21 @@ namespace
 
 		device->SetRenderTarget(0, BackBuffer);
 		device->SetDepthStencilSurface(DepthBuffer);
+	}
+
+	// Whether a post effect runs this frame; sets the reason if not.
+	bool Effect_On(EwPostProcess::Effect effect, bool option, bool debug_off, Reason debug_reason,
+		EwShaders::PixelShaderId shader)
+	{
+		if (!option)
+			Set_Reason(effect, REASON_EFFECT_OFF);
+		else if (debug_off)
+			Set_Reason(effect, debug_reason);
+		else if (EwShaders::Peek_Pixel(shader) == nullptr)
+			Set_Reason(effect, REASON_NO_SHADER);
+		else
+			return true;
+		return false;
 	}
 }
 
@@ -424,37 +692,92 @@ void EwPostProcess::End_Scene(int x, int y, int width, int height)
 	device->SetFVF(POST_FVF);
 	device->SetVertexShader(EwShaders::Peek_Vertex(EwShaders::VS_POST));
 
-	// Bloom needs its four shaders and its textures; without them the scene is only copied.
+	// Which effects of the final pass run. Bloom also needs its own shaders and textures, colour
+	// grading its LUT texture; without any effect the scene is only copied.
 	const EwGraphicsOptions &o = EwGraphics();
-	bool bloom = false;
-	if (!o.Bloom)
-		BloomFrameReason = ReasonText[REASON_BLOOM_OFF];
-	else if (EwShaders::Peek_Pixel(EwShaders::PS_POST_BRIGHT) == nullptr || EwShaders::Peek_Pixel(EwShaders::PS_POST_DOWN) == nullptr
-		|| EwShaders::Peek_Pixel(EwShaders::PS_POST_BLUR) == nullptr || EwShaders::Peek_Pixel(EwShaders::PS_POST_BLOOM) == nullptr)
-		BloomFrameReason = ReasonText[REASON_NO_SHADER];
-	else
+	bool bloom = Effect_On(BLOOM, o.Bloom, false, REASON_EFFECT_OFF, EwShaders::PS_POST_FINAL);
+	if (bloom && (EwShaders::Peek_Pixel(EwShaders::PS_POST_BRIGHT) == nullptr || EwShaders::Peek_Pixel(EwShaders::PS_POST_DOWN) == nullptr
+		|| EwShaders::Peek_Pixel(EwShaders::PS_POST_BLUR) == nullptr))
+	{
+		Set_Reason(BLOOM, REASON_NO_SHADER);
+		bloom = false;
+	}
+	if (bloom)
 		bloom = Bloom_Ready(device);
+	const bool tone = Effect_On(TONE_MAPPING, o.ToneMapping, o.DebugToneMappingOff, REASON_TONE_DEBUG_OFF,
+		EwShaders::PS_POST_FINAL);
+	bool grade = Effect_On(COLOR_GRADING, o.ColorGrading, o.DebugColorGradingOff, REASON_GRADE_DEBUG_OFF,
+		EwShaders::PS_POST_FINAL);
+	if (grade)
+		grade = Lut_Ready(device);
+	const bool final_effects = bloom || tone || grade;
+	bool fxaa = Effect_On(FXAA, o.FXAA, o.DebugFxaaOff, REASON_FXAA_DEBUG_OFF, EwShaders::PS_POST_FXAA);
+	if (fxaa && final_effects)
+		fxaa = Final_Ready(device);
 
 	if (bloom)
 		Draw_Bloom(device);
 
-	// The last pass, onto the back buffer over the view rectangle. The scene is read with point
-	// filtering, so each pixel gets exactly its own texel.
-	Set_Texture(device, 0, SceneTexture, false);
-	if (bloom)
+	const float u0 = (float)x / tw;
+	const float v0 = (float)y / th;
+	const float u1 = (float)(x + width) / tw;
+	const float v1 = (float)(y + height) / th;
+
+	// The final pass, onto the back buffer over the view rectangle, or into the same rectangle of
+	// FinalTexture when FXAA follows. The scene is read with point filtering, so each pixel gets
+	// exactly its own texel. FXAA alone skips it and reads the scene texture.
+	IDirect3DTexture9 *fxaa_source = SceneTexture;
+	if (fxaa && final_effects)
 	{
-		for (int i = 0; i < BLOOM_LEVELS; ++i)
-			Set_Texture(device, 1 + i, Bloom[i].Texture[0], true);
-		device->SetPixelShader(EwShaders::Peek_Pixel(EwShaders::PS_POST_BLOOM));
+		// FinalTexture has no multisampling, so no (possibly multisampled) depth buffer may be bound.
+		device->SetRenderTarget(0, FinalSurface);
+		device->SetDepthStencilSurface(nullptr);
+		fxaa_source = FinalTexture;
 	}
-	else
+	Set_Texture(device, 0, SceneTexture, false);
+	if (final_effects)
+	{
+		if (bloom)
+		{
+			for (int i = 0; i < BLOOM_LEVELS; ++i)
+				Set_Texture(device, 1 + i, Bloom[i].Texture[0], true);
+		}
+		if (grade)
+			Set_Texture(device, 4, LutTexture, true);
+		const float final_flags[4] = { bloom ? 1.0f : 0.0f, tone ? 1.0f : 0.0f, grade ? 1.0f : 0.0f, 0.0f };
+		const float tone_params[4] = { TONE_EXPOSURE, 1.0f / Filmic_Curve(TONE_EXPOSURE), 0.0f, 0.0f };
+		device->SetPixelShaderConstantF(EW_POST_PS_FINAL, final_flags, 1);
+		device->SetPixelShaderConstantF(EW_POST_PS_TONE, tone_params, 1);
+		device->SetPixelShader(EwShaders::Peek_Pixel(EwShaders::PS_POST_FINAL));
+		Draw_Quad(device, x, y, width, height, u0, v0, u1, v1);
+	}
+	else if (!fxaa)
 	{
 		device->SetPixelShader(EwShaders::Peek_Pixel(EwShaders::PS_POST_COPY));
+		Draw_Quad(device, x, y, width, height, u0, v0, u1, v1);
 	}
-	Draw_Quad(device, x, y, width, height, (float)x / tw, (float)y / th, (float)(x + width) / tw, (float)(y + height) / th);
-	++FramePasses;
+	++Stats[SCENE].Passes;
 	if (bloom)
-		++BloomFramePasses;
+		++Stats[BLOOM].Passes;
+	if (tone)
+		++Stats[TONE_MAPPING].Passes;
+	if (grade)
+		++Stats[COLOR_GRADING].Passes;
+
+	// FXAA, onto the back buffer. Its reads stay half a texel inside the view rectangle, so the
+	// edge of the view never blends with what lies outside it.
+	if (fxaa)
+	{
+		device->SetRenderTarget(0, BackBuffer);
+		device->SetDepthStencilSurface(DepthBuffer);
+		Set_Texture(device, 0, fxaa_source, true);
+		Set_Texel(device, 1.0f / tw, 1.0f / th, 0.0f, 0.0f);
+		const float clamp_uv[4] = { u0 + 0.5f / tw, v0 + 0.5f / th, u1 - 0.5f / tw, v1 - 0.5f / th };
+		device->SetPixelShaderConstantF(EW_POST_PS_CLAMP, clamp_uv, 1);
+		device->SetPixelShader(EwShaders::Peek_Pixel(EwShaders::PS_POST_FXAA));
+		Draw_Quad(device, x, y, width, height, u0, v0, u1, v1);
+		++Stats[FXAA].Passes;
+	}
 
 	// Puts back every state, including the textures and the stream source that DrawPrimitiveUP
 	// cleared.
@@ -476,37 +799,35 @@ void EwPostProcess::Release()
 	}
 	Release_Targets();
 	Release_Com(SavedStates);
+	Release_Com(LutTexture);
+	LutUploaded = false;
+	LutFailed = false;
 	CreateFailed = false;
 }
 
 void EwPostProcess::New_Frame()
 {
-	LastFramePasses = FramePasses;
-	LastReason = FrameReason;
-	FramePasses = 0;
-	FrameReason = ReasonText[REASON_NOT_DRAWN];
-	LastBloomFramePasses = BloomFramePasses;
-	LastBloomReason = BloomFrameReason;
-	BloomFramePasses = 0;
-	BloomFrameReason = ReasonText[REASON_NOT_DRAWN];
+	for (int i = 0; i < EFFECT_COUNT; ++i)
+	{
+		EffectStats &s = Stats[i];
+		s.LastPasses = s.Passes;
+		s.LastReason = s.Reason ? s.Reason : ReasonText[REASON_NOT_DRAWN];
+		s.Passes = 0;
+		s.Reason = ReasonText[REASON_NOT_DRAWN];
+	}
 }
 
-unsigned EwPostProcess::Last_Frame_Passes()
+unsigned EwPostProcess::Last_Frame_Passes(Effect effect)
 {
-	return LastFramePasses;
+	return Stats[effect].LastPasses;
 }
 
-const char *EwPostProcess::Last_Reason()
+const char *EwPostProcess::Last_Reason(Effect effect)
 {
-	return LastReason;
+	return Stats[effect].LastReason ? Stats[effect].LastReason : ReasonText[REASON_NOT_DRAWN];
 }
 
-unsigned EwPostProcess::Last_Frame_Bloom_Passes()
+const char *EwPostProcess::Color_Lut_File()
 {
-	return LastBloomFramePasses;
-}
-
-const char *EwPostProcess::Last_Bloom_Reason()
-{
-	return LastBloomReason;
+	return LutChosen && LutFile[0] != '\0' ? LutFile : nullptr;
 }

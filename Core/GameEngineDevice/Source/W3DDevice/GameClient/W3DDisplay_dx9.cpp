@@ -767,9 +767,9 @@ static void ewLoadGraphicsOptions()
 	options.Validate();
 }
 
-// EastWind (EwDebugKeys = yes): Ctrl+Shift+F8..F12 switch the DX9 features while the game runs,
+// EastWind (EwDebugKeys = yes): Ctrl+Shift+F4..F12 switch the DX9 features while the game runs,
 // so the new and the classic look can be compared at the same spot. The keys are read straight
-// from the keyboard, and the game still sees them; Ctrl+Shift+F7..F12 are unbound in ZH.
+// from the keyboard, and the game still sees them.
 // One status line: how many passes of the last frame used a shader, or why it did not run.
 static void ewShowShaderStatus(const WideChar *name, unsigned passes, const char *reason)
 {
@@ -793,6 +793,9 @@ static void ewShowGraphicsStatus()
 	const WideChar *meshes = !o.PerPixelLighting ? L"off in Options.ini" : o.MeshLighting() ? L"per pixel (new)" : L"classic";
 	const WideChar *normal_maps = !o.NormalMaps ? L"off in Options.ini" : o.MeshNormalMaps() ? L"on" : L"off";
 	const WideChar *post = !o.PostProcessWanted() ? L"off in Options.ini" : o.PostProcess() ? L"on" : L"off";
+	const WideChar *tone = !o.ToneMapping ? L"off in Options.ini" : o.PostToneMapping() ? L"on" : L"off";
+	const WideChar *grade = !o.ColorGrading ? L"off in Options.ini" : o.PostColorGrading() ? L"on" : L"off";
+	const WideChar *fxaa = !o.FXAA ? L"off in Options.ini" : o.PostFxaa() ? L"on" : L"off";
 
 	TheInGameUI->message(L"EastWind graphics: %s   [Ctrl+Shift+F9]", o.DebugAllOff ? L"ALL OFF (classic)" : L"ON");
 	TheInGameUI->message(L"Terrain light: %s   [Ctrl+Shift+F10]", terrain);
@@ -800,12 +803,30 @@ static void ewShowGraphicsStatus()
 	TheInGameUI->message(L"Normal maps and SpecMaps: %s   [Ctrl+Shift+F12]", normal_maps);
 	TheInGameUI->message(L"Terrain light-only view: %s   [Ctrl+Shift+F8]", o.DebugTerrainLightOnly ? L"on" : L"off");
 	TheInGameUI->message(L"Post-processing: %s   [Ctrl+Shift+F7]", post);
+	TheInGameUI->message(L"Tone mapping: %s   [Ctrl+Shift+F5]", tone);
+	TheInGameUI->message(L"Colour grading: %s   [Ctrl+Shift+F6]", grade);
+	TheInGameUI->message(L"FXAA: %s   [Ctrl+Shift+F4]", fxaa);
 
 	ewShowShaderStatus(L"Terrain shader", EwTerrainLighting::Last_Frame_Passes(), EwTerrainLighting::Last_Reason());
 	ewShowShaderStatus(L"Road and blend tile shader", EwTerrainLighting::Last_Frame_Road_Passes(), EwTerrainLighting::Last_Road_Reason());
 	ewShowShaderStatus(L"Tree shader", EwTerrainLighting::Last_Frame_Tree_Passes(), EwTerrainLighting::Last_Tree_Reason());
-	ewShowShaderStatus(L"Post-processing scene texture", EwPostProcess::Last_Frame_Passes(), EwPostProcess::Last_Reason());
-	ewShowShaderStatus(L"Bloom", EwPostProcess::Last_Frame_Bloom_Passes(), EwPostProcess::Last_Bloom_Reason());
+	ewShowShaderStatus(L"Post-processing scene texture", EwPostProcess::Last_Frame_Passes(EwPostProcess::SCENE),
+		EwPostProcess::Last_Reason(EwPostProcess::SCENE));
+	ewShowShaderStatus(L"Bloom", EwPostProcess::Last_Frame_Passes(EwPostProcess::BLOOM),
+		EwPostProcess::Last_Reason(EwPostProcess::BLOOM));
+	ewShowShaderStatus(L"Tone mapping", EwPostProcess::Last_Frame_Passes(EwPostProcess::TONE_MAPPING),
+		EwPostProcess::Last_Reason(EwPostProcess::TONE_MAPPING));
+	ewShowShaderStatus(L"Colour grading", EwPostProcess::Last_Frame_Passes(EwPostProcess::COLOR_GRADING),
+		EwPostProcess::Last_Reason(EwPostProcess::COLOR_GRADING));
+	ewShowShaderStatus(L"FXAA", EwPostProcess::Last_Frame_Passes(EwPostProcess::FXAA),
+		EwPostProcess::Last_Reason(EwPostProcess::FXAA));
+	if (EwPostProcess::Last_Frame_Passes(EwPostProcess::COLOR_GRADING) > 0)
+	{
+		const char *lut = EwPostProcess::Color_Lut_File();
+		UnicodeString text;
+		text.translate(AsciiString(lut ? lut : "built-in neutral LUT (no change)"));
+		TheInGameUI->message(L"Colour LUT: %s", text.str());
+	}
 }
 
 static void ewPollGraphicsDebugKeys()
@@ -829,6 +850,9 @@ static void ewPollGraphicsDebugKeys()
 	};
 	const Key keys[] =
 	{
+		{ VK_F4, &o.DebugFxaaOff },
+		{ VK_F5, &o.DebugToneMappingOff },
+		{ VK_F6, &o.DebugColorGradingOff },
 		{ VK_F7, &o.DebugPostOff },
 		{ VK_F8, &o.DebugTerrainLightOnly },
 		{ VK_F9, &o.DebugAllOff },

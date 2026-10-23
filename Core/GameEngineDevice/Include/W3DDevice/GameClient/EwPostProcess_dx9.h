@@ -33,6 +33,20 @@
 // there and at 1/8 and 1/16 size, and the three blurred sizes are added back over the scene.
 // The bloom textures have no depth buffer; the passes bind none while they draw.
 //
+// Tone mapping (M3.2c, EwToneMapping): after bloom, a filmic curve (the ACES fit) on linear
+// light gives deeper shadows and softer highlights. It is scaled so that white stays white.
+//
+// Colour grading (M3.2c, EwColorGrading): last, each colour is looked up in a 16x16x16 colour
+// LUT, stored as a 256x16 TGA strip of 16 slices (blue picks the slice, red goes across, green
+// goes down). The map's own ColorGrading.tga (in the map's folder) wins over
+// Art\Textures\EwColorGrading.tga; without either, a neutral LUT changes nothing.
+//
+// Bloom, tone mapping and colour grading run in one final pass (PS_POST_FINAL).
+//
+// FXAA (M3.2d, EwFXAA): last, an edge anti-aliasing pass on the finished colours. With other
+// effects on, the final pass draws into a second texture the size of the scene texture, which
+// FXAA reads; FXAA alone reads the scene texture.
+//
 // Code that copies the screen during the 3D scene must read the current render target, not the
 // back buffer: the DX9 copies of W3DShaderManager (view filters) and W3DSmudgeManager (heat haze)
 // do.
@@ -42,6 +56,17 @@
 class EwPostProcess
 {
 public:
+	// For the debug status: the scene texture itself, then each effect of the final pass.
+	enum Effect
+	{
+		SCENE,
+		BLOOM,
+		TONE_MAPPING,
+		COLOR_GRADING,
+		FXAA,
+		EFFECT_COUNT
+	};
+
 	// Points rendering at the scene texture and clears its colour to black, with the alpha the
 	// frame clear uses (the soft water edge reads destination alpha). Depth is not cleared: it is
 	// the back buffer's, which the frame clear already cleared. Returns true if rendering now goes
@@ -58,8 +83,7 @@ public:
 
 	// For the debug keys (EwDebugKeys): W3DDisplay::draw calls New_Frame() once a frame.
 	static void New_Frame();
-	static unsigned Last_Frame_Passes();	// scenes drawn onto the back buffer in the last frame
-	static const char *Last_Reason();		// why the scene texture was not used, if it was not
-	static unsigned Last_Frame_Bloom_Passes();	// bloom passes drawn in the last frame
-	static const char *Last_Bloom_Reason();		// why bloom did not run, if it did not
+	static unsigned Last_Frame_Passes(Effect effect);	// passes the effect drew in the last frame
+	static const char *Last_Reason(Effect effect);		// why the effect did not run, if it did not
+	static const char *Color_Lut_File();				// the colour LUT file in use, or nullptr for the neutral one
 };

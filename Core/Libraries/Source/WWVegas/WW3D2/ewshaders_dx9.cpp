@@ -64,7 +64,8 @@
 #include "post_bright_ps.h"
 #include "post_down_ps.h"
 #include "post_blur_ps.h"
-#include "post_bloom_ps.h"
+#include "post_final_ps.h"
+#include "post_fxaa_ps.h"
 
 namespace
 {
@@ -125,7 +126,8 @@ namespace
 		{ g_ew_post_bright_ps, "post_bright_ps" },
 		{ g_ew_post_down_ps, "post_down_ps" },
 		{ g_ew_post_blur_ps, "post_blur_ps" },
-		{ g_ew_post_bloom_ps, "post_bloom_ps" },
+		{ g_ew_post_final_ps, "post_final_ps" },
+		{ g_ew_post_fxaa_ps, "post_fxaa_ps" },
 	};
 	static_assert(sizeof(PixelCode) / sizeof(PixelCode[0]) == EwShaders::PS_COUNT, "PixelCode must match EwShaders::PixelShaderId");
 

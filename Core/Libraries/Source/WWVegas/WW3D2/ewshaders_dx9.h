@@ -84,7 +84,8 @@ public:
 		PS_POST_BRIGHT,				// post.hlsl, bloom bright pass and first downsample (M3.2b)
 		PS_POST_DOWN,				// post.hlsl, bloom downsample (M3.2b)
 		PS_POST_BLUR,				// post.hlsl, bloom Gaussian blur (M3.2b)
-		PS_POST_BLOOM,				// post.hlsl, scene plus bloom onto the back buffer (M3.2b)
+		PS_POST_FINAL,				// post.hlsl, scene plus bloom, tone curve and colour LUT onto the back buffer (M3.2b/c)
+		PS_POST_FXAA,				// post.hlsl, edge anti-aliasing of the finished colours (M3.2d)
 		PS_COUNT
 	};
 

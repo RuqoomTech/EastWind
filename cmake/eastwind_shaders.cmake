@@ -74,7 +74,8 @@ set(EW_SHADERS
     post_bright_ps          post.hlsl        PostBrightPS         ps_3_0
     post_down_ps            post.hlsl        PostDownPS           ps_3_0
     post_blur_ps            post.hlsl        PostBlurPS           ps_3_0
-    post_bloom_ps           post.hlsl        PostBloomPS          ps_3_0
+    post_final_ps           post.hlsl        PostFinalPS          ps_3_0
+    post_fxaa_ps            post.hlsl        PostFxaaPS           ps_3_0
 )
 
 file(GLOB _ew_shader_includes CONFIGURE_DEPENDS "${EW_SHADER_SOURCE_DIR}/*.h")
