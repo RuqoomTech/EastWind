@@ -34,6 +34,15 @@ struct EwGraphicsOptions
 	bool ToneMapping;		// EwToneMapping (M3.2)
 	bool ColorGrading;		// EwColorGrading (M3.2)
 	bool FXAA;				// EwFXAA (M3.2)
+	bool DebugKeys;			// EwDebugKeys: Ctrl+Shift+F8..F12 switch the features above while the game runs
+
+	// Set by the debug keys (W3DDisplay), never saved. They only turn features off that
+	// Options.ini turned on, so with the keys unused the game looks as Options.ini says.
+	bool DebugAllOff;				// Ctrl+Shift+F9: classic look, every feature off
+	bool DebugTerrainLightingOff;	// Ctrl+Shift+F10: terrain lit per vertex
+	bool DebugMeshLightingOff;		// Ctrl+Shift+F11: meshes lit by fixed function
+	bool DebugNormalMapsOff;		// Ctrl+Shift+F12: no normal maps or SpecMaps
+	bool DebugTerrainLightOnly;		// Ctrl+Shift+F8: terrain shows its light only, no textures
 
 	EwGraphicsOptions()
 		: PerPixelLighting(false)
@@ -44,8 +53,21 @@ struct EwGraphicsOptions
 		, ToneMapping(false)
 		, ColorGrading(false)
 		, FXAA(false)
+		, DebugKeys(false)
+		, DebugAllOff(false)
+		, DebugTerrainLightingOff(false)
+		, DebugMeshLightingOff(false)
+		, DebugNormalMapsOff(false)
+		, DebugTerrainLightOnly(false)
 	{
 	}
+
+	// What the renderer uses: the Options.ini switch minus what the debug keys turned off.
+	bool MeshLighting() const { return PerPixelLighting && !DebugAllOff && !DebugMeshLightingOff; }
+	bool MeshNormalMaps() const { return NormalMaps && MeshLighting() && !DebugNormalMapsOff; }
+	// The terrain shader also runs for the light-only view with per-vertex light.
+	bool TerrainShader() const { return PerPixelLighting && !DebugAllOff && (!DebugTerrainLightingOff || DebugTerrainLightOnly); }
+	bool TerrainPixelLight() const { return !DebugTerrainLightingOff; }
 
 	// Brings values read from Options.ini into range.
 	void Validate()

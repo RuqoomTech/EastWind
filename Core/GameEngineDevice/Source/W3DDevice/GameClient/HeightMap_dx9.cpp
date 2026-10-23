@@ -78,6 +78,7 @@
 #include "W3DDevice/GameClient/W3DWaypointBuffer.h"
 #include "W3DDevice/GameClient/WorldHeightMap.h"
 #include "W3DDevice/GameClient/W3DShaderManager_dx9.h"
+#include "W3DDevice/GameClient/EwTerrainLighting_dx9.h"
 #include "W3DDevice/GameClient/W3DShadow.h"
 #include "W3DDevice/GameClient/W3DWater_dx9.h"
 #include "W3DDevice/GameClient/W3DShroud.h"
@@ -2026,6 +2027,7 @@ void HeightMapRenderObjClass::Render(RenderInfoClass & rinfo)
  	for (pass=0; pass<devicePasses; pass++) {
 #ifdef TIMING_TESTS
 #endif
+		Bool ewLit = false;	// EastWind M3.1c: the pass is lit per pixel
 		if (!doMultiPassWireFrame)	//multi-pass wireframe doesn't use regular shaders.
 		{
  			if (m_disableTextures ) {
@@ -2033,6 +2035,7 @@ void HeightMapRenderObjClass::Render(RenderInfoClass & rinfo)
  				DX8Wrapper::Set_Texture(0,nullptr);
    			} else {
  				W3DShaderManager::setShader(st, pass);
+				ewLit = EwTerrainLighting::Begin(m_map);
 			}
 		}
 
@@ -2063,6 +2066,8 @@ void HeightMapRenderObjClass::Render(RenderInfoClass & rinfo)
 				}
 
 			}
+		if (ewLit)
+			EwTerrainLighting::End();
 	}
 
 	if (!doMultiPassWireFrame)

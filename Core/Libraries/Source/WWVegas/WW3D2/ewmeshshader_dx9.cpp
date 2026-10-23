@@ -457,7 +457,7 @@ namespace
 
 bool EwMeshShader::Begin()
 {
-	if (!EwGraphics().PerPixelLighting)
+	if (!EwGraphics().MeshLighting())
 		return false;
 
 	Device = DX8Wrapper::_Get_D3D_Device9();
@@ -560,7 +560,7 @@ bool EwMeshShader::Begin()
 	unsigned house_color = 0;
 	TextureBaseClass *stage0 = DX8Wrapper::Peek_Render_State_Texture(0);
 	TextureClass *diffuse = (stage0 != nullptr) ? stage0->As_TextureClass() : nullptr;
-	if (EwGraphics().NormalMaps && diffuse != nullptr && has_texture[0] > 0.5f && texgen[0].x == 0.0f
+	if (EwGraphics().MeshNormalMaps() && diffuse != nullptr && has_texture[0] > 0.5f && texgen[0].x == 0.0f
 		&& stage_constants[4].x == float(D3DTOP_DISABLE))
 	{
 		IDirect3DBaseTexture9 *bound = nullptr;
@@ -743,7 +743,7 @@ void EwMeshShader::Set_Object(const RenderObjClass *object)
 {
 	// The game sets the team colour on the top object of a model, not on its meshes.
 	unsigned colour = 0;
-	if (EwGraphics().NormalMaps)
+	if (EwGraphics().MeshNormalMaps())
 	{
 		for (const RenderObjClass *o = object; o != nullptr; o = o->Get_Container())
 		{

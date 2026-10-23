@@ -75,6 +75,7 @@
 #include "WW3D2/dx9caps.h"
 #include "WW3D2/ewshaders_dx9.h"
 #include "ew_constants.h"
+#include "W3DDevice/GameClient/EwTerrainLighting_dx9.h"
 
 /// EastWind: takes the embedded HLSL port of a game shader (EastWind/Shaders). The game's ps.1.x
 /// file still loads when the card refuses ps_2_0, so such cards keep the DX8 look.
@@ -2714,6 +2715,8 @@ void W3DShaderManager::shutdown()
 			W3DFilters[i]->shutdown();
 		}
 	}
+
+	EwTerrainLighting::Release();
 }
 
 //=============================================================================

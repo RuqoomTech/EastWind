@@ -49,6 +49,7 @@ public:
 		VS_MESH_ND_T2,
 		VS_MESH_NS_T2,
 		VS_MESH_NDS_T2,
+		VS_TERRAIN_LIT,		// terrain_lit.hlsl, per-pixel lit terrain (M3.1c)
 		VS_COUNT
 	};
 
@@ -69,6 +70,9 @@ public:
 		PS_PROFILER_SWIZZLE,		// profiler.hlsl, was assembled at runtime in W3DProfilerFrameCapture.cpp
 		PS_MESH,					// mesh.hlsl, lit meshes (M3.1a)
 		PS_MESH_MATERIAL,			// mesh.hlsl, lit meshes with normal map and SpecMap (M3.1b)
+		PS_TERRAIN_LIT,				// terrain_lit.hlsl, per-pixel lit terrain (M3.1c), replaces PS_TERRAIN
+		PS_TERRAIN_LIT_NOISE1,		// terrain_lit.hlsl, replaces PS_TERRAIN_NOISE1
+		PS_TERRAIN_LIT_NOISE2,		// terrain_lit.hlsl, replaces PS_TERRAIN_NOISE2
 		PS_COUNT
 	};
 

@@ -61,4 +61,20 @@
 #define EW_MESH_PS_HOUSECOLOR        41  // c41: rgb house colour, w SpecMap specular power
 #define EW_MESH_PS_COUNT             42
 
+// --- terrain_lit.hlsl (vertex + pixel), M3.1c per-pixel terrain lighting; set by EwTerrainLighting_dx9.cpp ---
+// Matrices are uploaded as their columns, like the mesh shader's.
+#define EW_TERRAIN_VS_WVP            0   // c0..c3: world * view * projection
+#define EW_TERRAIN_VS_WORLD          4   // c4..c6: world
+#define EW_TERRAIN_VS_WORLDVIEW      7   // c7..c9: world * view
+#define EW_TERRAIN_VS_TEXMATRIX      10  // c10..c17: texture matrices of stages 2 and 3, 4 registers each
+#define EW_TERRAIN_VS_GRIDMAP        18  // c18: world xy -> height grid uv, xy scale, zw offset
+#define EW_TERRAIN_VS_OPTIONS        19  // c19: x range fog
+#define EW_TERRAIN_SUN               20  // c20..c26, vertex and pixel: ambient, 3 light directions, 3 diffuse colours
+#define EW_TERRAIN_SUN_COUNT         7
+#define EW_TERRAIN_VS_COUNT          27
+#define EW_TERRAIN_PS_FOG            27  // c27: enable, end, 1 / (end - start)
+#define EW_TERRAIN_PS_FOGCOLOR       28  // c28: D3DRS_FOGCOLOR
+#define EW_TERRAIN_PS_DEBUG          29  // c29: debug keys, x per-vertex light, y light only
+#define EW_TERRAIN_PS_COUNT          30  // the pixel constants start at EW_TERRAIN_SUN
+
 #endif // EW_CONSTANTS_H

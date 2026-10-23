@@ -83,6 +83,7 @@ static void drawFramerateBar();
 #include "W3DDevice/GameClient/W3DProjectedShadow.h"
 #include "W3DDevice/GameClient/W3DScreenshot.h"
 #include "W3DDevice/GameClient/W3DShroud.h"
+#include "W3DDevice/GameClient/EwTerrainLighting_dx9.h"
 #include "WWMath/wwmath.h"
 #include "WWLib/registry.h"
 #include "WW3D2/ww3d.h"
@@ -761,7 +762,83 @@ static void ewLoadGraphicsOptions()
 	options.ToneMapping = prefs.getBool("EwToneMapping", options.ToneMapping);
 	options.ColorGrading = prefs.getBool("EwColorGrading", options.ColorGrading);
 	options.FXAA = prefs.getBool("EwFXAA", options.FXAA);
+	options.DebugKeys = prefs.getBool("EwDebugKeys", options.DebugKeys);
 	options.Validate();
+}
+
+// EastWind (EwDebugKeys = yes): Ctrl+Shift+F8..F12 switch the DX9 features while the game runs,
+// so the new and the classic look can be compared at the same spot. The keys are read straight
+// from the keyboard, and the game still sees them; Ctrl+Shift+F8..F12 are unbound in ZH.
+static void ewShowGraphicsStatus()
+{
+	if (TheInGameUI == nullptr)
+		return;
+	const EwGraphicsOptions &o = EwGraphics();
+	const WideChar *terrain = !o.PerPixelLighting ? L"off in Options.ini"
+		: o.DebugAllOff ? L"classic" : o.DebugTerrainLightingOff ? L"per vertex (classic)" : L"per pixel (new)";
+	const WideChar *meshes = !o.PerPixelLighting ? L"off in Options.ini" : o.MeshLighting() ? L"per pixel (new)" : L"classic";
+	const WideChar *normal_maps = !o.NormalMaps ? L"off in Options.ini" : o.MeshNormalMaps() ? L"on" : L"off";
+
+	TheInGameUI->message(L"EastWind graphics: %s   [Ctrl+Shift+F9]", o.DebugAllOff ? L"ALL OFF (classic)" : L"ON");
+	TheInGameUI->message(L"Terrain light: %s   [Ctrl+Shift+F10]", terrain);
+	TheInGameUI->message(L"Unit and building light: %s   [Ctrl+Shift+F11]", meshes);
+	TheInGameUI->message(L"Normal maps and SpecMaps: %s   [Ctrl+Shift+F12]", normal_maps);
+	TheInGameUI->message(L"Terrain light-only view: %s   [Ctrl+Shift+F8]", o.DebugTerrainLightOnly ? L"on" : L"off");
+
+	const unsigned passes = EwTerrainLighting::Last_Frame_Passes();
+	if (passes > 0)
+		TheInGameUI->message(L"Terrain shader: running (%u pass%s a frame)", passes, passes == 1 ? L"" : L"es");
+	else
+	{
+		UnicodeString reason;
+		reason.translate(AsciiString(EwTerrainLighting::Last_Reason()));
+		TheInGameUI->message(L"Terrain shader: not running - %s", reason.str());
+	}
+}
+
+static void ewPollGraphicsDebugKeys()
+{
+	EwGraphicsOptions &o = EwGraphics();
+	if (!o.DebugKeys)
+		return;
+
+	// The status is shown a few frames after a key, so the frame it reports used the new setting.
+	static int status_in_frames = -1;
+	if (status_in_frames > 0 && --status_in_frames == 0)
+	{
+		ewShowGraphicsStatus();
+		status_in_frames = -1;
+	}
+
+	struct Key
+	{
+		int vk;
+		bool *flag;
+	};
+	const Key keys[] =
+	{
+		{ VK_F8, &o.DebugTerrainLightOnly },
+		{ VK_F9, &o.DebugAllOff },
+		{ VK_F10, &o.DebugTerrainLightingOff },
+		{ VK_F11, &o.DebugMeshLightingOff },
+		{ VK_F12, &o.DebugNormalMapsOff },
+	};
+	const int KEY_COUNT = sizeof(keys) / sizeof(keys[0]);
+	static bool was_down[KEY_COUNT];
+
+	extern HWND ApplicationHWnd;
+	const bool active = ApplicationHWnd != nullptr && ::GetForegroundWindow() == ApplicationHWnd
+		&& (::GetAsyncKeyState(VK_CONTROL) & 0x8000) && (::GetAsyncKeyState(VK_SHIFT) & 0x8000);
+	for (int i = 0; i < KEY_COUNT; ++i)
+	{
+		const bool down = active && (::GetAsyncKeyState(keys[i].vk) & 0x8000) != 0;
+		if (down && !was_down[i])
+		{
+			*keys[i].flag = !*keys[i].flag;
+			status_in_frames = 3;
+		}
+		was_down[i] = down;
+	}
 }
 
 void W3DDisplay::init()
@@ -1895,6 +1972,10 @@ void W3DDisplay::draw()
 
 	// TheSuperHackers @feature bobtista 10/07/2026 Show messages for screenshots finished by the screenshot thread.
 	W3D_UpdateScreenshotMessages();
+
+	// EastWind: debug keys for the DX9 features (EwDebugKeys).
+	EwTerrainLighting::New_Frame();
+	ewPollGraphicsDebugKeys();
 
 	updateAverageFPS();
 	if (TheGlobalData->m_enableDynamicLOD && TheGameLogic->getShowDynamicLOD())

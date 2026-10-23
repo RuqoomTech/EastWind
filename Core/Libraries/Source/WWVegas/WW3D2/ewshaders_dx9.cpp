@@ -49,6 +49,10 @@
 #include "mesh_nds_t2_vs.h"
 #include "mesh_ps.h"
 #include "mesh_material_ps.h"
+#include "terrain_lit_vs.h"
+#include "terrain_lit_ps.h"
+#include "terrain_lit_noise1_ps.h"
+#include "terrain_lit_noise2_ps.h"
 
 namespace
 {
@@ -74,6 +78,7 @@ namespace
 		{ g_ew_mesh_nd_t2_vs, "mesh_nd_t2_vs" },
 		{ g_ew_mesh_ns_t2_vs, "mesh_ns_t2_vs" },
 		{ g_ew_mesh_nds_t2_vs, "mesh_nds_t2_vs" },
+		{ g_ew_terrain_lit_vs, "terrain_lit_vs" },
 	};
 	static_assert(sizeof(VertexCode) / sizeof(VertexCode[0]) == EwShaders::VS_COUNT, "VertexCode must match EwShaders::VertexShaderId");
 
@@ -94,6 +99,9 @@ namespace
 		{ g_ew_profiler_swizzle_ps, "profiler_swizzle_ps" },
 		{ g_ew_mesh_ps, "mesh_ps" },
 		{ g_ew_mesh_material_ps, "mesh_material_ps" },
+		{ g_ew_terrain_lit_ps, "terrain_lit_ps" },
+		{ g_ew_terrain_lit_noise1_ps, "terrain_lit_noise1_ps" },
+		{ g_ew_terrain_lit_noise2_ps, "terrain_lit_noise2_ps" },
 	};
 	static_assert(sizeof(PixelCode) / sizeof(PixelCode[0]) == EwShaders::PS_COUNT, "PixelCode must match EwShaders::PixelShaderId");
 
