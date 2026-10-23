@@ -16,12 +16,17 @@
 #define EW_REG_PASTE(n) register(c##n)
 #define EW_REG(n) EW_REG_PASTE(n)
 
-// --- Trees.hlsl (vertex), was Trees.nvv ---
+// --- trees.hlsl (vertex), was Trees.nvv ---
 #define EW_TREES_VS_WVP          4   // c4..c7: transposed world * view * projection
 #define EW_TREES_VS_WAVE         8   // c8: no sway, c9.. sway type 1..EW_TREES_MAX_SWAY
 #define EW_TREES_MAX_SWAY        10  // MAX_SWAY_TYPES in W3DTreeBuffer.h
 #define EW_TREES_VS_SHROUD_OFS   32  // shroud texture offset
 #define EW_TREES_VS_SHROUD_SCALE 33  // shroud texture scale
+// TreesLitPS (M3.1d, per-pixel lit trees); the vertex side uses the registers above.
+#define EW_TREES_PS_LIGHT        0   // c0..c6: object ambient, 3 directions to the light, 3 diffuse colours
+#define EW_TREES_PS_LIGHT_COUNT  7
+#define EW_TREES_PS_OPTIONS      7   // c7: x shroud on, y light only (debug key)
+#define EW_TREES_PS_COUNT        8
 
 // --- wave.hlsl (vertex + pixel), was wave.nvv / wave.nvp ---
 #define EW_WAVE_VS_WVP           2   // c2..c5: transposed world * view * projection

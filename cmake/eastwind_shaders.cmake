@@ -63,6 +63,12 @@ set(EW_SHADERS
     terrain_lit_ps          terrain_lit.hlsl TerrainLitPS         ps_3_0
     terrain_lit_noise1_ps   terrain_lit.hlsl TerrainLitNoise1PS   ps_3_0
     terrain_lit_noise2_ps   terrain_lit.hlsl TerrainLitNoise2PS   ps_3_0
+    road_lit_vs             terrain_lit.hlsl RoadLitVS            vs_3_0
+    road_lit_ps             terrain_lit.hlsl RoadLitPS            ps_3_0
+    road_lit_noise1_ps      terrain_lit.hlsl RoadLitNoise1PS      ps_3_0
+    road_lit_noise2_ps      terrain_lit.hlsl RoadLitNoise2PS      ps_3_0
+    trees_lit_vs            trees.hlsl       TreesLitVS           vs_3_0
+    trees_lit_ps            trees.hlsl       TreesLitPS           ps_3_0
 )
 
 file(GLOB _ew_shader_includes CONFIGURE_DEPENDS "${EW_SHADER_SOURCE_DIR}/*.h")

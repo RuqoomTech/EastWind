@@ -61,20 +61,28 @@ namespace
 	bool Logged[REASON_COUNT];
 
 	// For the debug keys' status message: passes drawn with the shader, and why the last pass
-	// that was not drawn with it fell back.
+	// that was not drawn with it fell back. Terrain passes and road/blend-tile passes each keep
+	// their own; Reason_Slot points at the one the current Begin call reports to.
 	unsigned FramePasses;
 	unsigned LastFramePasses;
 	const char *LastReason = "no terrain pass was drawn";
+	unsigned RoadFramePasses;
+	unsigned LastRoadFramePasses;
+	const char *LastRoadReason = "no road or blend tile pass was drawn";
+	unsigned TreeFramePasses;
+	unsigned LastTreeFramePasses;
+	const char *LastTreeReason = "no tree was drawn";
+	const char **Reason_Slot = &LastReason;
 
 	bool Skip(const char *why)
 	{
-		LastReason = why;
+		*Reason_Slot = why;
 		return false;
 	}
 
 	bool Fallback(Reason reason, unsigned value)
 	{
-		LastReason = ReasonText[reason];
+		*Reason_Slot = ReasonText[reason];
 		if (!Logged[reason])
 		{
 			Logged[reason] = true;
@@ -278,18 +286,33 @@ namespace
 	}
 }
 
+namespace
+{
+	// The checks every pass makes before looking at what the pass set up.
+	bool Enabled(WorldHeightMap *map)
+	{
+		if (!EwGraphics().PerPixelLighting)
+			return Skip("EwPerPixelLighting is off in Options.ini");
+		if (!EwGraphics().TerrainShader())
+			return Skip("switched off by a debug key");
+		if (map == nullptr || TheGlobalData == nullptr)
+			return Skip("no height map");
+
+		Device = DX8Wrapper::_Get_D3D_Device9();
+		if (Device == nullptr)
+			return Skip("no device");
+		return true;
+	}
+
+	bool Bind(WorldHeightMap *map, EwShaders::VertexShaderId vertex_id, EwShaders::PixelShaderId pixel_id,
+		D3DTRANSFORMSTATETYPE texture_a, D3DTRANSFORMSTATETYPE texture_b);
+}
+
 bool EwTerrainLighting::Begin(WorldHeightMap *map)
 {
-	if (!EwGraphics().PerPixelLighting)
-		return Skip("EwPerPixelLighting is off in Options.ini");
-	if (!EwGraphics().TerrainShader())
-		return Skip("switched off by a debug key");
-	if (map == nullptr || TheGlobalData == nullptr)
-		return Skip("no height map");
-
-	Device = DX8Wrapper::_Get_D3D_Device9();
-	if (Device == nullptr)
-		return Skip("no device");
+	Reason_Slot = &LastReason;
+	if (!Enabled(map))
+		return false;
 
 	// Only the passes TerrainShaderPixelShader set up with a parity pixel shader are ours; the
 	// bound shader tells which variant. The two-stage fixed-function path has none.
@@ -308,22 +331,60 @@ bool EwTerrainLighting::Begin(WorldHeightMap *map)
 	else
 		return Skip("the terrain pass uses another pixel shader (.pso fallback)");
 
+	if (!Bind(map, EwShaders::VS_TERRAIN_LIT, lit_id, D3DTS_TEXTURE2, D3DTS_TEXTURE3))
+		return false;
+	++FramePasses;
+	return true;
+}
+
+bool EwTerrainLighting::Begin_Road(WorldHeightMap *map, int noise_textures, int passes)
+{
+	Reason_Slot = &LastRoadReason;
+	if (!Enabled(map))
+		return false;
+
+	// Without ps_1_1 the shader manager draws two noise textures in two fixed-function passes;
+	// a card that old has no vs_3_0 either.
+	if (passes != 1)
+		return Skip("the road shader uses two passes (no pixel shader road path)");
+
+	EwShaders::PixelShaderId lit_id = EwShaders::PS_ROAD_LIT;
+	if (noise_textures == 1)
+		lit_id = EwShaders::PS_ROAD_LIT_NOISE1;
+	else if (noise_textures >= 2)
+		lit_id = EwShaders::PS_ROAD_LIT_NOISE2;
+
+	// RoadShader2Stage maps stage 1 through D3DTS_TEXTURE1; RoadShaderPixelShader maps stages 1
+	// and 2 through D3DTS_TEXTURE1 and D3DTS_TEXTURE2.
+	if (!Bind(map, EwShaders::VS_ROAD_LIT, lit_id, D3DTS_TEXTURE1, D3DTS_TEXTURE2))
+		return false;
+	++RoadFramePasses;
+	return true;
+}
+
+// Binds the lit shaders over the pass that is set up on the device. The pass's texture
+// coordinates from camera-space position go through texture_a and texture_b.
+namespace
+{
+bool Bind(WorldHeightMap *map, EwShaders::VertexShaderId vertex_id, EwShaders::PixelShaderId pixel_id,
+	D3DTRANSFORMSTATETYPE texture_a, D3DTRANSFORMSTATETYPE texture_b)
+{
 	IDirect3DVertexShader9 *bound_vs = nullptr;
 	Device->GetVertexShader(&bound_vs);
 	if (bound_vs != nullptr)
 	{
 		bound_vs->Release();
-		return Skip("the terrain pass has a vertex shader bound");
+		return Skip("the pass has a vertex shader bound");
 	}
 
 	const DX8Caps *caps = DX8Wrapper::Get_Current_Caps();
 	if (caps->Get_Vertex_Shader_Major_Version() < 3 || caps->Get_Pixel_Shader_Major_Version() < 3)
 		return Fallback(REASON_NO_SM3, (caps->Get_Vertex_Shader_Major_Version() << 8) | caps->Get_Pixel_Shader_Major_Version());
 
-	IDirect3DVertexShader9 *vertex_shader = EwShaders::Peek_Vertex(EwShaders::VS_TERRAIN_LIT);
-	IDirect3DPixelShader9 *pixel_shader = EwShaders::Peek_Pixel(lit_id);
+	IDirect3DVertexShader9 *vertex_shader = EwShaders::Peek_Vertex(vertex_id);
+	IDirect3DPixelShader9 *pixel_shader = EwShaders::Peek_Pixel(pixel_id);
 	if (vertex_shader == nullptr || pixel_shader == nullptr)
-		return Fallback(REASON_NO_SHADER, lit_id);
+		return Fallback(REASON_NO_SHADER, (unsigned(vertex_id) << 8) | unsigned(pixel_id));
 
 	// With shaders bound, D3D9 reads clip planes in clip space instead of world space.
 	DWORD clip_planes = Render_State(D3DRS_CLIPPLANEENABLE);
@@ -354,12 +415,12 @@ bool EwTerrainLighting::Begin(WorldHeightMap *map)
 	if (!Update_Texture(map))
 		return false;	// Update_Texture records the reason
 
-	D3DMATRIX world, view, projection, world_view, world_view_projection, texture2, texture3;
+	D3DMATRIX world, view, projection, world_view, world_view_projection, matrix_a, matrix_b;
 	Device->GetTransform(D3DTS_WORLD, &world);
 	Device->GetTransform(D3DTS_VIEW, &view);
 	Device->GetTransform(D3DTS_PROJECTION, &projection);
-	Device->GetTransform(D3DTS_TEXTURE2, &texture2);
-	Device->GetTransform(D3DTS_TEXTURE3, &texture3);
+	Device->GetTransform(texture_a, &matrix_a);
+	Device->GetTransform(texture_b, &matrix_b);
 	Multiply(world_view, world, view);
 	Multiply(world_view_projection, world_view, projection);
 
@@ -394,8 +455,8 @@ bool EwTerrainLighting::Begin(WorldHeightMap *map)
 	Columns(&vs[EW_TERRAIN_VS_WVP], world_view_projection, 4);
 	Columns(&vs[EW_TERRAIN_VS_WORLD], world, 3);
 	Columns(&vs[EW_TERRAIN_VS_WORLDVIEW], world_view, 3);
-	Columns(&vs[EW_TERRAIN_VS_TEXMATRIX + 0], texture2, 4);
-	Columns(&vs[EW_TERRAIN_VS_TEXMATRIX + 4], texture3, 4);
+	Columns(&vs[EW_TERRAIN_VS_TEXMATRIX + 0], matrix_a, 4);
+	Columns(&vs[EW_TERRAIN_VS_TEXMATRIX + 4], matrix_b, 4);
 	vs[EW_TERRAIN_VS_GRIDMAP] = grid_map;
 	vs[EW_TERRAIN_VS_OPTIONS].x = range_fog;
 	memcpy(&vs[EW_TERRAIN_SUN], sun, sizeof(sun));
@@ -411,9 +472,9 @@ bool EwTerrainLighting::Begin(WorldHeightMap *map)
 	Device->SetVertexShaderConstantF(0, &vs[0].x, EW_TERRAIN_VS_COUNT);
 	Device->SetPixelShaderConstantF(EW_TERRAIN_SUN, &ps[0].x, EW_TERRAIN_PS_COUNT - EW_TERRAIN_SUN);
 
-	// The parity shader goes back in End(), so the pass ends the way the terrain shader set it.
-	SavedPixelShader = bound_ps;
-	SavedPixelShader->AddRef();
+	// The pass's own pixel shader (or none) goes back in End(), so the pass ends the way the
+	// shader manager set it. GetPixelShader adds the reference End() releases.
+	Device->GetPixelShader(&SavedPixelShader);
 	Device->SetVertexShader(vertex_shader);
 	Device->SetPixelShader(pixel_shader);
 
@@ -436,14 +497,18 @@ bool EwTerrainLighting::Begin(WorldHeightMap *map)
 	RestoreFog = fog_enabled;
 	if (fog_enabled)
 		Device->SetRenderState(D3DRS_FOGENABLE, FALSE);
-	++FramePasses;
 	return true;
+}
 }
 
 void EwTerrainLighting::New_Frame()
 {
 	LastFramePasses = FramePasses;
 	FramePasses = 0;
+	LastRoadFramePasses = RoadFramePasses;
+	RoadFramePasses = 0;
+	LastTreeFramePasses = TreeFramePasses;
+	TreeFramePasses = 0;
 }
 
 unsigned EwTerrainLighting::Last_Frame_Passes()
@@ -454,6 +519,34 @@ unsigned EwTerrainLighting::Last_Frame_Passes()
 const char *EwTerrainLighting::Last_Reason()
 {
 	return LastReason;
+}
+
+unsigned EwTerrainLighting::Last_Frame_Road_Passes()
+{
+	return LastRoadFramePasses;
+}
+
+const char *EwTerrainLighting::Last_Road_Reason()
+{
+	return LastRoadReason;
+}
+
+void EwTerrainLighting::Tree_Pass(const char *fallback_reason)
+{
+	if (fallback_reason == nullptr)
+		++TreeFramePasses;
+	else
+		LastTreeReason = fallback_reason;
+}
+
+unsigned EwTerrainLighting::Last_Frame_Tree_Passes()
+{
+	return LastTreeFramePasses;
+}
+
+const char *EwTerrainLighting::Last_Tree_Reason()
+{
+	return LastTreeReason;
 }
 
 void EwTerrainLighting::End()

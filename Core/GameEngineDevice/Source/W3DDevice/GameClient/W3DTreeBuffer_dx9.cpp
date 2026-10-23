@@ -89,6 +89,8 @@ enum
 #include "WW3D2/meshmdl.h"
 #include "WWMath/ew_d3dmath.h"
 #include "WW3D2/ewshaders_dx9.h"
+#include "WW3D2/ewgraphicsoptions_dx9.h"
+#include "W3DDevice/GameClient/EwTerrainLighting_dx9.h"
 #include "ew_constants.h"
 
 
@@ -625,6 +627,19 @@ void W3DTreeBuffer::setTextureLOD(Int lod)
 		((W3DTreeTextureClass*)m_treeTexture)->setLOD(lod);
 }
 
+// EastWind M3.1d: with m_ewLitFormat the vertices are VertexFormatXYZNDUV1TG3, which starts with
+// the fields of VertexFormatXYZNDUV1. The code writes through VertexFormatXYZNDUV1 and steps by
+// the size of the format in use.
+static inline Int ewTreeVertexSize(Bool litFormat)
+{
+	return litFormat ? sizeof(VertexFormatXYZNDUV1TG3) : sizeof(VertexFormatXYZNDUV1);
+}
+
+static inline VertexFormatXYZNDUV1 *ewTreeVertexAt(VertexFormatXYZNDUV1 *vb, Int index, Int vertexSize)
+{
+	return (VertexFormatXYZNDUV1 *)((char *)vb + index * vertexSize);
+}
+
 //=============================================================================
 // W3DTreeBuffer::doLighting
 //=============================================================================
@@ -741,6 +756,7 @@ void W3DTreeBuffer::loadTreesInVertexAndIndexBuffers(RefRenderObjListIterator *p
 		UnsignedShort *curIb = ib;
 
 		VertexFormatXYZNDUV1 *curVb = vb;
+		const Int vertexSize = ewTreeVertexSize(m_ewLitFormat);
 
 
 
@@ -889,7 +905,31 @@ void W3DTreeBuffer::loadTreesInVertexAndIndexBuffers(RefRenderObjListIterator *p
 				} else {
 					curVb->diffuse = diffuse;
 				}
-				curVb++;
+				if (m_ewLitFormat) {
+					// EastWind M3.1d: what doLighting used above, so TreesLitPS can light the tree per pixel.
+					VertexFormatXYZNDUV1TG3 *lit = (VertexFormatXYZNDUV1TG3 *)curVb;
+					lit->Sx = 0.0f;
+					lit->Sy = 0.0f;
+					lit->Sz = 1.0f;
+					UnsignedInt colour = 0xffffffff;
+					if (doVertexLighting) {
+						if (normals) {
+							lit->Sx = normals[i].X*theCos - normals[i].Y*theSin;
+							lit->Sy = normals[i].Y*theCos + normals[i].X*theSin;
+							lit->Sz = normals[i].Z;
+						}
+						if (vecDiffuse) {
+							colour = vecDiffuse[i];
+						}
+					}
+					lit->Tx = emissive.X;
+					lit->Ty = emissive.Y;
+					lit->Tz = emissive.Z;
+					lit->SxTx = ((colour >> 16) & 0xff) / 255.0f;
+					lit->SxTy = ((colour >> 8) & 0xff) / 255.0f;
+					lit->SxTz = (colour & 0xff) / 255.0f;
+				}
+				curVb = ewTreeVertexAt(curVb, 1, vertexSize);
 				m_curNumTreeVertices[bNdx]++;
 			}
 
@@ -933,6 +973,7 @@ void W3DTreeBuffer::updateVertexBuffer()
 		}
 
 		VertexFormatXYZNDUV1 *curVb;
+		const Int vertexSize = ewTreeVertexSize(m_ewLitFormat);
 
 		Int curTree;
 		for (curTree=0; curTree<m_numTrees; curTree++) {
@@ -952,7 +993,7 @@ void W3DTreeBuffer::updateVertexBuffer()
 			DEBUG_ASSERTCRASH(type>=0 && m_treeTypes[type].m_mesh!=nullptr, ("Invalid tree type or mesh."));
 
 			Int startVertex = m_trees[curTree].firstIndex;
-			curVb = vb+startVertex;
+			curVb = ewTreeVertexAt(vb, startVertex, vertexSize);
 			Int i;
 			Int numVertex = m_treeTypes[type].m_mesh->Peek_Model()->Get_Vertex_Count();
 			Vector3 *pVert = m_treeTypes[type].m_mesh->Peek_Model()->Get_Vertex_Array();
@@ -986,7 +1027,7 @@ void W3DTreeBuffer::updateVertexBuffer()
 				curVb->y = vLoc.Y;
 				curVb->z = vLoc.Z;
 				curVb->ny = 1.0f - m_treeTypes[type].m_data->m_darkening*m_trees[curTree].pushAside;
-				curVb++;
+				curVb = ewTreeVertexAt(curVb, 1, vertexSize);
 			}
 		}
 	}
@@ -1033,6 +1074,7 @@ W3DTreeBuffer::W3DTreeBuffer()
 	m_treeTexture = nullptr;
 	m_dwTreeVertexShader = 0;
 	m_dwTreePixelShader = 0;
+	m_ewLitFormat = false;
 	clearAllTrees();
 	allocateTreeBuffers();
 	m_initialized = true;
@@ -1151,13 +1193,26 @@ void W3DTreeBuffer::unitMoved(Object *unit)
 //=============================================================================
 void W3DTreeBuffer::allocateTreeBuffers()
 {
+	// EastWind: the sway vertex shader is the embedded HLSL port of Trees.vso (EastWind/Shaders/trees.hlsl).
+	// The pixel stages stay fixed-function, so Trees.pso is not loaded; DX8 never used it either.
+	m_dwTreeVertexShader = EwShaders::Vertex(EwShaders::VS_TREES);
+
+	// EastWind M3.1d: with EwPerPixelLighting the vertices also carry the normal, emissive and mesh
+	// colour, for TreesLitPS. TreesVS draws the same vertices, so the debug keys can switch per frame.
+	// Without TreesVS the fixed-function stages would read the normal as the shroud coordinates, so
+	// that case keeps the classic format.
+	m_ewLitFormat = EwGraphics().PerPixelLighting && m_dwTreeVertexShader != nullptr
+		&& EwShaders::Peek_Vertex(EwShaders::VS_TREES_LIT) != nullptr
+		&& EwShaders::Peek_Pixel(EwShaders::PS_TREES_LIT) != nullptr;
+	const unsigned treeFvf = m_ewLitFormat ? DX8_FVF_XYZNDUV1TG3 : DX8_FVF_XYZNDUV1;
+
 	Int i;
 	for	(i=0; i<MAX_BUFFERS; i++) {
 	#ifdef USE_STATIC
-		m_vertexTree[i]=NEW_REF(DX8VertexBufferClass,(DX8_FVF_XYZNDUV1,MAX_TREE_VERTEX+4,DX8VertexBufferClass::USAGE_DEFAULT));
+		m_vertexTree[i]=NEW_REF(DX8VertexBufferClass,(treeFvf,MAX_TREE_VERTEX+4,DX8VertexBufferClass::USAGE_DEFAULT));
 		m_indexTree[i]=NEW_REF(DX8IndexBufferClass,(MAX_TREE_INDEX+4, DX8IndexBufferClass::USAGE_DEFAULT));
 	#else
-		m_vertexTree[i]=NEW_REF(DX8VertexBufferClass,(DX8_FVF_XYZNDUV1,MAX_TREE_VERTEX+4,DX8VertexBufferClass::USAGE_DYNAMIC));
+		m_vertexTree[i]=NEW_REF(DX8VertexBufferClass,(treeFvf,MAX_TREE_VERTEX+4,DX8VertexBufferClass::USAGE_DYNAMIC));
 		m_indexTree[i]=NEW_REF(DX8IndexBufferClass,(MAX_TREE_INDEX+4, DX8IndexBufferClass::USAGE_DYNAMIC));
 	#endif
 		m_curNumTreeVertices[i]=0;
@@ -1165,11 +1220,6 @@ void W3DTreeBuffer::allocateTreeBuffers()
 	}
 	// TheSuperHackers @bugfix arcticdolphin 09/10/2026 Refill the new buffers after a device reset.
 	m_anythingChanged = true;
-
-
-	// EastWind: the sway vertex shader is the embedded HLSL port of Trees.vso (EastWind/Shaders/trees.hlsl).
-	// The pixel stages stay fixed-function, so Trees.pso is not loaded; DX8 never used it either.
-	m_dwTreeVertexShader = EwShaders::Vertex(EwShaders::VS_TREES);
 }
 
 //=============================================================================
@@ -1637,7 +1687,23 @@ void W3DTreeBuffer::drawTrees(CameraClass * camera, RefRenderObjListIterator *pD
 	W3DShaderManager::setShroudTex(1);
 	DX8Wrapper::Apply_Render_State_Changes();
 
-	if (m_dwTreeVertexShader) {
+	// EastWind M3.1d: per-pixel lit trees (TreesLitVS/TreesLitPS) when the buffers carry the light
+	// inputs and the unit and building light is per pixel (EwGraphics().MeshLighting()).
+	IDirect3DVertexShader9 *treeVertexShader = m_dwTreeVertexShader;
+	IDirect3DPixelShader9 *treePixelShader = nullptr;
+	if (!EwGraphics().PerPixelLighting) {
+		EwTerrainLighting::Tree_Pass("off in Options.ini");
+	} else if (!m_ewLitFormat) {
+		EwTerrainLighting::Tree_Pass("the device has no vs_3_0/ps_3_0 for the tree shaders");
+	} else if (!EwGraphics().MeshLighting()) {
+		EwTerrainLighting::Tree_Pass("unit and building light is classic");
+	} else {
+		treeVertexShader = EwShaders::Peek_Vertex(EwShaders::VS_TREES_LIT);
+		treePixelShader = EwShaders::Peek_Pixel(EwShaders::PS_TREES_LIT);
+		EwTerrainLighting::Tree_Pass(nullptr);
+	}
+
+	if (treeVertexShader) {
 		EwD3DMatrix matProj, matView, matWorld;
 		DX8Wrapper::_Get_DX8_Transform(D3DTS_WORLD, matWorld);
 		DX8Wrapper::_Get_DX8_Transform(D3DTS_VIEW, matView);
@@ -1682,7 +1748,25 @@ void W3DTreeBuffer::drawTrees(CameraClass * camera, RefRenderObjListIterator *pD
 			DX8Wrapper::_Get_D3D_Device9()->SetVertexShaderConstantF(  EW_TREES_VS_SHROUD_SCALE, (const float*)&offset,  1 );
 		}
 
-		DX8Wrapper::Set_Vertex_Shader_Program(m_dwTreeVertexShader);
+		DX8Wrapper::Set_Vertex_Shader_Program(treeVertexShader);
+		if (treePixelShader) {
+			// The light doLighting bakes in: the ambient of the first object light, and the direction
+			// to each light with its diffuse colour.
+			static_assert(MAX_GLOBAL_LIGHTS == 3, "trees.hlsl lights trees with three lights");
+			const GlobalData::TerrainLighting *objectLighting = TheGlobalData->m_terrainObjectsLighting[TheGlobalData->m_timeOfDay];
+			Vector4 light[EW_TREES_PS_COUNT];
+			light[0].Set(objectLighting[0].ambient.red, objectLighting[0].ambient.green, objectLighting[0].ambient.blue, 0);
+			for (i=0; i<MAX_GLOBAL_LIGHTS; i++) {
+				Vector3 direction(objectLighting[i].lightPos.x, objectLighting[i].lightPos.y, objectLighting[i].lightPos.z);
+				direction.Normalize();
+				light[1+i].Set(-direction.X, -direction.Y, -direction.Z, 0);
+				light[4+i].Set(objectLighting[i].diffuse.red, objectLighting[i].diffuse.green, objectLighting[i].diffuse.blue, 0);
+			}
+			light[EW_TREES_PS_OPTIONS].Set(TheTerrainRenderObject->getShroud() != nullptr ? 1.0f : 0.0f,
+				EwGraphics().DebugTerrainLightOnly ? 1.0f : 0.0f, 0, 0);
+			DX8Wrapper::_Get_D3D_Device9()->SetPixelShaderConstantF(EW_TREES_PS_LIGHT, (const float*)light, EW_TREES_PS_COUNT);
+			DX8Wrapper::Set_Pixel_Shader(treePixelShader);
+		}
 #if 0
 		DX8Wrapper::Set_Pixel_Shader(m_dwTreePixelShader);
 		// a.c. 6/16 - allow switching between normal and 2X mode for terrain
@@ -1706,10 +1790,10 @@ void W3DTreeBuffer::drawTrees(CameraClass * camera, RefRenderObjListIterator *pD
 		DX8Wrapper::Set_Vertex_Buffer(m_vertexTree[bNdx]);
 		// Render the waving grass
 		DX8Wrapper::Apply_Render_State_Changes();
-		if (m_dwTreeVertexShader) {
+		if (treeVertexShader) {
 			// Apply_Render_State_Changes set the buffer's FVF, which dropped the shader. Rebind it through
 			// the wrapper, not the device, so the Set_Vertex_Shader after the loop unbinds it again.
-			DX8Wrapper::Set_Vertex_Shader_Program(m_dwTreeVertexShader);
+			DX8Wrapper::Set_Vertex_Shader_Program(treeVertexShader);
 			DX8Wrapper::_Get_D3D_Device9()->SetTextureStageState(0,  D3DTSS_TEXCOORDINDEX, 0);
 			DX8Wrapper::_Get_D3D_Device9()->SetTextureStageState(1,  D3DTSS_TEXCOORDINDEX, 1);
 			DX8Wrapper::_Get_D3D_Device9()->SetTextureStageState(1,  D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_DISABLE);

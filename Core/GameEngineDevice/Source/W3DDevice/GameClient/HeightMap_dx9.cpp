@@ -2392,9 +2392,16 @@ void HeightMapRenderObjClass::renderExtraBlendTiles()
 			for (Int pass=0; pass < devicePasses; pass++)
 			{
 				W3DShaderManager::setShader(st, pass);
+				// EastWind M3.1d: per-pixel light, drawn in one pass (EwPerPixelLighting).
+				const Bool ewLit = (pass == 0) && EwTerrainLighting::Begin_Road(m_map,
+					(st == W3DShaderManager::ST_ROAD_BASE) ? 0 : ((st == W3DShaderManager::ST_ROAD_BASE_NOISE12) ? 2 : 1), devicePasses);
 				if (Is_Hidden() == 0) {
 					DX8Wrapper::Draw_Triangles(	0,indexCount/3, 0,	vertexCount);	//draw a quad, 2 triangles, 4 verts
 					m_numVisibleExtraBlendTiles += indexCount/6;
+				}
+				if (ewLit) {
+					EwTerrainLighting::End();
+					break;
 				}
 			}
 			W3DShaderManager::resetShader(st);

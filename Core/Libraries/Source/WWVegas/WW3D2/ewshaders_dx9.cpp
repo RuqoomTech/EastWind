@@ -53,6 +53,12 @@
 #include "terrain_lit_ps.h"
 #include "terrain_lit_noise1_ps.h"
 #include "terrain_lit_noise2_ps.h"
+#include "road_lit_vs.h"
+#include "road_lit_ps.h"
+#include "road_lit_noise1_ps.h"
+#include "road_lit_noise2_ps.h"
+#include "trees_lit_vs.h"
+#include "trees_lit_ps.h"
 
 namespace
 {
@@ -79,6 +85,8 @@ namespace
 		{ g_ew_mesh_ns_t2_vs, "mesh_ns_t2_vs" },
 		{ g_ew_mesh_nds_t2_vs, "mesh_nds_t2_vs" },
 		{ g_ew_terrain_lit_vs, "terrain_lit_vs" },
+		{ g_ew_road_lit_vs, "road_lit_vs" },
+		{ g_ew_trees_lit_vs, "trees_lit_vs" },
 	};
 	static_assert(sizeof(VertexCode) / sizeof(VertexCode[0]) == EwShaders::VS_COUNT, "VertexCode must match EwShaders::VertexShaderId");
 
@@ -102,6 +110,10 @@ namespace
 		{ g_ew_terrain_lit_ps, "terrain_lit_ps" },
 		{ g_ew_terrain_lit_noise1_ps, "terrain_lit_noise1_ps" },
 		{ g_ew_terrain_lit_noise2_ps, "terrain_lit_noise2_ps" },
+		{ g_ew_road_lit_ps, "road_lit_ps" },
+		{ g_ew_road_lit_noise1_ps, "road_lit_noise1_ps" },
+		{ g_ew_road_lit_noise2_ps, "road_lit_noise2_ps" },
+		{ g_ew_trees_lit_ps, "trees_lit_ps" },
 	};
 	static_assert(sizeof(PixelCode) / sizeof(PixelCode[0]) == EwShaders::PS_COUNT, "PixelCode must match EwShaders::PixelShaderId");
 

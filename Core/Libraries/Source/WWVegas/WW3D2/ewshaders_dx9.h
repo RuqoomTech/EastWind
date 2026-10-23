@@ -50,6 +50,8 @@ public:
 		VS_MESH_NS_T2,
 		VS_MESH_NDS_T2,
 		VS_TERRAIN_LIT,		// terrain_lit.hlsl, per-pixel lit terrain (M3.1c)
+		VS_ROAD_LIT,		// terrain_lit.hlsl, per-pixel lit roads and blend tiles (M3.1d)
+		VS_TREES_LIT,		// trees.hlsl, per-pixel lit trees (M3.1d), replaces VS_TREES
 		VS_COUNT
 	};
 
@@ -73,6 +75,10 @@ public:
 		PS_TERRAIN_LIT,				// terrain_lit.hlsl, per-pixel lit terrain (M3.1c), replaces PS_TERRAIN
 		PS_TERRAIN_LIT_NOISE1,		// terrain_lit.hlsl, replaces PS_TERRAIN_NOISE1
 		PS_TERRAIN_LIT_NOISE2,		// terrain_lit.hlsl, replaces PS_TERRAIN_NOISE2
+		PS_ROAD_LIT,				// terrain_lit.hlsl, per-pixel lit roads and blend tiles (M3.1d)
+		PS_ROAD_LIT_NOISE1,			// terrain_lit.hlsl, with one noise stage
+		PS_ROAD_LIT_NOISE2,			// terrain_lit.hlsl, with two noise stages, replaces PS_ROAD_NOISE2
+		PS_TREES_LIT,				// trees.hlsl, per-pixel lit trees (M3.1d)
 		PS_COUNT
 	};
 

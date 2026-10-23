@@ -769,6 +769,19 @@ static void ewLoadGraphicsOptions()
 // EastWind (EwDebugKeys = yes): Ctrl+Shift+F8..F12 switch the DX9 features while the game runs,
 // so the new and the classic look can be compared at the same spot. The keys are read straight
 // from the keyboard, and the game still sees them; Ctrl+Shift+F8..F12 are unbound in ZH.
+// One status line: how many passes of the last frame used a shader, or why it did not run.
+static void ewShowShaderStatus(const WideChar *name, unsigned passes, const char *reason)
+{
+	if (passes > 0)
+	{
+		TheInGameUI->message(L"%s: running (%u pass%s a frame)", name, passes, passes == 1 ? L"" : L"es");
+		return;
+	}
+	UnicodeString text;
+	text.translate(AsciiString(reason));
+	TheInGameUI->message(L"%s: not running - %s", name, text.str());
+}
+
 static void ewShowGraphicsStatus()
 {
 	if (TheInGameUI == nullptr)
@@ -785,15 +798,9 @@ static void ewShowGraphicsStatus()
 	TheInGameUI->message(L"Normal maps and SpecMaps: %s   [Ctrl+Shift+F12]", normal_maps);
 	TheInGameUI->message(L"Terrain light-only view: %s   [Ctrl+Shift+F8]", o.DebugTerrainLightOnly ? L"on" : L"off");
 
-	const unsigned passes = EwTerrainLighting::Last_Frame_Passes();
-	if (passes > 0)
-		TheInGameUI->message(L"Terrain shader: running (%u pass%s a frame)", passes, passes == 1 ? L"" : L"es");
-	else
-	{
-		UnicodeString reason;
-		reason.translate(AsciiString(EwTerrainLighting::Last_Reason()));
-		TheInGameUI->message(L"Terrain shader: not running - %s", reason.str());
-	}
+	ewShowShaderStatus(L"Terrain shader", EwTerrainLighting::Last_Frame_Passes(), EwTerrainLighting::Last_Reason());
+	ewShowShaderStatus(L"Road and blend tile shader", EwTerrainLighting::Last_Frame_Road_Passes(), EwTerrainLighting::Last_Road_Reason());
+	ewShowShaderStatus(L"Tree shader", EwTerrainLighting::Last_Frame_Tree_Passes(), EwTerrainLighting::Last_Tree_Reason());
 }
 
 static void ewPollGraphicsDebugKeys()
