@@ -75,6 +75,10 @@ float4 WaveLook              : EW_REG(EW_WATER_PS_WAVE_LOOK);	// x wave shading,
 sampler2D WaveNormals : register(s4);
 sampler2D Reflection  : register(s5);
 
+// M3.4: shadows of units, buildings and trees on the water take away the sun's highlights and
+// some of the sunlit wave shading.
+#include "ew_shadow.h"
+
 // The water vertices are VertexFormatXYZNDUV2.
 struct WaterVsIn
 {
@@ -139,6 +143,7 @@ struct WaterLight
 	float3 specular;	// the sun on the waves
 	float fresnel;		// how much of the reflection shows
 	float shade;		// sun light on the wave relative to flat water, 1 on average
+	float shadow;		// sun shadow map: 1 lit, 0 in shadow
 };
 
 WaterLight Water_Light_From(WaterPsIn i, float3 n);
@@ -159,10 +164,12 @@ WaterLight Water_Light_From(WaterPsIn i, float3 n)
 
 	WaterLight l;
 	l.normal = n;
+	l.shadow = Ew_Sun_Shadow(i.worldFog.xyz, float3(0.0, 0.0, 1.0), SunDirection.xyz);
 	// Slopes toward the sun are brighter and slopes away darker, so the waves show on the water
 	// itself. Relative to flat water, so the water keeps its classic brightness on average.
 	float sunUp = max(SunDirection.z, 0.25);
 	l.shade = max(1.0 + WaveLook.x * (dot(n, SunDirection.xyz) - SunDirection.z) / sunUp, 0.0);
+	l.shade *= lerp(0.8, 1.0, l.shadow);
 	l.fresnel = saturate(Fresnel.x + Fresnel.y * pow(1.0 - facing, Fresnel.z)) * Fresnel.w;
 
 	// Points on the water plane are at the same screen position in the mirrored view.
@@ -171,7 +178,7 @@ WaterLight Water_Light_From(WaterPsIn i, float3 n)
 	l.reflection = lerp(SkyColor.rgb, mirrored, SkyColor.w);
 
 	float3 h = normalize(SunDirection.xyz + toEye);
-	l.specular = SunColor.rgb * (pow(saturate(dot(n, h)), SunColor.w) * WaterPsOptions.z);
+	l.specular = SunColor.rgb * (pow(saturate(dot(n, h)), SunColor.w) * WaterPsOptions.z * l.shadow);
 	return l;
 }
 
@@ -302,10 +309,10 @@ WaterLayers Water_Layers(WaterPsIn i, WaterLight l, float3 tint)
 	band *= band;
 	float edgeLine = saturate(1.0 - depth * 3.0);	// a thin wash right at the water's edge
 	float foam = saturate(saturate((pattern + band * 1.3 - 1.0) * 2.5) * band + edgeLine * 0.5 * pattern) * ShoreFoam.y;
-	float3 foamColor = (AmbientLight.rgb + SunColor.rgb * saturate(SunDirection.z)) * 0.85;
+	float3 foamColor = (AmbientLight.rgb + SunColor.rgb * (saturate(SunDirection.z) * l.shadow)) * 0.85;
 
 	float3 h = normalize(SunDirection.xyz + toEye);
-	float3 glint = l.specular + SunColor.rgb * (pow(saturate(dot(l.normal, h)), 48.0) * AmbientLight.w);
+	float3 glint = l.specular + SunColor.rgb * (pow(saturate(dot(l.normal, h)), 48.0) * AmbientLight.w * l.shadow);
 
 	float fresnel = l.fresnel;
 	WaterLayers o;

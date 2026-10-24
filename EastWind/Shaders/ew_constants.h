@@ -121,4 +121,14 @@
 #define EW_WATER_PS_WAVE_MIX     16  // c16: x swell size relative to layer A, y swell strength, z ripple strength
 #define EW_WATER_PS_COUNT        17
 
+// --- ew_shadow.h (pixel), M3.4 sun shadow map; set once a frame by ewshadowmap_dx9.cpp ---
+// Every lit pixel shader (mesh, terrain, roads, trees, water) includes ew_shadow.h. The registers
+// sit far above all of their own constants, so the shadow constants stay bound for the frame.
+#define EW_SHADOW_PS_MATRIX      200 // c200..c202: world -> shadow map u, v and depth
+#define EW_SHADOW_PS_PARAMS      204 // c204: x on, y 1 / map size, z filter radius in texels, w normal offset (world units)
+#define EW_SHADOW_PS_PARAMS2     205 // c205: x hardware depth compare (else INTZ), y depth bias, w strength
+#define EW_SHADOW_PS_FIRST       200
+#define EW_SHADOW_PS_COUNT       6
+#define EW_SHADOW_SAMPLER        12  // s12, above every texture stage the wrapper and fixed function use
+
 #endif // EW_CONSTANTS_H

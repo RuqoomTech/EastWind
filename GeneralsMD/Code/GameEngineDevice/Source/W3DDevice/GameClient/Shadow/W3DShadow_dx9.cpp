@@ -52,6 +52,7 @@
 #include "WW3D2/statistics.h"
 #include "Common/Debug.h"
 #include "Common/PerfTimer.h"
+#include "WW3D2/ewshadowmap_dx9.h"
 
 #define SUN_DISTANCE_FROM_GROUND	10000.0f	//distance of sun (our only light source).
 
@@ -93,7 +94,8 @@ void DoShadows(RenderInfoClass & rinfo, Bool stencilPass)
 
 			//This function gets called many times by the W3D renderer
 			//so we use this flag to make sure shadows rendered only once per frame.
-			if (TheW3DShadowManager->isShadowScene())
+			// EastWind M3.4: the stencil shadow volumes give way to the sun shadow map.
+			if (TheW3DShadowManager->isShadowScene() && !EwShadowMap::Active())
 				TheW3DVolumetricShadowManager->renderShadows(projectionCount);
 	}
 	if (TheW3DShadowManager && stencilPass)	//reset so no more shadow processing this frame.

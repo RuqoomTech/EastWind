@@ -60,9 +60,15 @@ VsOut TreesVS(VsIn i)
 // The pixel side replaces the fixed-function stages: stage 0 the tree texture times the light,
 // stage 1 the shroud modulating the colour. Trees draw with fog off (detailAlphaShader), so
 // there is no fog here.
+//
+// M3.4: the first light, the sun the shadow map is drawn from, is darkened by the sun shadow map
+// (ew_shadow.h). The trees are drawn in world space (the terrain's identity transform), so the
+// swayed position is the world position.
 
 float4 TreeLight[EW_TREES_PS_LIGHT_COUNT] : EW_REG(EW_TREES_PS_LIGHT);	// [0] ambient, [1..3] direction to the light, [4..6] diffuse
 float4 TreeOptions                         : EW_REG(EW_TREES_PS_OPTIONS);	// x shroud on, y light only (debug key)
+
+#include "ew_shadow.h"
 
 sampler2D TreeTexture : register(s0);
 sampler2D TreeShroud  : register(s1);
@@ -85,6 +91,7 @@ struct LitVsOut
 	float3 normal   : TEXCOORD1;
 	float3 emissive : TEXCOORD2;
 	float3 colour   : TEXCOORD3;	// vertex colour times the push-aside darkening
+	float3 world    : TEXCOORD4;	// swayed world position, for the shadow map
 };
 
 LitVsOut TreesLitVS(LitVsIn i)
@@ -103,6 +110,7 @@ LitVsOut TreesLitVS(LitVsIn i)
 	o.normal = i.normal;
 	o.emissive = i.emissive;
 	o.colour = i.colour * i.treeData.y;
+	o.world = swayed.xyz;
 	return o;
 }
 
@@ -110,7 +118,9 @@ float4 TreesLitPS(LitVsOut i) : COLOR0
 {
 	float3 n = normalize(i.normal);
 	float3 light = TreeLight[0].rgb + i.emissive;
-	[unroll] for (int k = 0; k < 3; ++k)
+	float shadow = Ew_Sun_Shadow(i.world, n, TreeLight[1].xyz);
+	light += shadow * TreeLight[4].rgb * saturate(dot(TreeLight[1].xyz, n));
+	[unroll] for (int k = 1; k < 3; ++k)
 		light += TreeLight[4 + k].rgb * saturate(dot(TreeLight[1 + k].xyz, n));
 	light = saturate(light) * i.colour;
 

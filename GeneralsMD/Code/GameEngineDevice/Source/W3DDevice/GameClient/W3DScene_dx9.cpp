@@ -63,6 +63,7 @@
 #include "WW3D2/shader.h"
 #include "WW3D2/dx9caps.h"
 #include "WW3D2/colorspace.h"
+#include "WW3D2/ewshadowmap_dx9.h"
 
 #include "WW3D2/shdlib.h"
 
@@ -972,6 +973,56 @@ void RTS3DScene::updatePlayerColorPasses()
 void RTS3DScene::Render(RenderInfoClass & rinfo)
 {
 	//USE_PERF_TIMER(NonTerrainRender)
+
+	// EastWind M3.4: the sun shadow map's caster pass (EwShadowMap::Render). Only depth is drawn:
+	// the opaque units, buildings and props inside the light's box, then the trees. No terrain,
+	// no shadows, no particles; transparent (sorted) triangles are thrown away.
+	if (EwShadowMap::Caster_Pass())
+	{
+		RefRenderObjListIterator it(&RenderList);
+		for (it.First(); !it.Is_Done();)
+		{
+			RenderObjClass *robj = it.Peek_Obj();
+			it.Next();
+
+			const int classId = robj->Class_ID();
+			if (classId != RenderObjClass::CLASSID_MESH && classId != RenderObjClass::CLASSID_HLOD)
+				continue;
+			if (robj->Is_Hidden())
+				continue;
+			// Drawables and ghost objects (a drawInfo without a drawable: buildings seen in the fog)
+			// cast; fluff without a drawInfo does not.
+			DrawableInfo *drawInfo = (DrawableInfo *)robj->Get_User_Data();
+			if (!drawInfo)
+				continue;
+			Drawable *draw = drawInfo->m_drawable;
+			if (draw && (draw->isDrawableEffectivelyHidden() || draw->getFullyObscuredByShroud()
+				|| draw->getEffectiveOpacity() != 1.0f))
+				continue;
+			const SphereClass &sphere = robj->Get_Bounding_Sphere();
+			if (!EwShadowMap::Caster_Visible(sphere.Center, sphere.Radius))
+				continue;
+
+			rinfo.light_environment = &m_foggedLightEnv;
+			robj->Render(rinfo);
+			rinfo.light_environment = nullptr;
+			EwShadowMap::Count_Caster();
+		}
+		TheDX8MeshRenderer.Flush();
+		DoTrees(rinfo);
+
+		// Empty the sorted lists without drawing: both flags, since the sorting pool draws under the
+		// sorting renderer's flag and the other sorted draws under the wrapper's.
+		const bool sortedDraw = SortingRendererClass::_Is_Triangle_Draw_Enabled();
+		const bool wrapperDraw = DX8Wrapper::_Is_Triangle_Draw_Enabled();
+		SortingRendererClass::_Enable_Triangle_Draw(false);
+		DX8Wrapper::_Enable_Triangle_Draw(false);
+		SortingRendererClass::Flush();
+		DX8Wrapper::_Enable_Triangle_Draw(wrapperDraw);
+		SortingRendererClass::_Enable_Triangle_Draw(sortedDraw);
+		TheDX8MeshRenderer.Clear_Pending_Delete_Lists();
+		return;
+	}
 	DX8Wrapper::Set_Fog(FogEnabled, FogColor, FogStart, FogEnd);
 
 	//Override the behind building selection if it's not available on current hardware (needs stencil).

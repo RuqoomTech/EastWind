@@ -91,6 +91,7 @@ enum
 #include "WW3D2/ewshaders_dx9.h"
 #include "WW3D2/ewgraphicsoptions_dx9.h"
 #include "W3DDevice/GameClient/EwTerrainLighting_dx9.h"
+#include "WW3D2/ewshadowmap_dx9.h"
 #include "ew_constants.h"
 
 
@@ -1075,6 +1076,9 @@ W3DTreeBuffer::W3DTreeBuffer()
 	m_dwTreeVertexShader = 0;
 	m_dwTreePixelShader = 0;
 	m_ewLitFormat = false;
+	for (i=0; i<MAX_SWAY_TYPES; i++) {
+		m_ewLastSway[i].Set(0, 0, 0);
+	}
 	clearAllTrees();
 	allocateTreeBuffers();
 	m_initialized = true;
@@ -1498,6 +1502,11 @@ DECLARE_PERF_TIMER(Tree_Render)
 void W3DTreeBuffer::drawTrees(CameraClass * camera, RefRenderObjListIterator *pDynamicLightsIterator)
 {
 	USE_PERF_TIMER(Tree_Render)
+	// EastWind M3.4: the sun shadow map draws the trees as they were drawn last frame.
+	if (EwShadowMap::Caster_Pass()) {
+		drawTreeCasters();
+		return;
+	}
 	if (!m_isTerrainPass) {
 		return;
 	}
@@ -1527,6 +1536,7 @@ void W3DTreeBuffer::drawTrees(CameraClass * camera, RefRenderObjListIterator *pD
 			swayFactor[i] = f1*m_swayOffsets[minOffset] + f2*m_swayOffsets[minOffset+1];
 			swayFactor[i] *= m_curSwayFactor[i];
 		}
+		m_ewLastSway[i] = swayFactor[i];
 	}
 
 	m_isTerrainPass = false;
@@ -1543,8 +1553,8 @@ void W3DTreeBuffer::drawTrees(CameraClass * camera, RefRenderObjListIterator *pD
 	}
 
 	Int curTree;
-	// Draw tree shadows.
-	if (m_shadow && TheW3DProjectedShadowManager && TheGlobalData->m_useShadowDecals) {
+	// Draw tree shadows. Not with the sun shadow map, where the trees cast into it.
+	if (m_shadow && TheW3DProjectedShadowManager && TheGlobalData->m_useShadowDecals && !EwShadowMap::Active()) {
 		for (curTree=0; curTree<m_numTrees; curTree++) {
 			Int type = m_trees[curTree].treeType;
 			if (type<0) {
@@ -1805,6 +1815,68 @@ void W3DTreeBuffer::drawTrees(CameraClass * camera, RefRenderObjListIterator *pD
 	DX8Wrapper::Set_Pixel_Shader(0);
 	DX8Wrapper::Invalidate_Cached_Render_States();	//code above mucks around with W3D states so make sure we reset
 
+}
+
+//=============================================================================
+// W3DTreeBuffer::drawTreeCasters
+//=============================================================================
+/** EastWind M3.4: draws the trees into the sun shadow map, from the vertex buffers and the sway
+the last drawTrees used (the trees the main camera sees). The classic tree vertex shader moves
+the vertices, the fixed function stage 0 gives the texture's alpha for the alpha test; the colour
+writes are off. The world, view and projection are the light camera's. */
+//=============================================================================
+void W3DTreeBuffer::drawTreeCasters()
+{
+	if (m_curNumTreeIndices[0] == 0 || m_treeTexture == nullptr || m_dwTreeVertexShader == nullptr) {
+		return;
+	}
+	IDirect3DDevice9 *device = DX8Wrapper::_Get_D3D_Device9();
+	if (device == nullptr) {
+		return;
+	}
+
+	DX8Wrapper::Set_Shader(detailAlphaShader);
+	DX8Wrapper::Set_Texture(0, m_treeTexture);
+	DX8Wrapper::Set_Texture(1, nullptr);
+	DX8Wrapper::Set_DX8_Texture_Stage_State(0, D3DTSS_TEXCOORDINDEX, 0);
+	DX8Wrapper::Apply_Render_State_Changes();
+
+	EwD3DMatrix matProj, matView, matWorld;
+	DX8Wrapper::_Get_DX8_Transform(D3DTS_WORLD, matWorld);
+	DX8Wrapper::_Get_DX8_Transform(D3DTS_VIEW, matView);
+	DX8Wrapper::_Get_DX8_Transform(D3DTS_PROJECTION, matProj);
+	EwD3DMatrix mat;
+	EwD3DMatrixMultiply(&mat, &matView, &matProj);
+	EwD3DMatrixMultiply(&mat, &matWorld, &mat);
+	EwD3DMatrixTranspose(&mat, &mat);
+	device->SetVertexShaderConstantF(EW_TREES_VS_WVP, (const float*)&mat, 4);
+	Vector4 noSway(0, 0, 0, 0);
+	device->SetVertexShaderConstantF(EW_TREES_VS_WAVE, (const float*)&noSway, 1);
+	Int i;
+	for (i=0; i<MAX_SWAY_TYPES; i++) {
+		Vector4 sway4(m_ewLastSway[i].X, m_ewLastSway[i].Y, m_ewLastSway[i].Z, 0);
+		device->SetVertexShaderConstantF(EW_TREES_VS_WAVE+1+i, (const float*)&sway4, 1);
+	}
+	device->SetVertexShaderConstantF(EW_TREES_VS_SHROUD_OFS, (const float*)&noSway, 1);
+	device->SetVertexShaderConstantF(EW_TREES_VS_SHROUD_SCALE, (const float*)&noSway, 1);
+
+	for (Int bNdx=0; bNdx<MAX_BUFFERS; bNdx++) {
+		if (m_curNumTreeIndices[bNdx]==0) {
+			break;
+		}
+		DX8Wrapper::Set_Index_Buffer(m_indexTree[bNdx], 0);
+		DX8Wrapper::Set_Vertex_Buffer(m_vertexTree[bNdx]);
+		DX8Wrapper::Apply_Render_State_Changes();
+		DX8Wrapper::Set_Vertex_Shader_Program(m_dwTreeVertexShader);
+		device->SetTextureStageState(0, D3DTSS_TEXCOORDINDEX, 0);
+		device->SetTextureStageState(1, D3DTSS_COLOROP, D3DTOP_DISABLE);
+		device->SetTextureStageState(1, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
+		DX8Wrapper::Draw_Triangles(0, m_curNumTreeIndices[bNdx]/3, 0, m_curNumTreeVertices[bNdx]);
+	}
+
+	DX8Wrapper::Set_Vertex_Shader(DX8_FVF_XYZNDUV1);
+	DX8Wrapper::Set_Pixel_Shader(0);
+	DX8Wrapper::Invalidate_Cached_Render_States();
 }
 
 //-------------------------------------------------------------------------------------------------

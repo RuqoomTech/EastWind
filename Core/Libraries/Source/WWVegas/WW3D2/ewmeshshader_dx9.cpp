@@ -18,6 +18,7 @@
 #include "ewmeshshader_dx9.h"
 #include "ewshaders_dx9.h"
 #include "ewgraphicsoptions_dx9.h"
+#include "ewshadowmap_dx9.h"
 #include "ew_constants.h"
 #include "dx9wrapper.h"
 #include "dx9caps.h"
@@ -459,6 +460,9 @@ bool EwMeshShader::Begin()
 {
 	if (!EwGraphics().MeshLighting())
 		return false;
+	// The shadow map's caster pass draws depth only, fixed function.
+	if (EwShadowMap::Caster_Pass())
+		return false;
 
 	Device = DX8Wrapper::_Get_D3D_Device9();
 	if (Device == nullptr)
@@ -613,6 +617,10 @@ bool EwMeshShader::Begin()
 			float s = (length > 1e-12f) ? -1.0f / length : 0.0f;
 			Float4 v = { x * s, y * s, z * s, 0.0f };
 			l[3] = v;
+			// M3.4: the attenuation slot is unused for directional lights; x marks the sun, whose
+			// diffuse and highlights the sun shadow map darkens.
+			if (EwShadowMap::Is_Sun(v.x, v.y, v.z))
+				l[4].x = 1.0f;
 		}
 		else
 		{

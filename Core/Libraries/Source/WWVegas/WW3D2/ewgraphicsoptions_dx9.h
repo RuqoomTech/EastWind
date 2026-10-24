@@ -48,6 +48,7 @@ struct EwGraphicsOptions
 	bool DebugColorGradingOff;		// Ctrl+Shift+F6: no colour grading
 	bool DebugFxaaOff;				// Ctrl+Shift+F4: no FXAA
 	bool DebugWaterOff;				// Ctrl+Shift+F3: classic water
+	bool DebugShadowsOff;			// Ctrl+Shift+F2: classic shadows instead of the sun shadow map
 
 	EwGraphicsOptions()
 		: PerPixelLighting(false)
@@ -69,6 +70,7 @@ struct EwGraphicsOptions
 		, DebugColorGradingOff(false)
 		, DebugFxaaOff(false)
 		, DebugWaterOff(false)
+		, DebugShadowsOff(false)
 	{
 	}
 
@@ -85,6 +87,8 @@ struct EwGraphicsOptions
 	bool PostColorGrading() const { return ColorGrading && !DebugColorGradingOff; }
 	bool PostFxaa() const { return FXAA && !DebugFxaaOff; }
 	bool WaterShader() const { return WaterQuality >= 1 && !DebugAllOff && !DebugWaterOff; }
+	// Sun shadow maps (M3.4) need the lit mesh and terrain shaders, which sample them.
+	bool ShadowMaps() const { return ShadowMapSize > 0 && MeshLighting() && !DebugTerrainLightingOff && !DebugShadowsOff; }
 
 	// Brings values read from Options.ini into range.
 	void Validate()
@@ -94,7 +98,10 @@ struct EwGraphicsOptions
 		if (ShadowMapSize != 0 && ShadowMapSize != 1024 && ShadowMapSize != 2048 && ShadowMapSize != 4096)
 			ShadowMapSize = 0;
 		if (!PerPixelLighting)
+		{
 			NormalMaps = false;
+			ShadowMapSize = 0;
+		}
 	}
 };
 

@@ -26,8 +26,12 @@
 // the vertex shader reads, so the same split into sun and extra light works. Samplers: s0 the
 // road or blend texture, s1/s2 the textures of stages 1 and 2 (cloud and light map), with the
 // stage 1 and 2 texture matrices in TexMatrix[0..3] and [4..7].
+//
+// M3.4: the first sun light is darkened by the sun shadow map (ew_shadow.h), so units, buildings
+// and trees cast on the terrain and roads. The terrain itself does not cast.
 
 #include "ew_constants.h"
+#include "ew_shadow.h"
 
 float4 WorldViewProj[4]                : EW_REG(EW_TERRAIN_VS_WVP);
 float4 World[3]                        : EW_REG(EW_TERRAIN_VS_WORLD);
@@ -56,12 +60,18 @@ float3 Grid_Normal(float4 texel)
 	return normalize(texel.xyz * 2.0 - 1.0);
 }
 
-float3 SunLight(float3 n)
+// shadow scales the first light, the sun the shadow map is drawn from.
+float3 SunLight(float3 n, float shadow)
 {
-	float3 c = Sun[0].rgb;
-	[unroll] for (int k = 0; k < 3; ++k)
+	float3 c = Sun[0].rgb + shadow * Sun[4].rgb * saturate(dot(Sun[1].xyz, n));
+	[unroll] for (int k = 1; k < 3; ++k)
 		c += Sun[4 + k].rgb * saturate(dot(Sun[1 + k].xyz, n));
 	return saturate(c);
+}
+
+float3 SunLight(float3 n)
+{
+	return SunLight(n, 1.0);
 }
 
 struct VsIn
@@ -80,6 +90,7 @@ struct VsOut
 	float4 uv23     : TEXCOORD1;	// cloud and light-map coordinates
 	float4 gridFog  : TEXCOORD2;	// xy grid uv, w fog distance
 	float3 extra    : TEXCOORD3;	// vertex light that is not the sun: map and dynamic lights
+	float3 world    : TEXCOORD4;	// world position, for the shadow map
 };
 
 // The part of the vertex shader the terrain and road passes share: clip position, camera-space
@@ -90,6 +101,7 @@ struct LitVertex
 	float4 cameraSpace;
 	float4 gridFog;
 	float3 extra;
+	float3 world;
 };
 
 LitVertex Light_Vertex(float3 position, float3 vertexLight)
@@ -100,7 +112,8 @@ LitVertex Light_Vertex(float3 position, float3 vertexLight)
 	o.position = float4(dot(p, WorldViewProj[0]), dot(p, WorldViewProj[1]),
 		dot(p, WorldViewProj[2]), dot(p, WorldViewProj[3]));
 
-	float2 worldXY = float2(dot(p, World[0]), dot(p, World[1]));
+	o.world = float3(dot(p, World[0]), dot(p, World[1]), dot(p, World[2]));
+	float2 worldXY = o.world.xy;
 	o.cameraSpace = float4(dot(p, WorldView[0]), dot(p, WorldView[1]), dot(p, WorldView[2]), 1.0);
 
 	float2 grid = worldXY * GridMap.xy + GridMap.zw;
@@ -131,6 +144,7 @@ VsOut TerrainLitVS(VsIn i)
 	o.uv23 = float4(Camera_Uv(v.cameraSpace, 0), Camera_Uv(v.cameraSpace, 4));
 	o.gridFog = v.gridFog;
 	o.extra = v.extra;
+	o.world = v.world;
 	return o;
 }
 
@@ -141,13 +155,16 @@ struct PsIn
 	float4 uv23    : TEXCOORD1;
 	float4 gridFog : TEXCOORD2;
 	float3 extra   : TEXCOORD3;
+	float3 world   : TEXCOORD4;
 };
 
-// The per-pixel light: the sun against the filtered grid normal plus the vertex's extra light.
-float3 Pixel_Light(float2 grid, float3 extra, float3 vertexLight)
+// The per-pixel light: the sun against the filtered grid normal, shadowed, plus the vertex's
+// extra light.
+float3 Pixel_Light(float2 grid, float3 world, float3 extra, float3 vertexLight)
 {
 	float3 n = Grid_Normal(tex2D(GridNormals, grid));
-	float3 light = saturate(SunLight(n) + extra);
+	float shadow = Ew_Sun_Shadow(world, n, Sun[1].xyz);
+	float3 light = saturate(SunLight(n, shadow) + extra);
 	// Debug keys: the vertex colour is the classic per-vertex light.
 	if (Debug.x > 0.5)
 		light = vertexLight;
@@ -166,7 +183,7 @@ float4 Apply_Fog(float4 c, float distance)
 
 float4 ShadeTerrain(PsIn i, int noiseTextures)
 {
-	float3 light = Pixel_Light(i.gridFog.xy, i.extra, i.diffuse.rgb);
+	float3 light = Pixel_Light(i.gridFog.xy, i.world, i.extra, i.diffuse.rgb);
 
 	// As terrain.hlsl's Blend, with the per-pixel light in place of the vertex colour.
 	float4 t = lerp(tex2D(Tex0, i.uv01.xy), tex2D(Tex1, i.uv01.zw), i.diffuse.a);
@@ -202,6 +219,7 @@ struct RoadVsOut
 	float4 uv12     : TEXCOORD1;	// stage 1 and 2 coordinates
 	float4 gridFog  : TEXCOORD2;
 	float3 extra    : TEXCOORD3;
+	float3 world    : TEXCOORD4;
 };
 
 RoadVsOut RoadLitVS(RoadVsIn i)
@@ -214,6 +232,7 @@ RoadVsOut RoadLitVS(RoadVsIn i)
 	o.uv12 = float4(Camera_Uv(v.cameraSpace, 0), Camera_Uv(v.cameraSpace, 4));
 	o.gridFog = v.gridFog;
 	o.extra = v.extra;
+	o.world = v.world;
 	return o;
 }
 
@@ -224,13 +243,14 @@ struct RoadPsIn
 	float4 uv12    : TEXCOORD1;
 	float4 gridFog : TEXCOORD2;
 	float3 extra   : TEXCOORD3;
+	float3 world   : TEXCOORD4;
 };
 
 // As RoadShader2Stage (texture * diffuse, then each noise stage modulated in, alpha included)
 // and RoadNoise2PS, with the per-pixel light in place of the vertex colour.
 float4 ShadeRoad(RoadPsIn i, int noiseTextures)
 {
-	float3 light = Pixel_Light(i.gridFog.xy, i.extra, i.diffuse.rgb);
+	float3 light = Pixel_Light(i.gridFog.xy, i.world, i.extra, i.diffuse.rgb);
 	float4 c = tex2D(Tex0, i.uv0) * float4(light, i.diffuse.a);
 	// Debug keys: the light alone. Where the road covers the terrain it should not show.
 	if (Debug.y > 0.5)

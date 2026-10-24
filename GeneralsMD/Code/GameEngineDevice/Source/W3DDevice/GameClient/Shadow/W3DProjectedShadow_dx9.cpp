@@ -55,6 +55,7 @@
 #include "GameClient/Drawable.h"
 #include "W3DDevice/GameClient/Module/W3DModelDraw.h"
 #include "W3DDevice/GameClient/W3DShadow.h"
+#include "WW3D2/ewshadowmap_dx9.h"
 
 
 /** @todo: We're going to have a pool of a couple rendertargets to use
@@ -1331,7 +1332,9 @@ Int W3DProjectedShadowManager::renderShadows(RenderInfoClass & rinfo)
 	nShadowDecalVertsInBuf = 0xffff;
 	nShadowDecalIndicesInBuf = 0xffff;
 
-	if (TheGlobalData->m_useShadowDecals)
+	// EastWind M3.4: the object shadows (decals and projections) give way to the sun shadow map.
+	// The art decals below (m_decalList) stay.
+	if (TheGlobalData->m_useShadowDecals && !EwShadowMap::Active())
 	{
 		// Render the object
 		TheDX8MeshRenderer.Set_Camera(&rinfo.Camera);

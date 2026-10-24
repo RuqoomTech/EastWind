@@ -22,6 +22,7 @@
 // meshes that use stage 1 get MeshPS without the material maps.
 
 #include "ew_constants.h"
+#include "ew_shadow.h"
 
 // D3DTEXTUREOP values
 #define OP_DISABLE                    1
@@ -169,7 +170,8 @@ float4 Camera                 : EW_REG(EW_MESH_PS_CAMERA);		// xyz camera world 
 float4 ViewDir                : EW_REG(EW_MESH_PS_VIEWDIR);		// xyz direction to the viewer without local viewer
 float4 Lights[EW_MESH_MAX_LIGHTS * 5] : EW_REG(EW_MESH_PS_LIGHTS);
 // Per light: diffuse (rgb, w type: 0 off, 1 point, 3 directional), specular, ambient,
-// vector (direction to the light, or position), attenuation (a0, a1, a2, range).
+// vector (direction to the light, or position), attenuation (a0, a1, a2, range; for a
+// directional light x is 1 when it is the sun the shadow map darkens).
 
 float4 MaterialOptions        : EW_REG(EW_MESH_PS_MATERIAL_OPTIONS);	// x normal map, y SpecMap, z house colour on, w ground ambient scale
 float4 HouseColor             : EW_REG(EW_MESH_PS_HOUSECOLOR);		// rgb house colour, w SpecMap specular power
@@ -200,7 +202,8 @@ float4 SourceColor(float source, float4 material, float4 vertexDiffuse, float4 v
 // mapSpecular collects the SpecMap highlight. It takes the light's specular colour, or its
 // diffuse colour when the light has none (the game's sun lights have none, as in RA3, where the
 // highlight is the light colour scaled by the map).
-void AddLight(int l, float3 P, float3 N, float3 V, float power, uniform bool material,
+// sunShadow darkens the light marked as the sun (Ew_Sun_Shadow, computed once per pixel).
+void AddLight(int l, float3 P, float3 N, float sunShadow, float3 V, float power, uniform bool material,
 	inout float3 ambient, inout float3 diffuse, inout float3 specular, inout float3 mapSpecular)
 {
 	float4 lightDiffuse = Lights[l * 5 + 0];
@@ -225,6 +228,8 @@ void AddLight(int l, float3 P, float3 N, float3 V, float power, uniform bool mat
 		float nl = dot(N, L);
 		if (nl > 0.0)
 		{
+			// The sun's light is shadowed; its ambient is not.
+			atten *= (lightDiffuse.w > 2.0 && lightAtten.x > 0.5) ? sunShadow : 1.0;
 			diffuse += atten * nl * lightDiffuse.rgb;
 			float nh = saturate(dot(N, normalize(L + V)));
 			float s = (power > 0.0) ? pow(nh, power) : 1.0;
@@ -325,6 +330,15 @@ float4 ShadeMesh(PsIn i, uniform bool material)
 {
 	float3 P = i.worldPosFog.xyz;
 	float3 N = normalize(i.worldNormal);
+
+	// The sun shadow map, against the surface normal before the normal map. Only a directional
+	// light is ever marked as the sun, so the marked direction is the sun's.
+	float3 sunDir = 0.0;
+	[unroll] for (int k = 0; k < EW_MESH_MAX_LIGHTS; ++k)
+		sunDir += (Lights[k * 5 + 0].w > 2.0 && Lights[k * 5 + 4].x > 0.5) ? Lights[k * 5 + 3].xyz : 0.0;
+	float sunShadow = 1.0;
+	[branch] if (dot(sunDir, sunDir) > 0.25)
+		sunShadow = Ew_Sun_Shadow(P, N, normalize(sunDir));
 	float3 V = (Camera.w > 0.5) ? normalize(Camera.xyz - P) : ViewDir.xyz;
 	float power = PsOptions.x;
 
@@ -359,10 +373,10 @@ float4 ShadeMesh(PsIn i, uniform bool material)
 	float3 diffuse = 0.0;
 	float3 specular = 0.0;
 	float3 mapSpecular = 0.0;
-	AddLight(0, P, N, V, power, material, ambient, diffuse, specular, mapSpecular);
-	AddLight(1, P, N, V, power, material, ambient, diffuse, specular, mapSpecular);
-	AddLight(2, P, N, V, power, material, ambient, diffuse, specular, mapSpecular);
-	AddLight(3, P, N, V, power, material, ambient, diffuse, specular, mapSpecular);
+	AddLight(0, P, N, sunShadow, V, power, material, ambient, diffuse, specular, mapSpecular);
+	AddLight(1, P, N, sunShadow, V, power, material, ambient, diffuse, specular, mapSpecular);
+	AddLight(2, P, N, sunShadow, V, power, material, ambient, diffuse, specular, mapSpecular);
+	AddLight(3, P, N, sunShadow, V, power, material, ambient, diffuse, specular, mapSpecular);
 
 	// Hemisphere ambient: full from the sky (+z), scaled down towards the ground, so normal-mapped
 	// detail stays visible in the shade.

@@ -106,6 +106,7 @@ static void drawFramerateBar();
 #include "WW3D2/meshmdl.h"
 #include "WW3D2/rddesc_dx9.h"
 #include "WW3D2/ewgraphicsoptions_dx9.h"
+#include "WW3D2/ewshadowmap_dx9.h"
 #include "Common/OptionPreferences.h"
 #include "WWLib/TARGA.h"
 
@@ -798,6 +799,7 @@ static void ewShowGraphicsStatus()
 	const WideChar *grade = !o.ColorGrading ? L"off in Options.ini" : o.PostColorGrading() ? L"on" : L"off";
 	const WideChar *fxaa = !o.FXAA ? L"off in Options.ini" : o.PostFxaa() ? L"on" : L"off";
 	const WideChar *water = o.WaterQuality < 1 ? L"off in Options.ini" : o.WaterShader() ? L"on" : L"off (classic)";
+	const WideChar *shadows = o.ShadowMapSize <= 0 ? L"off in Options.ini" : o.ShadowMaps() ? L"on" : L"off (classic shadows)";
 
 	TheInGameUI->message(L"EastWind graphics: %s   [Ctrl+Shift+F9]", o.DebugAllOff ? L"ALL OFF (classic)" : L"ON");
 	TheInGameUI->message(L"Terrain light: %s   [Ctrl+Shift+F10]", terrain);
@@ -809,6 +811,7 @@ static void ewShowGraphicsStatus()
 	TheInGameUI->message(L"Colour grading: %s   [Ctrl+Shift+F6]", grade);
 	TheInGameUI->message(L"FXAA: %s   [Ctrl+Shift+F4]", fxaa);
 	TheInGameUI->message(L"Water shader: %s   [Ctrl+Shift+F3]", water);
+	TheInGameUI->message(L"Sun shadow maps: %s   [Ctrl+Shift+F2]", shadows);
 
 	ewShowShaderStatus(L"Terrain shader", EwTerrainLighting::Last_Frame_Passes(), EwTerrainLighting::Last_Reason());
 	ewShowShaderStatus(L"Road and blend tile shader", EwTerrainLighting::Last_Frame_Road_Passes(), EwTerrainLighting::Last_Road_Reason());
@@ -846,6 +849,25 @@ static void ewShowGraphicsStatus()
 			TheInGameUI->message(L"Water depth, refraction and foam: off - %s", text.str());
 		}
 	}
+	{
+		int size = 0;
+		unsigned casters = 0;
+		float box = 0;
+		const char *format = nullptr;
+		const char *why_not = nullptr;
+		if (EwShadowMap::Last_Frame(&size, &format, &casters, &box, &why_not))
+		{
+			UnicodeString text;
+			text.translate(AsciiString(format));
+			TheInGameUI->message(L"Sun shadow map: %dx%d %s, %u casters, %.0f units across", size, size, text.str(), casters, box);
+		}
+		else
+		{
+			UnicodeString text;
+			text.translate(AsciiString(why_not ? why_not : "not drawn"));
+			TheInGameUI->message(L"Sun shadow map: none - %s", text.str());
+		}
+	}
 	if (EwPostProcess::Last_Frame_Passes(EwPostProcess::COLOR_GRADING) > 0)
 	{
 		const char *lut = EwPostProcess::Color_Lut_File();
@@ -876,6 +898,7 @@ static void ewPollGraphicsDebugKeys()
 	};
 	const Key keys[] =
 	{
+		{ VK_F2, &o.DebugShadowsOff },
 		{ VK_F3, &o.DebugWaterOff },
 		{ VK_F4, &o.DebugFxaaOff },
 		{ VK_F5, &o.DebugToneMappingOff },
@@ -2041,6 +2064,7 @@ void W3DDisplay::draw()
 	EwTerrainLighting::New_Frame();
 	EwPostProcess::New_Frame();
 	EwWater::New_Frame();
+	EwShadowMap::New_Frame();
 	ewPollGraphicsDebugKeys();
 
 	updateAverageFPS();
@@ -2172,6 +2196,14 @@ AGAIN:
 				updateViews();
 
 			TheParticleSystemManager->DRAW();
+
+			// EastWind DX9 (M3.4): the sun shadow map, before the water reflection so it has shadows too.
+			if (m_3DScene && primaryW3DView && TheTerrainRenderObject)
+			{
+				const Coord3D &sun = TheGlobalData->m_terrainObjectsLighting[TheGlobalData->m_timeOfDay][0].lightPos;
+				EwShadowMap::Render(m_3DScene, primaryW3DView->get3DCamera(), Vector3(sun.x, sun.y, sun.z),
+					TheTerrainRenderObject->getMinHeight(), TheTerrainRenderObject->getMaxHeight());
+			}
 
 			// EastWind DX9 (M3.3a): also for the reflection of the water shader.
 			if (TheWaterRenderObj && (TheGlobalData->m_waterType == 2 || EwWater::Wants_Reflection()))

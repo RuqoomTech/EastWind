@@ -198,6 +198,8 @@ public:
 	void setBounds(const Region2D &bounds) {m_bounds = bounds;}
 	/// Draws the trees.  Uses camera for culling.
 	void drawTrees(CameraClass * camera, RefRenderObjListIterator *pDynamicLightsIterator);
+	/// EastWind M3.4: draws the trees into the sun shadow map (depth only, alpha tested).
+	void drawTreeCasters();
 	/// Called when the view changes, and sort key needs to be recalculated.
 	/// Normally sortKey gets calculated when a tree becomes visible.
 	void doFullUpdate() {m_updateAllKeys = true;};
@@ -254,6 +256,7 @@ private:
 	Real		m_curSwayOffset[MAX_SWAY_TYPES];
 	Real		m_curSwayStep[MAX_SWAY_TYPES];
 	Real		m_curSwayFactor[MAX_SWAY_TYPES];
+	Vector3	m_ewLastSway[MAX_SWAY_TYPES];	///< EastWind M3.4: the sway drawTrees used last, for the shadow map's caster pass.
 
 	W3DProjectedShadow *m_shadow;
 
