@@ -85,6 +85,7 @@ static void drawFramerateBar();
 #include "W3DDevice/GameClient/W3DShroud.h"
 #include "W3DDevice/GameClient/EwTerrainLighting_dx9.h"
 #include "W3DDevice/GameClient/EwPostProcess_dx9.h"
+#include "W3DDevice/GameClient/EwWater_dx9.h"
 #include "WWMath/wwmath.h"
 #include "WWLib/registry.h"
 #include "WW3D2/ww3d.h"
@@ -767,7 +768,7 @@ static void ewLoadGraphicsOptions()
 	options.Validate();
 }
 
-// EastWind (EwDebugKeys = yes): Ctrl+Shift+F4..F12 switch the DX9 features while the game runs,
+// EastWind (EwDebugKeys = yes): Ctrl+Shift+F3..F12 switch the DX9 features while the game runs,
 // so the new and the classic look can be compared at the same spot. The keys are read straight
 // from the keyboard, and the game still sees them.
 // One status line: how many passes of the last frame used a shader, or why it did not run.
@@ -796,6 +797,7 @@ static void ewShowGraphicsStatus()
 	const WideChar *tone = !o.ToneMapping ? L"off in Options.ini" : o.PostToneMapping() ? L"on" : L"off";
 	const WideChar *grade = !o.ColorGrading ? L"off in Options.ini" : o.PostColorGrading() ? L"on" : L"off";
 	const WideChar *fxaa = !o.FXAA ? L"off in Options.ini" : o.PostFxaa() ? L"on" : L"off";
+	const WideChar *water = o.WaterQuality < 1 ? L"off in Options.ini" : o.WaterShader() ? L"on" : L"off (classic)";
 
 	TheInGameUI->message(L"EastWind graphics: %s   [Ctrl+Shift+F9]", o.DebugAllOff ? L"ALL OFF (classic)" : L"ON");
 	TheInGameUI->message(L"Terrain light: %s   [Ctrl+Shift+F10]", terrain);
@@ -806,6 +808,7 @@ static void ewShowGraphicsStatus()
 	TheInGameUI->message(L"Tone mapping: %s   [Ctrl+Shift+F5]", tone);
 	TheInGameUI->message(L"Colour grading: %s   [Ctrl+Shift+F6]", grade);
 	TheInGameUI->message(L"FXAA: %s   [Ctrl+Shift+F4]", fxaa);
+	TheInGameUI->message(L"Water shader: %s   [Ctrl+Shift+F3]", water);
 
 	ewShowShaderStatus(L"Terrain shader", EwTerrainLighting::Last_Frame_Passes(), EwTerrainLighting::Last_Reason());
 	ewShowShaderStatus(L"Road and blend tile shader", EwTerrainLighting::Last_Frame_Road_Passes(), EwTerrainLighting::Last_Road_Reason());
@@ -820,6 +823,29 @@ static void ewShowGraphicsStatus()
 		EwPostProcess::Last_Reason(EwPostProcess::COLOR_GRADING));
 	ewShowShaderStatus(L"FXAA", EwPostProcess::Last_Frame_Passes(EwPostProcess::FXAA),
 		EwPostProcess::Last_Reason(EwPostProcess::FXAA));
+	ewShowShaderStatus(L"Water shader", EwWater::Last_Frame_Passes(), EwWater::Last_Reason());
+	{
+		float level = 0;
+		int width = 0, height = 0;
+		const char *why_not = nullptr;
+		if (EwWater::Last_Reflection(&level, &width, &height, &why_not))
+			TheInGameUI->message(L"Water reflection: %dx%d, mirrored at height %.1f", width, height, level);
+		else
+		{
+			UnicodeString text;
+			text.translate(AsciiString(why_not ? why_not : "not drawn"));
+			TheInGameUI->message(L"Water reflection: none - %s", text.str());
+		}
+		const char *not_seen_into = EwWater::Last_Seen_Into();
+		if (not_seen_into == nullptr)
+			TheInGameUI->message(L"Water depth, refraction and foam: on");
+		else
+		{
+			UnicodeString text;
+			text.translate(AsciiString(not_seen_into));
+			TheInGameUI->message(L"Water depth, refraction and foam: off - %s", text.str());
+		}
+	}
 	if (EwPostProcess::Last_Frame_Passes(EwPostProcess::COLOR_GRADING) > 0)
 	{
 		const char *lut = EwPostProcess::Color_Lut_File();
@@ -850,6 +876,7 @@ static void ewPollGraphicsDebugKeys()
 	};
 	const Key keys[] =
 	{
+		{ VK_F3, &o.DebugWaterOff },
 		{ VK_F4, &o.DebugFxaaOff },
 		{ VK_F5, &o.DebugToneMappingOff },
 		{ VK_F6, &o.DebugColorGradingOff },
@@ -2013,6 +2040,7 @@ void W3DDisplay::draw()
 	// EastWind: debug keys for the DX9 features (EwDebugKeys).
 	EwTerrainLighting::New_Frame();
 	EwPostProcess::New_Frame();
+	EwWater::New_Frame();
 	ewPollGraphicsDebugKeys();
 
 	updateAverageFPS();
@@ -2145,7 +2173,8 @@ AGAIN:
 
 			TheParticleSystemManager->DRAW();
 
-			if (TheWaterRenderObj && TheGlobalData->m_waterType == 2)
+			// EastWind DX9 (M3.3a): also for the reflection of the water shader.
+			if (TheWaterRenderObj && (TheGlobalData->m_waterType == 2 || EwWater::Wants_Reflection()))
 				TheWaterRenderObj->updateRenderTargetTextures(primaryW3DView->get3DCamera());	//do a render into each texture
 
 			//Can't render into textures while rendering to screen so these textures need to be updated

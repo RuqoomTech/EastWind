@@ -76,6 +76,11 @@ set(EW_SHADERS
     post_blur_ps            post.hlsl        PostBlurPS           ps_3_0
     post_final_ps           post.hlsl        PostFinalPS          ps_3_0
     post_fxaa_ps            post.hlsl        PostFxaaPS           ps_3_0
+    water_vs                water.hlsl       WaterVS              vs_3_0
+    water_trapezoid_ps      water.hlsl       WaterTrapezoidPS     ps_3_0
+    water_river_ps          water.hlsl       WaterRiverPS         ps_3_0
+    water_trapezoid_hq_ps   water.hlsl       WaterTrapezoidHqPS   ps_3_0
+    water_river_hq_ps       water.hlsl       WaterRiverHqPS       ps_3_0
 )
 
 file(GLOB _ew_shader_includes CONFIGURE_DEPENDS "${EW_SHADER_SOURCE_DIR}/*.h")

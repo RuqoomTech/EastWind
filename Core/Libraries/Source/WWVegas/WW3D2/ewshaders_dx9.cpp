@@ -66,6 +66,11 @@
 #include "post_blur_ps.h"
 #include "post_final_ps.h"
 #include "post_fxaa_ps.h"
+#include "water_vs.h"
+#include "water_trapezoid_ps.h"
+#include "water_river_ps.h"
+#include "water_trapezoid_hq_ps.h"
+#include "water_river_hq_ps.h"
 
 namespace
 {
@@ -95,6 +100,7 @@ namespace
 		{ g_ew_road_lit_vs, "road_lit_vs" },
 		{ g_ew_trees_lit_vs, "trees_lit_vs" },
 		{ g_ew_post_vs, "post_vs" },
+		{ g_ew_water_vs, "water_vs" },
 	};
 	static_assert(sizeof(VertexCode) / sizeof(VertexCode[0]) == EwShaders::VS_COUNT, "VertexCode must match EwShaders::VertexShaderId");
 
@@ -128,6 +134,10 @@ namespace
 		{ g_ew_post_blur_ps, "post_blur_ps" },
 		{ g_ew_post_final_ps, "post_final_ps" },
 		{ g_ew_post_fxaa_ps, "post_fxaa_ps" },
+		{ g_ew_water_trapezoid_ps, "water_trapezoid_ps" },
+		{ g_ew_water_river_ps, "water_river_ps" },
+		{ g_ew_water_trapezoid_hq_ps, "water_trapezoid_hq_ps" },
+		{ g_ew_water_river_hq_ps, "water_river_hq_ps" },
 	};
 	static_assert(sizeof(PixelCode) / sizeof(PixelCode[0]) == EwShaders::PS_COUNT, "PixelCode must match EwShaders::PixelShaderId");
 

@@ -34,7 +34,7 @@ struct EwGraphicsOptions
 	bool ToneMapping;		// EwToneMapping (M3.2)
 	bool ColorGrading;		// EwColorGrading (M3.2)
 	bool FXAA;				// EwFXAA (M3.2)
-	bool DebugKeys;			// EwDebugKeys: Ctrl+Shift+F4..F12 switch the features above while the game runs
+	bool DebugKeys;			// EwDebugKeys: Ctrl+Shift+F3..F12 switch the features above while the game runs
 
 	// Set by the debug keys (W3DDisplay), never saved. They only turn features off that
 	// Options.ini turned on, so with the keys unused the game looks as Options.ini says.
@@ -47,6 +47,7 @@ struct EwGraphicsOptions
 	bool DebugToneMappingOff;		// Ctrl+Shift+F5: no tone mapping
 	bool DebugColorGradingOff;		// Ctrl+Shift+F6: no colour grading
 	bool DebugFxaaOff;				// Ctrl+Shift+F4: no FXAA
+	bool DebugWaterOff;				// Ctrl+Shift+F3: classic water
 
 	EwGraphicsOptions()
 		: PerPixelLighting(false)
@@ -67,6 +68,7 @@ struct EwGraphicsOptions
 		, DebugToneMappingOff(false)
 		, DebugColorGradingOff(false)
 		, DebugFxaaOff(false)
+		, DebugWaterOff(false)
 	{
 	}
 
@@ -82,6 +84,7 @@ struct EwGraphicsOptions
 	bool PostToneMapping() const { return ToneMapping && !DebugToneMappingOff; }
 	bool PostColorGrading() const { return ColorGrading && !DebugColorGradingOff; }
 	bool PostFxaa() const { return FXAA && !DebugFxaaOff; }
+	bool WaterShader() const { return WaterQuality >= 1 && !DebugAllOff && !DebugWaterOff; }
 
 	// Brings values read from Options.ini into range.
 	void Validate()

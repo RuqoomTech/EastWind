@@ -243,7 +243,10 @@ protected:
 	void renderSkyBody(Matrix3D *mat);	///<draw the sky body (sun, moon, etc.)
 	void renderWaterMesh();			///<draw the water surface mesh (deformed 3d mesh).
 	HRESULT initBumpMap(LPDIRECT3DTEXTURE9 *pTex, TextureClass *pBumpSource);	///<copies data into bump-map format.
-	void renderMirror(CameraClass *cam);	///< Draw reflected scene into texture
+	void renderMirror(CameraClass *cam);
+	// EastWind DX9 (M3.3a): the scene mirrored about z = level, drawn into the reflection
+	// target and depth buffer of the water shader (EwWater).
+	void renderMirrorInto(CameraClass *cam, Real level, IDirect3DSurface9 *target, IDirect3DSurface9 *depth);	///< Draw reflected scene into texture
 	void drawSea(RenderInfoClass & rinfo);	///< Draw the surface of the water
 	///bounding box of frustum clipped polygon plane
 	Bool getClippedWaterPlane(CameraClass *cam, AABoxClass *box);

@@ -91,4 +91,34 @@
 #define EW_POST_PS_CLAMP         5   // c5: FXAA, xy lowest and zw highest uv inside the view rectangle
 #define EW_POST_PS_COUNT         6
 
+// --- water.hlsl WaterVS / WaterTrapezoidPS / WaterRiverPS, M3.3a water shader; set by EwWater_dx9.cpp ---
+// Matrices are uploaded as their columns, like the terrain shader's.
+#define EW_WATER_VS_WVP          0   // c0..c3: world * view * projection
+#define EW_WATER_VS_WORLD        4   // c4..c6: world
+#define EW_WATER_VS_WORLDVIEW    7   // c7..c9: world * view
+#define EW_WATER_VS_NOISE        10  // c10..c11: stage 2 texture matrix (noise from camera-space position)
+#define EW_WATER_VS_SHROUD       12  // c12..c13: stage 3 texture matrix (shroud from camera-space position)
+#define EW_WATER_VS_OPTIONS      14  // c14: x range fog
+#define EW_WATER_VS_WAVES        15  // c15: scroll offsets of the two wave layers, xy and zw
+#define EW_WATER_VS_WAVE_SCALE   16  // c16: x/y world scale of the two layers, z river, w river tiling across
+#define EW_WATER_VS_COUNT        17
+#define EW_WATER_PS_SUN          0   // c0: direction to the sun
+#define EW_WATER_PS_SUN_COLOR    1   // c1: rgb sun colour, w specular power
+#define EW_WATER_PS_CAMERA       2   // c2: camera world position
+#define EW_WATER_PS_FRESNEL      3   // c3: x bias, y scale, z power, w most reflection
+#define EW_WATER_PS_OPTIONS      4   // c4: x distortion, y wave normal strength, z specular strength
+#define EW_WATER_PS_FOG          5   // c5: enable, end, 1 / (end - start)
+#define EW_WATER_PS_FOGCOLOR     6   // c6: D3DRS_FOGCOLOR
+#define EW_WATER_PS_SKY          7   // c7: rgb sky colour without a reflection, w has reflection
+#define EW_WATER_PS_RIVER        8   // c8: x river vertex alpha from the INI (the shroud scales it)
+#define EW_WATER_PS_WAVE_LOOK    9   // c9: x wave shading, y water texture wobble, z reflection opacity
+#define EW_WATER_PS_SCREEN       10  // c10: xy scale, zw offset from clip xy / w to the refraction uv (M3.3b)
+#define EW_WATER_PS_HEIGHT       11  // c11: xy scale, zw offset from world xy to the terrain height uv
+#define EW_WATER_PS_BODY         12  // c12: x height per texel value, y has heights, z shore wave phase, w refraction distortion
+#define EW_WATER_PS_ABSORB       13  // c13: rgb light absorbed per world unit of water, w deep colour scale
+#define EW_WATER_PS_FOAM         14  // c14: x foam depth, y foam strength, z caustic strength, w caustic fade depth
+#define EW_WATER_PS_AMBIENT      15  // c15: rgb ambient light, w broad sun glint strength
+#define EW_WATER_PS_WAVE_MIX     16  // c16: x swell size relative to layer A, y swell strength, z ripple strength
+#define EW_WATER_PS_COUNT        17
+
 #endif // EW_CONSTANTS_H

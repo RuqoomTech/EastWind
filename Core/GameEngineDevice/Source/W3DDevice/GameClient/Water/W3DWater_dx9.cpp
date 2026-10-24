@@ -47,6 +47,7 @@
 #include "WW3D2/light.h"
 #include "WWMath/ew_d3dmath.h"
 #include "WW3D2/ewshaders_dx9.h"
+#include "W3DDevice/GameClient/EwWater_dx9.h"
 #include "ew_constants.h"
 #include "WWLib/simplevec.h"
 #include "WW3D2/mesh.h"
@@ -1380,6 +1381,61 @@ void WaterRenderObjClass::loadSetting( Setting *setting, TimeOfDay timeOfDay )
 }
 
 //-------------------------------------------------------------------------------------------------
+/** EastWind DX9 (M3.3a): the height of the visible water area nearest to where the middle of the
+	* view meets it. The reflection of the water shader mirrors the scene about this height. */
+//-------------------------------------------------------------------------------------------------
+static Bool ewFindMirrorLevel(CameraClass *cam, Real &level)
+{
+	const Matrix3D &transform = cam->Get_Transform();
+	const Vector3 position = transform.Get_Translation();
+	const Vector3 forward = -transform.Get_Z_Vector();	// W3D cameras look down their -Z axis
+	Real best = 1e30f;
+	Bool found = false;
+	for (PolygonTrigger *pTrig = PolygonTrigger::getFirstPolygonTrigger(); pTrig; pTrig = pTrig->getNext())
+	{
+		const Int count = pTrig->getNumPoints();
+		if (!pTrig->isWaterArea() || count < 3)
+			continue;
+
+		Real minX = 1e30f, minY = 1e30f, maxX = -1e30f, maxY = -1e30f, sumZ = 0;
+		for (Int i = 0; i < count; ++i)
+		{
+			const ICoord3D *p = pTrig->getPoint(i);
+			if ((Real)p->x < minX) minX = (Real)p->x;
+			if ((Real)p->x > maxX) maxX = (Real)p->x;
+			if ((Real)p->y < minY) minY = (Real)p->y;
+			if ((Real)p->y > maxY) maxY = (Real)p->y;
+			sumZ += (Real)p->z;
+		}
+		const Real z = sumZ / count;
+		AABoxClass box(Vector3((minX + maxX) * 0.5f, (minY + maxY) * 0.5f, z),
+			Vector3((maxX - minX) * 0.5f, (maxY - minY) * 0.5f, 1.0f));
+		if (cam->Cull_Box(box))
+			continue;
+
+		// How far the point the view looks at on this water's plane lies outside its area.
+		Real hitX = position.X, hitY = position.Y;
+		if (forward.Z < -0.01f)
+		{
+			const Real t = (z - position.Z) / forward.Z;
+			hitX += forward.X * t;
+			hitY += forward.Y * t;
+		}
+		Real dx = 0, dy = 0;
+		if (hitX < minX) dx = minX - hitX; else if (hitX > maxX) dx = hitX - maxX;
+		if (hitY < minY) dy = minY - hitY; else if (hitY > maxY) dy = hitY - maxY;
+		const Real score = dx * dx + dy * dy;
+		if (score < best)
+		{
+			best = score;
+			level = z;
+			found = true;
+		}
+	}
+	return found;
+}
+
+//-------------------------------------------------------------------------------------------------
 /** Our water may use effects that require run-time rendered textures.  These
 	*	textures need to be updated before we start rendering to the main screen
 	* render target because D3D doesn't multiple render targets. */
@@ -1389,6 +1445,90 @@ void WaterRenderObjClass::updateRenderTargetTextures(CameraClass *cam)
 	if (m_waterType == WATER_TYPE_2_PVSHADER && getClippedWaterPlane(cam, nullptr) &&
 		TheTerrainRenderObject && TheTerrainRenderObject->getMap())
 		renderMirror(cam);	//generate texture containing reflected scene
+
+	// EastWind DX9 (M3.3a): the reflection of the water shader, for the polygon water types.
+	if ((m_waterType == WATER_TYPE_0_TRANSLUCENT || m_waterType == WATER_TYPE_3_GRIDMESH) &&
+		TheTerrainRenderObject && TheTerrainRenderObject->getMap() && EwWater::Wants_Reflection())
+	{
+		Real level = 0;
+		IDirect3DSurface9 *target = nullptr;
+		IDirect3DSurface9 *depth = nullptr;
+		if (!ewFindMirrorLevel(cam, level))
+			EwWater::Skip_Reflection("no water area in view");
+		else if (EwWater::Begin_Reflection(&target, &depth))
+			renderMirrorInto(cam, level, target, depth);
+	}
+}
+
+//-------------------------------------------------------------------------------------------------
+/** EastWind DX9 (M3.3a): renders the scene mirrored about z = level into the reflection target of
+	* the water shader, like renderMirror does for the sea. The target is cleared to a sky colour
+	* first, for where the sky plane does not cover it. */
+//-------------------------------------------------------------------------------------------------
+void WaterRenderObjClass::renderMirrorInto(CameraClass *cam, Real level, IDirect3DSurface9 *target, IDirect3DSurface9 *depth)
+{
+#ifdef EXTENDED_STATS
+	if (DX8Wrapper::stats.m_disableWater) {
+		EwWater::Skip_Reflection("water disabled");
+		return;
+	}
+#endif
+	const Matrix3D oldCameraMatrix = cam->Get_Transform();
+
+	// Mirroring about a horizontal plane flips the z of the camera's axes and position.
+	Vector3 right = oldCameraMatrix.Get_X_Vector();
+	Vector3 up = oldCameraMatrix.Get_Y_Vector();
+	Vector3 back = oldCameraMatrix.Get_Z_Vector();
+	Vector3 position = oldCameraMatrix.Get_Translation();
+	right.Z = -right.Z;
+	up.Z = -up.Z;
+	back.Z = -back.Z;
+	position.Z = 2.0f * level - position.Z;
+	Matrix3D reflectedTransform(right, up, back, position);
+
+	DX8Wrapper::Set_Render_Target(target, depth);
+
+	float sky[3];
+	EwWater::Sky_Color(sky);
+	if (WW3D::Begin_Render(true, true, Vector3(sky[0], sky[1], sky[2])) == WW3D_ERROR_OK)
+	{
+		cam->Set_Transform(reflectedTransform);
+
+		//Force reflected image to be drawn into full texture size - not a viewport inside texture.
+		Vector2 vMin,vMax,vOldMax,vOldMin;
+		cam->Get_Viewport(vOldMin,vOldMax);
+		vMax.X=vMax.Y=1.0f;
+		vMin.X=vMin.Y=0.0f;
+		cam->Set_Viewport(vMin,vMax);
+
+		cam->Apply();	//force an update of all the camera dependent parameters like frustum clip planes
+
+		//flip the winding order of polygons to draw the reflected back sides.
+		ShaderClass::Invert_Backface_Culling(true);
+
+		renderSky();
+		if (m_tod == TIME_OF_DAY_NIGHT)
+			renderSkyBody(&reflectedTransform);
+
+		WW3D::Render(m_parentScene,cam);
+
+		cam->Set_Transform(oldCameraMatrix);	//restore original non-reflected matrix
+		cam->Set_Viewport(vOldMin,vOldMax);
+
+		cam->Apply();	//force an update of all the camera dependent parameters like frustum clip planes
+
+		ShaderClass::Invert_Backface_Culling(false);
+
+		WW3D::End_Render(false);
+		EwWater::End_Reflection(level);
+	}
+	else
+	{
+		EwWater::Skip_Reflection("WW3D::Begin_Render failed");
+	}
+
+	// Change the rendertarget back to the main backbuffer
+	DX8Wrapper::Set_Render_Target((IDirect3DSurface9 *)nullptr);
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -2898,7 +3038,17 @@ void WaterRenderObjClass::drawRiverWater(PolygonTrigger *pTrig)
 	if (wireframeForDebug) {
 		DX8Wrapper::_Get_D3D_Device9()->SetRenderState(D3DRS_FILLMODE,D3DFILL_WIREFRAME);
 	}
+	// EastWind DX9 (M3.3a): the water shader, with waves along the river.
+	Real riverLevel = 0;
+	for (Int pointIndex = 0; pointIndex < pTrig->getNumPoints(); ++pointIndex)
+		riverLevel += (Real)pTrig->getPoint(pointIndex)->z;
+	if (pTrig->getNumPoints() > 0)
+		riverLevel /= pTrig->getNumPoints();
+	const Real riverAlpha = ((m_settings[m_tod].waterDiffuse >> 24) & 0xff) / 255.0f;
+	const Bool ewWaterShader = m_riverWaterPixelShader && EwWater::Begin(EwWater::RIVER, riverLevel, endLen, riverAlpha);
 	DX8Wrapper::Draw_Triangles(	0,rectangleCount*2, 0,	(rectangleCount+1)*2);
+	if (ewWaterShader)
+		EwWater::End();
 	if (wireframeForDebug) {
 		DX8Wrapper::_Get_D3D_Device9()->SetRenderState(D3DRS_FILLMODE,D3DFILL_SOLID);
 	}
@@ -3278,7 +3428,12 @@ void WaterRenderObjClass::drawTrapezoidWater(Vector3 points[4])
 //		}
 //#endif // FEATHER_WATER
 //#endif //WAVY_WATER
+		// EastWind DX9 (M3.3a): the water shader, with waves, Fresnel and the reflection.
+		const Real ewWaterLevel = (points[0].Z + points[1].Z + points[2].Z + points[3].Z) * 0.25f;
+		const Bool ewWaterShader = m_trapezoidWaterPixelShader && EwWater::Begin(EwWater::TRAPEZOID, ewWaterLevel, 0.0f, 1.0f);
 		DX8Wrapper::Draw_Triangles(	0,rectangleCount*2, 0,	(rectangleCount+1)*2);//lorenzen thinks this is where to itereate the soft shoreline effect
+		if (ewWaterShader)
+			EwWater::End();
 	}
 
 

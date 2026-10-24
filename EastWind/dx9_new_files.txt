@@ -14,3 +14,5 @@ Core/GameEngineDevice/Include/W3DDevice/GameClient/EwTerrainLighting_dx9.h Core/
 Core/GameEngineDevice/Source/W3DDevice/GameClient/EwTerrainLighting_dx9.cpp Core/GameEngineDevice/Source/W3DDevice/GameClient/HeightMap_dx9.cpp
 Core/GameEngineDevice/Include/W3DDevice/GameClient/EwPostProcess_dx9.h Core/GameEngineDevice/Source/W3DDevice/GameClient/W3DView_dx9.cpp
 Core/GameEngineDevice/Source/W3DDevice/GameClient/EwPostProcess_dx9.cpp Core/GameEngineDevice/Source/W3DDevice/GameClient/W3DView_dx9.cpp
+Core/GameEngineDevice/Include/W3DDevice/GameClient/EwWater_dx9.h Core/GameEngineDevice/Source/W3DDevice/GameClient/Water/W3DWater_dx9.cpp
+Core/GameEngineDevice/Source/W3DDevice/GameClient/EwWater_dx9.cpp Core/GameEngineDevice/Source/W3DDevice/GameClient/Water/W3DWater_dx9.cpp
