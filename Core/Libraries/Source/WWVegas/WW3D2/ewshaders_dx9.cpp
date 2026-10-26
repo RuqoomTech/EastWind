@@ -66,6 +66,8 @@
 #include "post_blur_ps.h"
 #include "post_final_ps.h"
 #include "post_fxaa_ps.h"
+#include "post_ao_ps.h"
+#include "post_ao_blur_ps.h"
 #include "water_vs.h"
 #include "water_trapezoid_ps.h"
 #include "water_river_ps.h"
@@ -134,6 +136,8 @@ namespace
 		{ g_ew_post_blur_ps, "post_blur_ps" },
 		{ g_ew_post_final_ps, "post_final_ps" },
 		{ g_ew_post_fxaa_ps, "post_fxaa_ps" },
+		{ g_ew_post_ao_ps, "post_ao_ps" },
+		{ g_ew_post_ao_blur_ps, "post_ao_blur_ps" },
 		{ g_ew_water_trapezoid_ps, "water_trapezoid_ps" },
 		{ g_ew_water_river_ps, "water_river_ps" },
 		{ g_ew_water_trapezoid_hq_ps, "water_trapezoid_hq_ps" },
@@ -223,4 +227,17 @@ void EwShaders::Shutdown()
 		}
 		PixelFailed[i] = false;
 	}
+}
+
+bool EwShaders::Format_Supported(IDirect3DDevice9 *device, DWORD usage, D3DRESOURCETYPE type, D3DFORMAT format)
+{
+	IDirect3D9 *d3d = nullptr;
+	if (FAILED(device->GetDirect3D(&d3d)) || d3d == nullptr)
+		return false;
+	D3DDEVICE_CREATION_PARAMETERS params;
+	D3DDISPLAYMODE mode;
+	const bool ok = SUCCEEDED(device->GetCreationParameters(&params)) && SUCCEEDED(device->GetDisplayMode(0, &mode))
+		&& SUCCEEDED(d3d->CheckDeviceFormat(params.AdapterOrdinal, params.DeviceType, mode.Format, usage, type, format));
+	d3d->Release();
+	return ok;
 }

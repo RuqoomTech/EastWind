@@ -1926,7 +1926,7 @@ void W3DView::draw()
 	{
 		Int originX, originY;
 		getOrigin(&originX, &originY);
-		EwPostProcess::End_Scene(originX, originY, getWidth(), getHeight());
+		EwPostProcess::End_Scene(originX, originY, getWidth(), getHeight(), m_3DCamera);
 	}
 
 	if( TheGlobalData->m_debugAI )

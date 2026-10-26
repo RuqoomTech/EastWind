@@ -2863,6 +2863,14 @@ void W3DShaderManager::startRenderToTexture()
 	DEBUG_ASSERTCRASH(!m_renderingToTexture, ("Already rendering to texture - cannot nest calls."));
 
 	if (m_renderingToTexture || m_newRenderSurface==nullptr || m_oldDepthSurface==nullptr) return;
+	// EastWind: draw with, and return to, the depth buffer the scene uses, which is the depth
+	// texture ambient occlusion reads (EwPostProcess) rather than the back buffer's when AO is on.
+	IDirect3DSurface9 *currentDepth = nullptr;
+	if (DX8Wrapper::_Get_D3D_Device9()->GetDepthStencilSurface(&currentDepth) == S_OK && currentDepth)
+	{
+		SAFE_RELEASE(m_oldDepthSurface);
+		m_oldDepthSurface = currentDepth;
+	}
 	// D3D9 sets the colour and depth targets separately and does not reject a multisampled depth
 	// buffer with a plain render target the way DX8 did, so check that here to keep the fallback below.
 	D3DSURFACE_DESC depthDesc;

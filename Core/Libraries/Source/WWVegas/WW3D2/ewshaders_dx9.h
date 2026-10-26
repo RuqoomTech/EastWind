@@ -24,8 +24,7 @@
 
 #pragma once
 
-struct IDirect3DVertexShader9;
-struct IDirect3DPixelShader9;
+#include <d3d9.h>
 
 class EwShaders
 {
@@ -87,6 +86,8 @@ public:
 		PS_POST_BLUR,				// post.hlsl, bloom Gaussian blur (M3.2b)
 		PS_POST_FINAL,				// post.hlsl, scene plus bloom, tone curve and colour LUT onto the back buffer (M3.2b/c)
 		PS_POST_FXAA,				// post.hlsl, edge anti-aliasing of the finished colours (M3.2d)
+		PS_POST_AO,					// post.hlsl, ambient occlusion from the scene depth (M3.5)
+		PS_POST_AO_BLUR,			// post.hlsl, depth-aware blur of the ambient occlusion (M3.5)
 		PS_WATER_TRAPEZOID,			// water.hlsl, trapezoid water with waves, Fresnel and reflection (M3.3a)
 		PS_WATER_RIVER,				// water.hlsl, river water with waves, Fresnel and reflection (M3.3a)
 		PS_WATER_TRAPEZOID_HQ,		// water.hlsl, trapezoid water seen into: depth colour, refraction, shore foam (M3.3b)
@@ -111,4 +112,7 @@ public:
 
 	// Releases the store's references. Called before the device is released.
 	static void Shutdown();
+
+	// True when the device's adapter supports the format for this usage, at the desktop's format.
+	static bool Format_Supported(IDirect3DDevice9 *device, DWORD usage, D3DRESOURCETYPE type, D3DFORMAT format);
 };

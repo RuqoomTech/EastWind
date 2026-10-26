@@ -86,10 +86,19 @@
 #define EW_POST_PS_TEXEL         0   // c0: xy one source texel in uv, zw blur step in uv
 #define EW_POST_PS_BLOOM         1   // c1: x threshold, y 1 / (1 - threshold), z strength
 #define EW_POST_PS_BLOOM_WEIGHTS 2   // c2: xyz weights of the 1/4, 1/8 and 1/16 size levels
-#define EW_POST_PS_FINAL         3   // c3: final pass, x bloom on, y tone mapping on, z colour grading on
+#define EW_POST_PS_FINAL         3   // c3: final pass, x bloom on, y tone mapping on, z colour grading on, w ambient occlusion on
 #define EW_POST_PS_TONE          4   // c4: x exposure, y 1 / curve(exposure), so white stays white
-#define EW_POST_PS_CLAMP         5   // c5: FXAA, xy lowest and zw highest uv inside the view rectangle
-#define EW_POST_PS_COUNT         6
+#define EW_POST_PS_CLAMP         5   // c5: FXAA and AO, xy lowest and zw highest uv inside the view rectangle
+// Ambient occlusion (M3.5): the AO pass, its blur and the final pass read these.
+#define EW_POST_PS_DEPTH         6   // c6: view depth = x / (y - z * stored depth); w: no occlusion from this depth on
+#define EW_POST_PS_AO_RAY        7   // c7: view ray at depth 1 = uv * xy + zw (camera space, x right, y up)
+#define EW_POST_PS_AO            8   // c8: x radius (world units), y intensity, z horizon bias (cosine), w largest radius in uv
+#define EW_POST_PS_AO2           9   // c9: xy uv per world unit at depth 1, zw one AO texel in uv
+#define EW_POST_PS_AO_FINAL      10  // c10: x show the occlusion alone, y depth edge sharpness, z occlusion power
+#define EW_POST_PS_COUNT         11
+// Samplers of the AO passes, above the bloom levels and the colour LUT (s1..s4).
+#define EW_POST_AO_SAMPLER       5   // s5: AO texture (R occlusion, G view depth)
+#define EW_POST_DEPTH_SAMPLER    6   // s6: the scene's INTZ depth texture
 
 // --- water.hlsl WaterVS / WaterTrapezoidPS / WaterRiverPS, M3.3a water shader; set by EwWater_dx9.cpp ---
 // Matrices are uploaded as their columns, like the terrain shader's.

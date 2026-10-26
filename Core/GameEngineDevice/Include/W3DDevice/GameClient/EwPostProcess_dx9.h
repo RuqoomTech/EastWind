@@ -15,11 +15,13 @@
 **	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// EastWind DX9: post-processing (M3.2, Options.ini EwBloom, EwToneMapping, EwColorGrading, EwFXAA).
+// EastWind DX9: post-processing (M3.2, Options.ini EwBloom, EwToneMapping, EwColorGrading, EwFXAA;
+// M3.5 EwAmbientOcclusion).
 //
 // W3DView::draw calls Begin_Scene() before the 3D scene and End_Scene() after it (and after the
 // view filters). In between, the 3D scene draws into a scene texture the size and format of the
-// back buffer, which shares the back buffer's depth and stencil. End_Scene() then draws the
+// back buffer, which shares the back buffer's depth and stencil (with ambient occlusion on, it has
+// its own; see below). End_Scene() then draws the
 // scene texture onto the back buffer with the post passes (post.hlsl). The 2D scene, the UI and
 // the mouse draw on the back buffer afterwards, so post effects never touch them.
 //
@@ -41,7 +43,16 @@
 // goes down). The map's own ColorGrading.tga (in the map's folder) wins over
 // Art\Textures\EwColorGrading.tga; without either, a neutral LUT changes nothing.
 //
-// Bloom, tone mapping and colour grading run in one final pass (PS_POST_FINAL).
+// Ambient occlusion (M3.5, EwAmbientOcclusion = 1 half size, 2 full size): the scene draws with
+// its own depth buffer, an INTZ depth texture (with stencil) the size of the scene texture, in
+// place of the back buffer's. End_Scene() reads it, rebuilds each pixel's camera-space position
+// from the 3D camera and draws the occlusion into an AO texture (G16R16F: occlusion and depth).
+// It is blurred across and down without crossing depth edges, and the final pass darkens the
+// scene by it before bloom. Everything that writes depth takes part, so the water surface and
+// the trees occlude too; smoke and other particles write no depth and get the occlusion of what
+// lies behind them. A multisampled depth buffer cannot be read, so AO needs AntiAliasing = 0.
+//
+// Ambient occlusion, bloom, tone mapping and colour grading run in one final pass (PS_POST_FINAL).
 //
 // FXAA (M3.2d, EwFXAA): last, an edge anti-aliasing pass on the finished colours. With other
 // effects on, the final pass draws into a second texture the size of the scene texture, which
@@ -53,6 +64,8 @@
 
 #pragma once
 
+class CameraClass;
+
 class EwPostProcess
 {
 public:
@@ -60,6 +73,7 @@ public:
 	enum Effect
 	{
 		SCENE,
+		AMBIENT_OCCLUSION,
 		BLOOM,
 		TONE_MAPPING,
 		COLOR_GRADING,
@@ -68,14 +82,16 @@ public:
 	};
 
 	// Points rendering at the scene texture and clears its colour to black, with the alpha the
-	// frame clear uses (the soft water edge reads destination alpha). Depth is not cleared: it is
-	// the back buffer's, which the frame clear already cleared. Returns true if rendering now goes
-	// to the scene texture; then End_Scene() must follow.
+	// frame clear uses (the soft water edge reads destination alpha). Depth is not cleared when it
+	// is the back buffer's, which the frame clear already cleared; the ambient occlusion depth
+	// texture is cleared here. Returns true if rendering now goes to the scene texture; then
+	// End_Scene() must follow.
 	static bool Begin_Scene(float clear_alpha);
 
 	// Resolves the scene, points rendering back at the back buffer and draws the post passes over
-	// the view rectangle (in back buffer pixels). Does nothing if Begin_Scene() returned false.
-	static void End_Scene(int x, int y, int width, int height);
+	// the view rectangle (in back buffer pixels). camera is the 3D camera the scene drew with; the
+	// ambient occlusion needs it. Does nothing if Begin_Scene() returned false.
+	static void End_Scene(int x, int y, int width, int height, const CameraClass *camera);
 
 	// Frees the scene texture and surfaces. Called from W3DShaderManager::shutdown, which also runs
 	// before a device reset; Begin_Scene() creates them again when needed.

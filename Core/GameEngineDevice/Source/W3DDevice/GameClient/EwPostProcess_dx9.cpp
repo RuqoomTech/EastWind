@@ -21,6 +21,7 @@
 #include "Common/file.h"
 #include "Utility/stringex.h"
 #include "WW3D2/dx9wrapper.h"
+#include "WW3D2/camera.h"
 #include "WW3D2/ewshaders_dx9.h"
 #include "WW3D2/ewgraphicsoptions_dx9.h"
 #include "WWDebug/wwdebug.h"
@@ -55,6 +56,16 @@ namespace
 	const int LUT_WIDTH = 256;
 	const int LUT_HEIGHT = 16;
 
+	// Ambient occlusion, until it moves to INI data. Distances are world units (a terrain cell is 10).
+	const float AO_RADIUS = 25.0f;			// how far around a pixel occluders count
+	const float AO_INTENSITY = 1.6f;
+	const float AO_BIAS = 0.15f;			// rises flatter than this (cosine to the normal) do not occlude
+	const float AO_MAX_RADIUS_UV = 0.06f;	// largest radius on screen, as a part of the view width
+	const float AO_MAX_DEPTH = 4000.0f;		// fades out towards this depth
+	const float AO_DEPTH_SHARPNESS = 12.0f;	// the blur stops at depth steps of about 1/12 of the depth
+	const float AO_POWER = 1.3f;			// contrast of the final occlusion
+	const D3DFORMAT FORMAT_INTZ = (D3DFORMAT)MAKEFOURCC('I', 'N', 'T', 'Z');
+
 	enum Reason
 	{
 		REASON_OFF,
@@ -71,6 +82,13 @@ namespace
 		REASON_LUT_CREATE_FAILED,
 		REASON_FXAA_DEBUG_OFF,
 		REASON_FXAA_CREATE_FAILED,
+		REASON_AO_DEBUG_OFF,
+		REASON_AO_MSAA,
+		REASON_AO_NO_INTZ,
+		REASON_AO_DEPTH_FAILED,
+		REASON_AO_NO_G16R16F,
+		REASON_AO_CREATE_FAILED,
+		REASON_AO_NO_CAMERA,
 		REASON_COUNT
 	};
 
@@ -90,6 +108,13 @@ namespace
 		"the colour LUT texture could not be created (HRESULT)",
 		"switched off with Ctrl+Shift+F4",
 		"the FXAA texture could not be created (HRESULT)",
+		"switched off with Ctrl+Shift+F1",
+		"needs AntiAliasing = 0 in Options.ini (a multisampled depth buffer cannot be read)",
+		"the card cannot draw into a readable depth texture (INTZ)",
+		"the scene depth texture could not be created or set (HRESULT)",
+		"the card cannot draw into G16R16F textures",
+		"the AO textures could not be created (HRESULT)",
+		"no 3D camera was given",
 	};
 	static_assert(sizeof(ReasonText) / sizeof(ReasonText[0]) == REASON_COUNT, "ReasonText must match Reason");
 
@@ -142,6 +167,21 @@ namespace
 	IDirect3DSurface9 *FinalSurface = nullptr;
 	bool FinalFailed = false;
 
+	// Ambient occlusion. The scene's own depth buffer, a depth texture the shaders can read; made
+	// for the scene texture and used only while AO is on.
+	IDirect3DTexture9 *DepthTexture = nullptr;
+	IDirect3DSurface9 *DepthSurface = nullptr;
+	bool DepthFailed = false;				// do not try again until Release()
+	Reason DepthReason = REASON_NOT_DRAWN;	// why the scene did not draw with DepthTexture
+	bool SceneDepthBound = false;			// this scene draws with DepthTexture
+	// The occlusion is drawn into [0], blurred across into [1] and down back into [0].
+	IDirect3DTexture9 *AoTexture[2] = { nullptr, nullptr };
+	IDirect3DSurface9 *AoSurface[2] = { nullptr, nullptr };
+	int AoWidth = 0;
+	int AoHeight = 0;
+	int AoDivisor = 0;
+	bool AoFailed = false;
+
 	// Set between Begin_Scene and End_Scene.
 	IDirect3DSurface9 *BackBuffer = nullptr;
 	IDirect3DSurface9 *DepthBuffer = nullptr;
@@ -149,7 +189,8 @@ namespace
 	void Log_Once(Reason reason, unsigned value)
 	{
 		if (!Logged[reason] && reason != REASON_OFF && reason != REASON_DEBUG_OFF && reason != REASON_EFFECT_OFF
-			&& reason != REASON_TONE_DEBUG_OFF && reason != REASON_GRADE_DEBUG_OFF && reason != REASON_FXAA_DEBUG_OFF)
+			&& reason != REASON_TONE_DEBUG_OFF && reason != REASON_GRADE_DEBUG_OFF && reason != REASON_FXAA_DEBUG_OFF
+			&& reason != REASON_AO_DEBUG_OFF && reason != REASON_AO_MSAA)
 		{
 			Logged[reason] = true;
 			WWDEBUG_SAY(("EwPostProcess: %s, value 0x%x (logged once)", ReasonText[reason], value));
@@ -198,8 +239,22 @@ namespace
 		BloomFailed = false;
 	}
 
+	void Release_Ao()
+	{
+		for (int i = 0; i < 2; ++i)
+		{
+			Release_Com(AoSurface[i]);
+			Release_Com(AoTexture[i]);
+		}
+		AoWidth = AoHeight = AoDivisor = 0;
+		AoFailed = false;
+	}
+
 	void Release_Targets()
 	{
+		Release_Com(DepthSurface);
+		Release_Com(DepthTexture);
+		Release_Ao();
 		Release_Com(MsaaSurface);
 		Release_Com(SceneSurface);
 		Release_Com(SceneTexture);
@@ -233,6 +288,86 @@ namespace
 		else
 			TargetDesc = desc;
 		return hr;
+	}
+
+	// Creates the scene's depth texture for the current scene texture, once. If it cannot be used,
+	// DepthReason says why.
+	bool Depth_Ready(IDirect3DDevice9 *device)
+	{
+		if (TargetDesc.MultiSampleType != D3DMULTISAMPLE_NONE)
+		{
+			DepthReason = REASON_AO_MSAA;
+			return false;
+		}
+		if (DepthTexture != nullptr)
+			return true;
+		if (DepthFailed)
+			return false;	// DepthReason still says why
+
+		HRESULT hr = E_FAIL;
+		if (!EwShaders::Format_Supported(device, D3DUSAGE_DEPTHSTENCIL, D3DRTYPE_TEXTURE, FORMAT_INTZ))
+			DepthReason = REASON_AO_NO_INTZ;
+		else
+		{
+			hr = device->CreateTexture(TargetDesc.Width, TargetDesc.Height, 1, D3DUSAGE_DEPTHSTENCIL, FORMAT_INTZ,
+				D3DPOOL_DEFAULT, &DepthTexture, nullptr);
+			if (SUCCEEDED(hr))
+				hr = DepthTexture->GetSurfaceLevel(0, &DepthSurface);
+			if (FAILED(hr))
+				DepthReason = REASON_AO_DEPTH_FAILED;
+		}
+		if (FAILED(hr))
+		{
+			Release_Com(DepthSurface);
+			Release_Com(DepthTexture);
+			DepthFailed = true;
+			Log_Once(DepthReason, hr);
+			return false;
+		}
+		WWDEBUG_SAY(("EwPostProcess: %ux%u INTZ scene depth texture for ambient occlusion", TargetDesc.Width, TargetDesc.Height));
+		return true;
+	}
+
+	// Creates the two AO textures (1/divisor of the scene texture size), once.
+	bool Ao_Ready(IDirect3DDevice9 *device, int divisor)
+	{
+		if (AoTexture[0] != nullptr && AoDivisor == divisor)
+			return true;
+		if (AoFailed)
+		{
+			Set_Reason(EwPostProcess::AMBIENT_OCCLUSION, REASON_AO_CREATE_FAILED);
+			return false;
+		}
+		Release_Ao();
+		if (!EwShaders::Format_Supported(device, D3DUSAGE_RENDERTARGET, D3DRTYPE_TEXTURE, D3DFMT_G16R16F))
+		{
+			AoFailed = true;
+			Set_Reason(EwPostProcess::AMBIENT_OCCLUSION, REASON_AO_NO_G16R16F);
+			Log_Once(REASON_AO_NO_G16R16F, 0);
+			return false;
+		}
+		const int w = ((int)TargetDesc.Width + divisor - 1) / divisor;
+		const int h = ((int)TargetDesc.Height + divisor - 1) / divisor;
+		HRESULT hr = S_OK;
+		for (int i = 0; i < 2 && SUCCEEDED(hr); ++i)
+		{
+			hr = device->CreateTexture(w, h, 1, D3DUSAGE_RENDERTARGET, D3DFMT_G16R16F, D3DPOOL_DEFAULT, &AoTexture[i], nullptr);
+			if (SUCCEEDED(hr))
+				hr = AoTexture[i]->GetSurfaceLevel(0, &AoSurface[i]);
+		}
+		if (FAILED(hr))
+		{
+			Release_Ao();
+			AoFailed = true;
+			Set_Reason(EwPostProcess::AMBIENT_OCCLUSION, REASON_AO_CREATE_FAILED);
+			Log_Once(REASON_AO_CREATE_FAILED, hr);
+			return false;
+		}
+		AoWidth = w;
+		AoHeight = h;
+		AoDivisor = divisor;
+		WWDEBUG_SAY(("EwPostProcess: %dx%d ambient occlusion textures", w, h));
+		return true;
 	}
 
 	// Creates the bloom textures for the current scene texture size, once.
@@ -565,6 +700,79 @@ namespace
 		device->SetDepthStencilSurface(DepthBuffer);
 	}
 
+	// One AO pass over a whole AO texture.
+	void Ao_Pass(IDirect3DDevice9 *device, EwShaders::PixelShaderId shader, IDirect3DSurface9 *dest)
+	{
+		device->SetRenderTarget(0, dest);
+		device->SetPixelShader(EwShaders::Peek_Pixel(shader));
+		Draw_Quad(device, 0, 0, AoWidth, AoHeight, 0.0f, 0.0f, 1.0f, 1.0f);
+		++Stats[EwPostProcess::AMBIENT_OCCLUSION].Passes;
+	}
+
+	// Draws the blurred occlusion into AoTexture[0] and sets the constants the final pass reads
+	// (c6..c10). u0..v1 is the view rectangle in the scene texture. Ends with the back buffer and
+	// its depth buffer bound again.
+	void Draw_Ao(IDirect3DDevice9 *device, const CameraClass *camera, float u0, float v0, float u1, float v1)
+	{
+		float znear = 1.0f;
+		float zfar = 1000.0f;
+		float zmin = 0.0f;
+		float zmax = 1.0f;
+		Vector2 vmin;
+		Vector2 vmax;
+		camera->Get_Clip_Planes(znear, zfar);
+		camera->Get_Depth_Range(&zmin, &zmax);
+		camera->Get_View_Plane(vmin, vmax);
+		const float zrange = zmax > zmin ? zmax - zmin : 1.0f;
+		const float du = u1 > u0 ? u1 - u0 : 1.0f;
+		const float dv = v1 > v0 ? v1 - v0 : 1.0f;
+		const float view_w = vmax.X > vmin.X ? vmax.X - vmin.X : 1.0f;
+		const float view_h = vmax.Y > vmin.Y ? vmax.Y - vmin.Y : 1.0f;
+
+		// Stored depth -> view depth. The projection maps view depth d to f/(f-n) * (1 - n/d), and
+		// the viewport puts that into zmin..zmax.
+		const float depth[4] = { znear * zfar, zfar + (zfar - znear) * zmin / zrange, (zfar - znear) / zrange,
+			zfar < AO_MAX_DEPTH ? zfar : AO_MAX_DEPTH };
+		// uv -> the view plane at depth 1 (v grows down, y up).
+		const float ray_x = view_w / du;
+		const float ray_y = -view_h / dv;
+		const float ray[4] = { ray_x, ray_y, vmin.X - u0 * ray_x, vmax.Y - v0 * ray_y };
+		const float params[4] = { AO_RADIUS, AO_INTENSITY, AO_BIAS, AO_MAX_RADIUS_UV * du };
+		const float params2[4] = { du / view_w, dv / view_h, 1.0f / AoWidth, 1.0f / AoHeight };
+		const float final_params[4] = { EwGraphics().PostAoOnly() ? 1.0f : 0.0f, AO_DEPTH_SHARPNESS, AO_POWER, 0.0f };
+		device->SetPixelShaderConstantF(EW_POST_PS_DEPTH, depth, 1);
+		device->SetPixelShaderConstantF(EW_POST_PS_AO_RAY, ray, 1);
+		device->SetPixelShaderConstantF(EW_POST_PS_AO, params, 1);
+		device->SetPixelShaderConstantF(EW_POST_PS_AO2, params2, 1);
+		device->SetPixelShaderConstantF(EW_POST_PS_AO_FINAL, final_params, 1);
+
+		// The AO textures are smaller than the depth buffer, and the passes need none.
+		device->SetDepthStencilSurface(nullptr);
+		Set_Texture(device, EW_POST_DEPTH_SAMPLER, DepthTexture, false);
+
+		// Occlusion. The taps stay half a texel inside the view rectangle; outside it the depth is
+		// the clear value, which the shader treats as too far to occlude.
+		const float tw = (float)TargetDesc.Width;
+		const float th = (float)TargetDesc.Height;
+		const float view_clamp[4] = { u0 + 0.5f / tw, v0 + 0.5f / th, u1 - 0.5f / tw, v1 - 0.5f / th };
+		device->SetPixelShaderConstantF(EW_POST_PS_CLAMP, view_clamp, 1);
+		Set_Texel(device, 1.0f / tw, 1.0f / th, 0.0f, 0.0f);
+		Ao_Pass(device, EwShaders::PS_POST_AO, AoSurface[0]);
+
+		// Blur across, then down.
+		const float whole[4] = { 0.0f, 0.0f, 1.0f, 1.0f };
+		device->SetPixelShaderConstantF(EW_POST_PS_CLAMP, whole, 1);
+		Set_Texture(device, EW_POST_AO_SAMPLER, AoTexture[0], false);
+		Set_Texel(device, 0.0f, 0.0f, 1.0f / AoWidth, 0.0f);
+		Ao_Pass(device, EwShaders::PS_POST_AO_BLUR, AoSurface[1]);
+		Set_Texture(device, EW_POST_AO_SAMPLER, AoTexture[1], false);
+		Set_Texel(device, 0.0f, 0.0f, 0.0f, 1.0f / AoHeight);
+		Ao_Pass(device, EwShaders::PS_POST_AO_BLUR, AoSurface[0]);
+
+		device->SetRenderTarget(0, BackBuffer);
+		device->SetDepthStencilSurface(DepthBuffer);
+	}
+
 	// Whether a post effect runs this frame; sets the reason if not.
 	bool Effect_On(EwPostProcess::Effect effect, bool option, bool debug_off, Reason debug_reason,
 		EwShaders::PixelShaderId shader)
@@ -635,15 +843,37 @@ bool EwPostProcess::Begin_Scene(float clear_alpha)
 	BackBuffer = target;
 	DepthBuffer = depth;
 
+	// Ambient occlusion reads the scene's depth, so the scene draws with its own depth texture,
+	// cleared here as the frame clear cleared the back buffer's.
+	DWORD clear = D3DCLEAR_TARGET;
+	SceneDepthBound = false;
+	if (o.PostAo() && Depth_Ready(device))
+	{
+		hr = device->SetDepthStencilSurface(DepthSurface);
+		if (SUCCEEDED(hr))
+		{
+			SceneDepthBound = true;
+			clear |= D3DCLEAR_ZBUFFER | D3DCLEAR_STENCIL;
+		}
+		else
+		{
+			device->SetDepthStencilSurface(DepthBuffer);
+			DepthReason = REASON_AO_DEPTH_FAILED;
+			Log_Once(REASON_AO_DEPTH_FAILED, hr);
+		}
+	}
+
 	const DWORD alpha = (DWORD)(clear_alpha * 255.0f + 0.5f) & 0xff;
-	device->Clear(0, nullptr, D3DCLEAR_TARGET, D3DCOLOR_ARGB(alpha, 0, 0, 0), 1.0f, 0);
+	device->Clear(0, nullptr, clear, D3DCOLOR_ARGB(alpha, 0, 0, 0), 1.0f, 0);
 	return true;
 }
 
-void EwPostProcess::End_Scene(int x, int y, int width, int height)
+void EwPostProcess::End_Scene(int x, int y, int width, int height, const CameraClass *camera)
 {
 	if (BackBuffer == nullptr)
 		return;
+	const bool scene_depth = SceneDepthBound;
+	SceneDepthBound = false;
 
 	IDirect3DDevice9 *device = DX8Wrapper::_Get_D3D_Device9();
 	if (MsaaSurface)
@@ -710,18 +940,39 @@ void EwPostProcess::End_Scene(int x, int y, int width, int height)
 		EwShaders::PS_POST_FINAL);
 	if (grade)
 		grade = Lut_Ready(device);
-	const bool final_effects = bloom || tone || grade;
+	bool ao = Effect_On(AMBIENT_OCCLUSION, o.AmbientOcclusion > 0, o.DebugAoMode == 2, REASON_AO_DEBUG_OFF,
+		EwShaders::PS_POST_FINAL);
+	if (ao && (EwShaders::Peek_Pixel(EwShaders::PS_POST_AO) == nullptr || EwShaders::Peek_Pixel(EwShaders::PS_POST_AO_BLUR) == nullptr))
+	{
+		Set_Reason(AMBIENT_OCCLUSION, REASON_NO_SHADER);
+		ao = false;
+	}
+	if (ao && !scene_depth)
+	{
+		Set_Reason(AMBIENT_OCCLUSION, DepthReason);
+		ao = false;
+	}
+	if (ao && camera == nullptr)
+	{
+		Set_Reason(AMBIENT_OCCLUSION, REASON_AO_NO_CAMERA);
+		ao = false;
+	}
+	if (ao)
+		ao = Ao_Ready(device, o.AmbientOcclusion >= 2 ? 1 : 2);
+	const bool final_effects = bloom || tone || grade || ao;
 	bool fxaa = Effect_On(FXAA, o.FXAA, o.DebugFxaaOff, REASON_FXAA_DEBUG_OFF, EwShaders::PS_POST_FXAA);
 	if (fxaa && final_effects)
 		fxaa = Final_Ready(device);
-
-	if (bloom)
-		Draw_Bloom(device);
 
 	const float u0 = (float)x / tw;
 	const float v0 = (float)y / th;
 	const float u1 = (float)(x + width) / tw;
 	const float v1 = (float)(y + height) / th;
+
+	if (ao)
+		Draw_Ao(device, camera, u0, v0, u1, v1);
+	if (bloom)
+		Draw_Bloom(device);
 
 	// The final pass, onto the back buffer over the view rectangle, or into the same rectangle of
 	// FinalTexture when FXAA follows. The scene is read with point filtering, so each pixel gets
@@ -744,7 +995,12 @@ void EwPostProcess::End_Scene(int x, int y, int width, int height)
 		}
 		if (grade)
 			Set_Texture(device, 4, LutTexture, true);
-		const float final_flags[4] = { bloom ? 1.0f : 0.0f, tone ? 1.0f : 0.0f, grade ? 1.0f : 0.0f, 0.0f };
+		if (ao)
+		{
+			Set_Texture(device, EW_POST_AO_SAMPLER, AoTexture[0], false);
+			Set_Texture(device, EW_POST_DEPTH_SAMPLER, DepthTexture, false);
+		}
+		const float final_flags[4] = { bloom ? 1.0f : 0.0f, tone ? 1.0f : 0.0f, grade ? 1.0f : 0.0f, ao ? 1.0f : 0.0f };
 		const float tone_params[4] = { TONE_EXPOSURE, 1.0f / Filmic_Curve(TONE_EXPOSURE), 0.0f, 0.0f };
 		device->SetPixelShaderConstantF(EW_POST_PS_FINAL, final_flags, 1);
 		device->SetPixelShaderConstantF(EW_POST_PS_TONE, tone_params, 1);
@@ -763,6 +1019,8 @@ void EwPostProcess::End_Scene(int x, int y, int width, int height)
 		++Stats[TONE_MAPPING].Passes;
 	if (grade)
 		++Stats[COLOR_GRADING].Passes;
+	if (ao)
+		++Stats[AMBIENT_OCCLUSION].Passes;
 
 	// FXAA, onto the back buffer. Its reads stay half a texel inside the view rectangle, so the
 	// edge of the view never blends with what lies outside it.
@@ -803,6 +1061,8 @@ void EwPostProcess::Release()
 	LutUploaded = false;
 	LutFailed = false;
 	CreateFailed = false;
+	DepthFailed = false;
+	SceneDepthBound = false;
 }
 
 void EwPostProcess::New_Frame()

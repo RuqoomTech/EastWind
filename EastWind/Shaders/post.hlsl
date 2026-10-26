@@ -12,7 +12,20 @@
 // The scene is 8 bits a channel, so the bloom is added with a screen blend, which
 // brightens without clipping to flat white.
 //
+// Ambient occlusion (M3.5, EwAmbientOcclusion), from the scene's depth (an INTZ texture):
+//   PostAoPS       the occlusion at half or full size: each pixel rebuilds its camera-space
+//                  position and normal from the depth, then looks at 12 points on a spiral
+//                  around it, a fixed world radius wide. A point counts as an occluder by how
+//                  far it rises above the pixel's surface (the cosine to the normal), less with
+//                  distance. The spiral turns by a per-pixel noise angle.
+//   PostAoBlurPS   9-tap blur, run across and then down, that stops at depth edges, so the
+//                  noise goes and the occlusion does not bleed from a unit onto the ground
+//                  behind it.
+// The AO texture holds the occlusion in R and the view depth in G. The final pass scales it
+// up to the scene size by the four nearest AO texels whose depth matches the pixel's.
+//
 // PostFinalPS draws the scene onto the back buffer with what is on, in this order:
+//   ambient occlusion  darkens the scene (M3.5, EwAmbientOcclusion)
 //   bloom          the three blurred sizes, screen-blended over the scene (M3.2b, EwBloom)
 //   tone mapping   a filmic curve (M3.2c, EwToneMapping)
 //   colour grading a colour LUT (M3.2c, EwColorGrading)
@@ -37,6 +50,15 @@ sampler2D Bloom4  : register(s1);
 sampler2D Bloom8  : register(s2);
 sampler2D Bloom16 : register(s3);
 sampler2D ColorLut : register(s4);
+
+float4 DepthParams : EW_REG(EW_POST_PS_DEPTH);
+float4 AoRay       : EW_REG(EW_POST_PS_AO_RAY);
+float4 AoParams    : EW_REG(EW_POST_PS_AO);
+float4 AoParams2   : EW_REG(EW_POST_PS_AO2);
+float4 AoFinal     : EW_REG(EW_POST_PS_AO_FINAL);
+
+sampler2D AoMap      : register(s5);	// EW_POST_AO_SAMPLER
+sampler2D SceneDepth : register(s6);	// EW_POST_DEPTH_SAMPLER
 
 struct PostVsIn
 {
@@ -130,10 +152,145 @@ float3 ColorGrade(float3 c)
 	return lerp(a, b, cell.b - slice);
 }
 
+// ---- Ambient occlusion (M3.5) ----
+
+// The distance from the camera plane to what the pixel at uv shows.
+float View_Depth(float2 uv)
+{
+	float z = tex2Dlod(SceneDepth, float4(uv, 0.0, 0.0)).r;
+	return DepthParams.x / (DepthParams.y - z * DepthParams.z);
+}
+
+// Camera-space position (x right, y up, z the depth, away from the camera).
+float3 View_Pos(float2 uv, float depth)
+{
+	return float3(uv * AoRay.xy + AoRay.zw, 1.0) * depth;
+}
+
+float3 View_Pos(float2 uv)
+{
+	return View_Pos(uv, View_Depth(uv));
+}
+
+#define EW_AO_TAPS 12
+// The spiral: tap k sits at (k + 0.5) / EW_AO_TAPS of the radius and turns 7 times around
+// over all taps, so neighbouring taps point in very different directions.
+static const float2 EwAoSpiral[EW_AO_TAPS] =
+{
+	float2(-0.258819,  0.965926), float2( 0.707107, -0.707107), float2(-0.965926,  0.258819),
+	float2( 0.965926,  0.258819), float2(-0.707107, -0.707107), float2( 0.258819,  0.965926),
+	float2( 0.258819, -0.965926), float2(-0.707107,  0.707107), float2( 0.965926, -0.258819),
+	float2(-0.965926, -0.258819), float2( 0.707107,  0.707107), float2(-0.258819, -0.965926),
+};
+
+float4 PostAoPS(float2 uv : TEXCOORD0, float2 vpos : VPOS) : COLOR0
+{
+	float depth = View_Depth(uv);
+	float fade = saturate((DepthParams.w - depth) / (0.25 * DepthParams.w));
+	[branch] if (fade <= 0.0)
+		return float4(1.0, depth, 0.0, 1.0);
+
+	float3 p = View_Pos(uv, depth);
+
+	// Normal from the neighbouring depths. On each axis the nearer neighbour wins, so the
+	// normal at a silhouette belongs to the surface the pixel is on.
+	float2 tx = float2(Texel.x, 0.0);
+	float2 ty = float2(0.0, Texel.y);
+	float3 pl = View_Pos(uv - tx);
+	float3 pr = View_Pos(uv + tx);
+	float3 pu = View_Pos(uv - ty);
+	float3 pd = View_Pos(uv + ty);
+	float3 dx = abs(pr.z - p.z) < abs(p.z - pl.z) ? pr - p : p - pl;
+	float3 dy = abs(pd.z - p.z) < abs(p.z - pu.z) ? pd - p : p - pu;
+	float3 n = normalize(cross(dx, dy));
+	n = dot(n, p) > 0.0 ? -n : n;	// facing the camera, which sits at the origin
+
+	// The radius on screen, capped so close-ups stay fast.
+	float2 radius_uv = AoParams.x * AoParams2.xy / depth;
+	radius_uv *= min(1.0, AoParams.w / max(radius_uv.x, 1e-6));
+	[branch] if (radius_uv.x < 2.0 * Texel.x)
+		return float4(1.0, depth, 0.0, 1.0);
+
+	// Interleaved gradient noise turns the spiral per pixel; the blur removes the pattern.
+	float noise = frac(52.9829189 * frac(dot(vpos, float2(0.06711056, 0.00583715))));
+	float s, c;
+	sincos(noise * 6.2831853, s, c);
+	float2x2 turn = float2x2(c, -s, s, c);
+
+	float r2 = AoParams.x * AoParams.x;
+	float sum = 0.0;
+	[unroll] for (int k = 0; k < EW_AO_TAPS; ++k)
+	{
+		float along = (k + 0.5) / EW_AO_TAPS;
+		float2 tap = mul(turn, EwAoSpiral[k]) * along;
+		float2 tap_uv = clamp(uv + tap * radius_uv, Clamp.xy, Clamp.zw);
+		float3 v = View_Pos(tap_uv) - p;
+		float vv = dot(v, v);
+		float rise = dot(v, n) * rsqrt(vv + 1e-4);
+		float falloff = saturate(1.0 - vv / r2);
+		sum += falloff * saturate(rise - AoParams.z);
+	}
+	float ao = saturate(1.0 - sum * AoParams.y * (2.0 / EW_AO_TAPS));
+	return float4(lerp(1.0, ao, fade), depth, 0.0, 1.0);
+}
+
+// Depth-aware blur along Texel.zw (one AO texel across or down).
+static const float EwAoBlurWeights[5] = { 0.2270, 0.1945, 0.1216, 0.0541, 0.0162 };
+
+float Ao_Depth_Weight(float tap_depth, float depth)
+{
+	return saturate(1.0 - abs(tap_depth - depth) * AoFinal.y / depth);
+}
+
+float4 PostAoBlurPS(float2 uv : TEXCOORD0) : COLOR0
+{
+	float2 centre = tex2Dlod(AoMap, float4(uv, 0.0, 0.0)).rg;
+	float sum = centre.r * EwAoBlurWeights[0];
+	float weight = EwAoBlurWeights[0];
+	[unroll] for (int k = 1; k < 5; ++k)
+	{
+		float2 a = tex2Dlod(AoMap, float4(clamp(uv + Texel.zw * k, Clamp.xy, Clamp.zw), 0.0, 0.0)).rg;
+		float2 b = tex2Dlod(AoMap, float4(clamp(uv - Texel.zw * k, Clamp.xy, Clamp.zw), 0.0, 0.0)).rg;
+		float wa = EwAoBlurWeights[k] * Ao_Depth_Weight(a.g, centre.g);
+		float wb = EwAoBlurWeights[k] * Ao_Depth_Weight(b.g, centre.g);
+		sum += a.r * wa + b.r * wb;
+		weight += wa + wb;
+	}
+	return float4(sum / weight, centre.g, 0.0, 1.0);
+}
+
+// The occlusion at a scene pixel: the four AO texels around it, weighted by distance and by
+// how well their depth matches the pixel's.
+float Ao_At(float2 uv)
+{
+	float depth = View_Depth(uv);
+	float2 t = uv / AoParams2.zw - 0.5;
+	float2 base = floor(t);
+	float2 f = t - base;
+	float2 uv00 = (base + 0.5) * AoParams2.zw;
+	float2 s00 = tex2Dlod(AoMap, float4(uv00, 0.0, 0.0)).rg;
+	float2 s10 = tex2Dlod(AoMap, float4(uv00 + float2(AoParams2.z, 0.0), 0.0, 0.0)).rg;
+	float2 s01 = tex2Dlod(AoMap, float4(uv00 + float2(0.0, AoParams2.w), 0.0, 0.0)).rg;
+	float2 s11 = tex2Dlod(AoMap, float4(uv00 + AoParams2.zw, 0.0, 0.0)).rg;
+	float4 w = float4((1.0 - f.x) * (1.0 - f.y), f.x * (1.0 - f.y), (1.0 - f.x) * f.y, f.x * f.y);
+	w *= max(float4(Ao_Depth_Weight(s00.g, depth), Ao_Depth_Weight(s10.g, depth),
+		Ao_Depth_Weight(s01.g, depth), Ao_Depth_Weight(s11.g, depth)), 1e-3);
+	float ao = dot(w, float4(s00.r, s10.r, s01.r, s11.r)) / dot(w, 1.0);
+	return pow(saturate(ao), AoFinal.z);
+}
+
 float4 PostFinalPS(float2 uv : TEXCOORD0) : COLOR0
 {
 	float4 scene = tex2D(Scene, uv);
 	float3 c = scene.rgb;
+
+	[branch] if (Final.w > 0.5)
+	{
+		float ao = Ao_At(uv);
+		[branch] if (AoFinal.x > 0.5)
+			return float4(ao.xxx, scene.a);
+		c *= ao;
+	}
 
 	[branch] if (Final.x > 0.5)
 	{

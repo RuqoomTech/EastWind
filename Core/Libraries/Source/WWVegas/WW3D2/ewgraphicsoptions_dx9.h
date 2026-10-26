@@ -34,7 +34,8 @@ struct EwGraphicsOptions
 	bool ToneMapping;		// EwToneMapping (M3.2)
 	bool ColorGrading;		// EwColorGrading (M3.2)
 	bool FXAA;				// EwFXAA (M3.2)
-	bool DebugKeys;			// EwDebugKeys: Ctrl+Shift+F3..F12 switch the features above while the game runs
+	int AmbientOcclusion;	// EwAmbientOcclusion: 0 off, 1 at half resolution, 2 at full resolution (M3.5)
+	bool DebugKeys;			// EwDebugKeys: Ctrl+Shift+F1..F12 switch the features above while the game runs
 
 	// Set by the debug keys (W3DDisplay), never saved. They only turn features off that
 	// Options.ini turned on, so with the keys unused the game looks as Options.ini says.
@@ -49,6 +50,7 @@ struct EwGraphicsOptions
 	bool DebugFxaaOff;				// Ctrl+Shift+F4: no FXAA
 	bool DebugWaterOff;				// Ctrl+Shift+F3: classic water
 	bool DebugShadowsOff;			// Ctrl+Shift+F2: classic shadows instead of the sun shadow map
+	int DebugAoMode;				// Ctrl+Shift+F1 cycles: 0 ambient occlusion on, 1 the occlusion alone, 2 off
 
 	EwGraphicsOptions()
 		: PerPixelLighting(false)
@@ -59,6 +61,7 @@ struct EwGraphicsOptions
 		, ToneMapping(false)
 		, ColorGrading(false)
 		, FXAA(false)
+		, AmbientOcclusion(0)
 		, DebugKeys(false)
 		, DebugAllOff(false)
 		, DebugTerrainLightingOff(false)
@@ -71,6 +74,7 @@ struct EwGraphicsOptions
 		, DebugFxaaOff(false)
 		, DebugWaterOff(false)
 		, DebugShadowsOff(false)
+		, DebugAoMode(0)
 	{
 	}
 
@@ -81,11 +85,14 @@ struct EwGraphicsOptions
 	bool TerrainShader() const { return PerPixelLighting && !DebugAllOff && (!DebugTerrainLightingOff || DebugTerrainLightOnly); }
 	bool TerrainPixelLight() const { return !DebugTerrainLightingOff; }
 	// Post-processing (M3.2) runs when any post effect is on.
-	bool PostProcessWanted() const { return Bloom || ToneMapping || ColorGrading || FXAA; }
+	bool PostProcessWanted() const { return Bloom || ToneMapping || ColorGrading || FXAA || AmbientOcclusion > 0; }
 	bool PostProcess() const { return PostProcessWanted() && !DebugAllOff && !DebugPostOff; }
 	bool PostToneMapping() const { return ToneMapping && !DebugToneMappingOff; }
 	bool PostColorGrading() const { return ColorGrading && !DebugColorGradingOff; }
 	bool PostFxaa() const { return FXAA && !DebugFxaaOff; }
+	// Screen-space ambient occlusion (M3.5), a post pass from the scene's depth.
+	bool PostAo() const { return AmbientOcclusion > 0 && DebugAoMode != 2; }
+	bool PostAoOnly() const { return PostAo() && DebugAoMode == 1; }
 	bool WaterShader() const { return WaterQuality >= 1 && !DebugAllOff && !DebugWaterOff; }
 	// Sun shadow maps (M3.4) need the lit mesh and terrain shaders, which sample them.
 	bool ShadowMaps() const { return ShadowMapSize > 0 && MeshLighting() && !DebugTerrainLightingOff && !DebugShadowsOff; }
@@ -95,6 +102,8 @@ struct EwGraphicsOptions
 	{
 		if (WaterQuality < 0) WaterQuality = 0;
 		if (WaterQuality > 2) WaterQuality = 2;
+		if (AmbientOcclusion < 0) AmbientOcclusion = 0;
+		if (AmbientOcclusion > 2) AmbientOcclusion = 2;
 		if (ShadowMapSize != 0 && ShadowMapSize != 1024 && ShadowMapSize != 2048 && ShadowMapSize != 4096)
 			ShadowMapSize = 0;
 		if (!PerPixelLighting)

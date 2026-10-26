@@ -22,6 +22,7 @@
 #include "ew_constants.h"
 #include "dx9wrapper.h"
 #include "dx9caps.h"
+#include "ewshaders_dx9.h"
 #include "ww3d.h"
 #include "camera.h"
 #include "scene.h"
@@ -89,19 +90,6 @@ namespace
 		}
 	}
 
-	bool Format_Supported(IDirect3DDevice9Ex *device, DWORD usage, D3DRESOURCETYPE type, D3DFORMAT format)
-	{
-		IDirect3D9 *d3d = nullptr;
-		if (FAILED(device->GetDirect3D(&d3d)) || d3d == nullptr)
-			return false;
-		D3DDEVICE_CREATION_PARAMETERS params;
-		D3DDISPLAYMODE mode;
-		bool ok = SUCCEEDED(device->GetCreationParameters(&params)) && SUCCEEDED(device->GetDisplayMode(0, &mode))
-			&& SUCCEEDED(d3d->CheckDeviceFormat(params.AdapterOrdinal, params.DeviceType, mode.Format, usage, type, format));
-		d3d->Release();
-		return ok;
-	}
-
 	void Free_Resources()
 	{
 		Release_Com(DepthSurface);
@@ -118,12 +106,12 @@ namespace
 		Free_Resources();
 
 		D3DFORMAT depth_format;
-		if (Format_Supported(device, D3DUSAGE_DEPTHSTENCIL, D3DRTYPE_TEXTURE, D3DFMT_D24X8))
+		if (EwShaders::Format_Supported(device, D3DUSAGE_DEPTHSTENCIL, D3DRTYPE_TEXTURE, D3DFMT_D24X8))
 		{
 			Format = DEPTH_D24;
 			depth_format = D3DFMT_D24X8;
 		}
-		else if (Format_Supported(device, D3DUSAGE_DEPTHSTENCIL, D3DRTYPE_TEXTURE, FORMAT_INTZ))
+		else if (EwShaders::Format_Supported(device, D3DUSAGE_DEPTHSTENCIL, D3DRTYPE_TEXTURE, FORMAT_INTZ))
 		{
 			Format = DEPTH_INTZ;
 			depth_format = FORMAT_INTZ;
@@ -142,7 +130,7 @@ namespace
 		const D3DFORMAT colors[] = { FORMAT_NULL, D3DFMT_R5G6B5, D3DFMT_X8R8G8B8 };
 		for (int i = 0; i < 3 && ColorSurface == nullptr; ++i)
 		{
-			if (!Format_Supported(device, D3DUSAGE_RENDERTARGET, D3DRTYPE_SURFACE, colors[i]))
+			if (!EwShaders::Format_Supported(device, D3DUSAGE_RENDERTARGET, D3DRTYPE_SURFACE, colors[i]))
 				continue;
 			if (FAILED(device->CreateRenderTarget(size, size, colors[i], D3DMULTISAMPLE_NONE, 0, FALSE, &ColorSurface, nullptr)))
 				ColorSurface = nullptr;
