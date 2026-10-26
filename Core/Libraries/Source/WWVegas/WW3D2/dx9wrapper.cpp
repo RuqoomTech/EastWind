@@ -164,6 +164,7 @@ bool								DX8Wrapper::IsRenderToTexture							= false;
 unsigned							DX8Wrapper::_MainThreadID								= 0;
 bool								DX8Wrapper::CurrentDX8LightEnables[4];
 bool								DX8Wrapper::IsDeviceLost;
+bool								DX8Wrapper::IsDeviceRemoved = false;
 int								DX8Wrapper::ZBias;
 float								DX8Wrapper::ZNear;
 float								DX8Wrapper::ZFar;
@@ -201,6 +202,7 @@ static D3DDISPLAYMODEEX* Fullscreen_Mode_Ex(const D3DPRESENT_PARAMETERS& params,
 
 // D3D9Ex devices always answer S_OK to TestCooperativeLevel, so ask CheckDeviceState
 // and translate the answer into the DX8 codes the rest of this file expects.
+// A hung or removed device (driver reset, GPU unplugged) cannot be reset and answers D3DERR_DEVICEREMOVED.
 static HRESULT Device_State(IDirect3DDevice9Ex* device, HWND hwnd)
 {
 	HRESULT hr = device->CheckDeviceState(hwnd);
@@ -209,9 +211,10 @@ static HRESULT Device_State(IDirect3DDevice9Ex* device, HWND hwnd)
 	case S_PRESENT_OCCLUDED:
 		return D3DERR_DEVICELOST;
 	case S_PRESENT_MODE_CHANGED:
-	case D3DERR_DEVICEHUNG:			// EW_DX9_TODO: hung or removed needs a new device, not a Reset
-	case D3DERR_DEVICEREMOVED:
 		return D3DERR_DEVICENOTRESET;
+	case D3DERR_DEVICEHUNG:
+	case D3DERR_DEVICEREMOVED:
+		return D3DERR_DEVICEREMOVED;
 	default:
 		return SUCCEEDED(hr) ? D3D_OK : hr;
 	}
@@ -718,7 +721,9 @@ bool DX8Wrapper::Reset_Device(bool reload_assets)
 		memset(Pixel_Shader_Constants,0,sizeof(Vector4)*MAX_PIXEL_SHADER_CONSTANTS);
 
 		HRESULT hr=Device_State(_Get_D3D_Device9(), _Hwnd);
-		if (hr != D3DERR_DEVICELOST )
+		if (hr == D3DERR_DEVICEREMOVED)
+			IsDeviceRemoved = true;
+		if (hr != D3DERR_DEVICELOST && hr != D3DERR_DEVICEREMOVED)
 		{	D3DDISPLAYMODEEX fullscreen_mode;
 			DX8CALL_HRES(ResetEx(&_PresentParameters, Fullscreen_Mode_Ex(_PresentParameters, fullscreen_mode)),hr)
 			if (hr != D3D_OK)
@@ -1795,7 +1800,11 @@ void DX8Wrapper::End_Scene(bool flip_frames)
 		// If the device was lost we need to check for cooperative level and possibly reset the device
 		if (hr==D3DERR_DEVICELOST || hr==S_PRESENT_OCCLUDED || hr==D3DERR_DEVICEHUNG || hr==D3DERR_DEVICEREMOVED) {
 			hr=Device_State(_Get_D3D_Device9(), _Hwnd);
-			if (hr==D3DERR_DEVICENOTRESET) {
+			if (hr==D3DERR_DEVICEREMOVED) {
+				WWDEBUG_SAY(("DX8Wrapper::End_Scene: the device hung or was removed."));
+				IsDeviceRemoved = true;
+			}
+			else if (hr==D3DERR_DEVICENOTRESET) {
 				WWDEBUG_SAY(("DX8Wrapper::End_Scene is resetting the device."));
 				Reset_Device();
 			}

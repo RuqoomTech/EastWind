@@ -2073,6 +2073,11 @@ void W3DDisplay::draw()
 	if (TheGlobalData->m_headless)
 		return;
 
+	// EastWind: a hung or removed device (driver reset, GPU unplugged) cannot be reset, so
+	// quit with the Direct3D error instead of a frozen screen.
+	if (DX8Wrapper::Is_Device_Removed())
+		RELEASE_CRASHLOCALIZED("ERROR:D3DFailurePrompt", "ERROR:D3DFailureMessage");
+
 	// TheSuperHackers @feature bobtista 10/07/2026 Show messages for screenshots finished by the screenshot thread.
 	W3D_UpdateScreenshotMessages();
 

@@ -288,6 +288,7 @@ public:
 	static void Do_Onetime_Device_Dependent_Shutdowns();
 
 	static bool Is_Device_Lost() { return IsDeviceLost; }
+	static bool Is_Device_Removed() { return IsDeviceRemoved; }	// hung or removed: only a new device would help
 	static bool Is_Initted() { return IsInitted; }
 
 	static bool Has_Stencil ();
@@ -666,6 +667,7 @@ protected:
 
 	static bool								IsInitted;
 	static bool								IsDeviceLost;
+	static bool								IsDeviceRemoved;
 	static void *							Hwnd;
 	static unsigned						_MainThreadID;
 
