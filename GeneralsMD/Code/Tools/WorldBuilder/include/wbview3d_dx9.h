@@ -52,8 +52,8 @@ class CWorldBuilderView;
 class BuildListInfo;
 class TransRenderObj;
 
-// EW_DX9_TODO(M4): the DX8 view drew its labels with an ID3DXFont, and the DX9 build has no D3DX.
-// Until we have our own text renderer, m3DFont stays null and the labels draw with GDI.
+// EastWind: the DX8 view drew its labels with an ID3DXFont, and the DX9 build has no D3DX.
+// m3DFont stays null, so the labels draw with GDI.
 struct WB3DFont
 {
 	void Release() {}

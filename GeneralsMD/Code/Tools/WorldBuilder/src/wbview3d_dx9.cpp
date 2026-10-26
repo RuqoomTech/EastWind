@@ -563,7 +563,7 @@ void WbView3d::ReAcquireResources()
 
 		HFONT hFont = CreateFontIndirect(&logFont);
 		if (hFont) {
-			m3DFont = nullptr;	// EW_DX9_TODO(M4): no D3DX font, see WB3DFont.
+			m3DFont = nullptr;	// EastWind: no D3DX font, labels draw with GDI (see WB3DFont).
 			DeleteObject(hFont);
 		} else {
 			m3DFont = nullptr;
@@ -2300,7 +2300,7 @@ void WbView3d::initWW3D()
 
 			HFONT hFont = CreateFontIndirect(&logFont);
 			if (hFont) {
-				m3DFont = nullptr;	// EW_DX9_TODO(M4): no D3DX font, see WB3DFont.
+				m3DFont = nullptr;	// EastWind: no D3DX font, labels draw with GDI (see WB3DFont).
 				DeleteObject(hFont);
 			} else {
 				m3DFont = nullptr;
