@@ -24,6 +24,7 @@
 #include "WW3D2/camera.h"
 #include "WW3D2/ewshaders_dx9.h"
 #include "WW3D2/ewgraphicsoptions_dx9.h"
+#include "WW3D2/ewgputimer_dx9.h"
 #include "WWDebug/wwdebug.h"
 #include "ew_constants.h"
 
@@ -872,6 +873,7 @@ void EwPostProcess::End_Scene(int x, int y, int width, int height, const CameraC
 {
 	if (BackBuffer == nullptr)
 		return;
+	EwGpuTimer::Mark(EwGpuTimer::SCENE);
 	const bool scene_depth = SceneDepthBound;
 	SceneDepthBound = false;
 
@@ -970,9 +972,15 @@ void EwPostProcess::End_Scene(int x, int y, int width, int height, const CameraC
 	const float v1 = (float)(y + height) / th;
 
 	if (ao)
+	{
 		Draw_Ao(device, camera, u0, v0, u1, v1);
+		EwGpuTimer::Mark(EwGpuTimer::AO);
+	}
 	if (bloom)
+	{
 		Draw_Bloom(device);
+		EwGpuTimer::Mark(EwGpuTimer::BLOOM);
+	}
 
 	// The final pass, onto the back buffer over the view rectangle, or into the same rectangle of
 	// FinalTexture when FXAA follows. The scene is read with point filtering, so each pixel gets
@@ -1012,6 +1020,8 @@ void EwPostProcess::End_Scene(int x, int y, int width, int height, const CameraC
 		device->SetPixelShader(EwShaders::Peek_Pixel(EwShaders::PS_POST_COPY));
 		Draw_Quad(device, x, y, width, height, u0, v0, u1, v1);
 	}
+	if (final_effects || !fxaa)
+		EwGpuTimer::Mark(EwGpuTimer::FINAL);
 	++Stats[SCENE].Passes;
 	if (bloom)
 		++Stats[BLOOM].Passes;
@@ -1034,6 +1044,7 @@ void EwPostProcess::End_Scene(int x, int y, int width, int height, const CameraC
 		device->SetPixelShaderConstantF(EW_POST_PS_CLAMP, clamp_uv, 1);
 		device->SetPixelShader(EwShaders::Peek_Pixel(EwShaders::PS_POST_FXAA));
 		Draw_Quad(device, x, y, width, height, u0, v0, u1, v1);
+		EwGpuTimer::Mark(EwGpuTimer::FXAA);
 		++Stats[FXAA].Passes;
 	}
 

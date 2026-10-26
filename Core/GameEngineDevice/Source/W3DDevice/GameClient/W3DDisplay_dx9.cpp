@@ -107,6 +107,7 @@ static void drawFramerateBar();
 #include "WW3D2/rddesc_dx9.h"
 #include "WW3D2/ewgraphicsoptions_dx9.h"
 #include "WW3D2/ewshadowmap_dx9.h"
+#include "WW3D2/ewgputimer_dx9.h"
 #include "Common/OptionPreferences.h"
 #include "WWLib/TARGA.h"
 
@@ -771,8 +772,9 @@ static void ewLoadGraphicsOptions()
 }
 
 // EastWind (EwDebugKeys = yes): Ctrl+Shift+F1..F12 switch the DX9 features while the game runs,
-// so the new and the classic look can be compared at the same spot. The keys are read straight
-// from the keyboard, and the game still sees them.
+// so the new and the classic look can be compared at the same spot, and Ctrl+Shift+T shows the
+// GPU time of each part of the frame. The keys are read straight from the keyboard, and the game
+// still sees them.
 // One status line: how many passes of the last frame used a shader, or why it did not run.
 static void ewShowShaderStatus(const WideChar *name, unsigned passes, const char *reason)
 {
@@ -816,6 +818,7 @@ static void ewShowGraphicsStatus()
 	TheInGameUI->message(L"Water shader: %s   [Ctrl+Shift+F3]", water);
 	TheInGameUI->message(L"Sun shadow maps: %s   [Ctrl+Shift+F2]", shadows);
 	TheInGameUI->message(L"Ambient occlusion: %s   [Ctrl+Shift+F1: on, occlusion only, off]", ao);
+	TheInGameUI->message(L"GPU time of each pass: [Ctrl+Shift+T]");
 
 	ewShowShaderStatus(L"Terrain shader", EwTerrainLighting::Last_Frame_Passes(), EwTerrainLighting::Last_Reason());
 	ewShowShaderStatus(L"Road and blend tile shader", EwTerrainLighting::Last_Frame_Road_Passes(), EwTerrainLighting::Last_Road_Reason());
@@ -883,6 +886,46 @@ static void ewShowGraphicsStatus()
 	}
 }
 
+// The GPU time of each part of the frame, averaged over the last 60 measured frames.
+static void ewShowGpuTimes()
+{
+	if (TheInGameUI == nullptr)
+		return;
+	static const WideChar *const names[] =
+	{
+		nullptr,
+		L"Sun shadow map",
+		L"Water reflection and projected shadows",
+		L"3D scene",
+		L"Ambient occlusion",
+		L"Bloom",
+		L"Final pass (tone mapping, colour grading)",
+		L"FXAA",
+		L"UI and the rest (and the 3D scene when post-processing is off)",
+	};
+	static_assert(sizeof(names) / sizeof(names[0]) == EwGpuTimer::POINT_COUNT, "one name per EwGpuTimer point");
+
+	float total = 0;
+	float part[EwGpuTimer::POINT_COUNT];
+	const int frames = EwGpuTimer::Average(&total, part);
+	if (frames < 0)
+	{
+		TheInGameUI->message(L"GPU time: not available - the device has no timestamp queries");
+		return;
+	}
+	if (frames == 0)
+	{
+		TheInGameUI->message(L"GPU time: still measuring, press Ctrl+Shift+T again in a moment");
+		return;
+	}
+	TheInGameUI->message(L"GPU time (average of %d frames): %.2f ms a frame", frames, total);
+	for (int p = EwGpuTimer::FRAME_BEGIN + 1; p < EwGpuTimer::POINT_COUNT; ++p)
+	{
+		if (part[p] >= 0)
+			TheInGameUI->message(L"   %s: %.2f ms", names[p], part[p]);
+	}
+}
+
 static void ewPollGraphicsDebugKeys()
 {
 	EwGraphicsOptions &o = EwGraphics();
@@ -942,6 +985,12 @@ static void ewPollGraphicsDebugKeys()
 		status_in_frames = 3;
 	}
 	f1_was_down = f1_down;
+
+	static bool t_was_down = false;
+	const bool t_down = active && (::GetAsyncKeyState('T') & 0x8000) != 0;
+	if (t_down && !t_was_down)
+		ewShowGpuTimes();
+	t_was_down = t_down;
 }
 
 void W3DDisplay::init()
@@ -2218,6 +2267,8 @@ AGAIN:
 
 			TheParticleSystemManager->DRAW();
 
+			EwGpuTimer::Mark(EwGpuTimer::FRAME_BEGIN);
+
 			// EastWind DX9 (M3.4): the sun shadow map, before the water reflection so it has shadows too.
 			if (m_3DScene && primaryW3DView && TheTerrainRenderObject)
 			{
@@ -2225,6 +2276,7 @@ AGAIN:
 				EwShadowMap::Render(m_3DScene, primaryW3DView->get3DCamera(), Vector3(sun.x, sun.y, sun.z),
 					TheTerrainRenderObject->getMinHeight(), TheTerrainRenderObject->getMaxHeight());
 			}
+			EwGpuTimer::Mark(EwGpuTimer::SHADOW_MAP);
 
 			// EastWind DX9 (M3.3a): also for the reflection of the water shader.
 			if (TheWaterRenderObj && (TheGlobalData->m_waterType == 2 || EwWater::Wants_Reflection()))
@@ -2234,6 +2286,7 @@ AGAIN:
 			//before we enter main rendering loop.
 			if (TheW3DProjectedShadowManager)
 				TheW3DProjectedShadowManager->updateRenderTargetTextures();
+			EwGpuTimer::Mark(EwGpuTimer::RENDER_TARGETS);
 		}
 
 		viewsUpdated = FALSE;
@@ -2352,6 +2405,7 @@ AGAIN:
 					m_profilerFrameCapture->Capture(getWidth(), getHeight());
 				}
 #endif
+				EwGpuTimer::Mark(EwGpuTimer::FRAME_END);
 				// render is all done!
 				WW3D::End_Render();
 			}

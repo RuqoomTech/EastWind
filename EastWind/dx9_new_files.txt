@@ -18,3 +18,5 @@ Core/GameEngineDevice/Include/W3DDevice/GameClient/EwWater_dx9.h Core/GameEngine
 Core/GameEngineDevice/Source/W3DDevice/GameClient/EwWater_dx9.cpp Core/GameEngineDevice/Source/W3DDevice/GameClient/Water/W3DWater_dx9.cpp
 Core/Libraries/Source/WWVegas/WW3D2/ewshadowmap_dx9.h Core/Libraries/Source/WWVegas/WW3D2/dx9wrapper.cpp
 Core/Libraries/Source/WWVegas/WW3D2/ewshadowmap_dx9.cpp Core/Libraries/Source/WWVegas/WW3D2/dx9wrapper.cpp
+Core/Libraries/Source/WWVegas/WW3D2/ewgputimer_dx9.h Core/Libraries/Source/WWVegas/WW3D2/dx9wrapper.cpp
+Core/Libraries/Source/WWVegas/WW3D2/ewgputimer_dx9.cpp Core/Libraries/Source/WWVegas/WW3D2/dx9wrapper.cpp

@@ -79,6 +79,7 @@
 #include "W3DDevice/GameClient/EwPostProcess_dx9.h"
 #include "W3DDevice/GameClient/EwWater_dx9.h"
 #include "WW3D2/ewshadowmap_dx9.h"
+#include "WW3D2/ewgputimer_dx9.h"
 
 /// EastWind: takes the embedded HLSL port of a game shader (EastWind/Shaders). The game's ps.1.x
 /// file still loads when the card refuses ps_2_0, so such cards keep the DX8 look.
@@ -2723,6 +2724,7 @@ void W3DShaderManager::shutdown()
 	EwPostProcess::Release();
 	EwWater::Release();
 	EwShadowMap::Release();
+	EwGpuTimer::Release();
 }
 
 //=============================================================================
