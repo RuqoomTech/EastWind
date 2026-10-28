@@ -391,8 +391,8 @@ float4 ShadeMesh(PsIn i, uniform bool material)
 		ambient *= lerp(MaterialOptions.w, 1.0, saturate(N.z * 0.5 + 0.5));
 
 	float4 litDiffuse = float4(Ew_To_Gamma(saturate(matAmbient.rgb * ambient + matDiffuse.rgb * diffuse + matEmissive.rgb)), matDiffuse.a);
-	float3 specularLinear = saturate(matSpecular.rgb * specular) * PsOptions.y;
-	float4 litSpecular = float4(Ew_To_Gamma(specularLinear), 0.0);
+	float3 specularLinear = matSpecular.rgb * specular * PsOptions.y;
+	float4 litSpecular = float4(Ew_To_Gamma(saturate(specularLinear)), 0.0);
 
 	// Stage 0 disabled leaves the lit diffuse colour; stage 1 runs only after an enabled stage 0.
 	float4 current = litDiffuse;
@@ -410,7 +410,9 @@ float4 ShadeMesh(PsIn i, uniform bool material)
 	float3 lit = Ew_To_Linear(current.rgb) + specularLinear;
 	if (material)
 		lit += spm.r * mapSpecular;
-	current.rgb = Ew_To_Gamma(saturate(lit));
+	// Not clamped: with EwHdr the float scene keeps highlights above white for the tone curve
+	// and bloom; an 8-bit scene clamps them on write as before.
+	current.rgb = Ew_To_Gamma(lit);
 
 	if (material)
 	{
