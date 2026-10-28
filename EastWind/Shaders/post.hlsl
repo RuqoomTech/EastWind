@@ -167,8 +167,17 @@ float3 View_Pos(float2 uv, float depth)
 	return float3(uv * AoRay.xy + AoRay.zw, 1.0) * depth;
 }
 
+// The centre of the depth texel point sampling reads at uv (Texel.xy is one depth texel). A half-
+// size AO pixel lands on a texel corner, where the texel picked flips from row to row; using the
+// corner's position with that texel's depth put whole rows off the ground (horizontal stripes).
+float2 Depth_Texel(float2 uv)
+{
+	return (floor(uv / Texel.xy) + 0.5) * Texel.xy;
+}
+
 float3 View_Pos(float2 uv)
 {
+	uv = Depth_Texel(uv);
 	return View_Pos(uv, View_Depth(uv));
 }
 
@@ -185,6 +194,7 @@ static const float2 EwAoSpiral[EW_AO_TAPS] =
 
 float4 PostAoPS(float2 uv : TEXCOORD0, float2 vpos : VPOS) : COLOR0
 {
+	uv = Depth_Texel(uv);
 	float depth = View_Depth(uv);
 	float fade = saturate((DepthParams.w - depth) / (0.25 * DepthParams.w));
 	[branch] if (fade <= 0.0)
