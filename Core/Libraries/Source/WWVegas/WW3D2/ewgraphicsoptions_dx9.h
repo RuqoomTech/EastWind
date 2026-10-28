@@ -57,6 +57,9 @@ struct EwGraphicsOptions
 	bool DebugHdrOff;				// Ctrl+Shift+H: 8-bit scene texture
 	bool DebugSoftParticlesOff;		// Ctrl+Shift+P: hard-edged particles
 	bool DebugLinearLightingOff;	// Ctrl+Shift+L: light adds up in gamma space, as before
+	bool DebugUnlitShaderOff;		// Ctrl+Shift+U: unlit draws (lasers, lines, particles) by fixed function
+	bool DebugShaderBatchOff;		// Ctrl+Shift+B: unbind the mesh shaders after every draw, as before
+	bool DebugConstantDiffOff;		// Ctrl+Shift+K: send all mesh shader constants every draw, as before
 
 	EwGraphicsOptions()
 		: PerPixelLighting(false)
@@ -87,6 +90,9 @@ struct EwGraphicsOptions
 		, DebugHdrOff(false)
 		, DebugSoftParticlesOff(false)
 		, DebugLinearLightingOff(false)
+		, DebugUnlitShaderOff(false)
+		, DebugShaderBatchOff(false)
+		, DebugConstantDiffOff(false)
 	{
 	}
 
@@ -109,6 +115,8 @@ struct EwGraphicsOptions
 	// Soft particles read the scene depth, which the post-processing scene texture provides.
 	bool PostSoftParticles() const { return SoftParticles && !DebugSoftParticlesOff; }
 	bool Linear() const { return LinearLighting && !DebugAllOff && !DebugLinearLightingOff; }
+	// Unlit draws follow EwPerPixelLighting, so the classic look and WorldBuilder keep fixed function.
+	bool UnlitShader() const { return PerPixelLighting && !DebugAllOff && !DebugUnlitShaderOff; }
 	bool WaterShader() const { return WaterQuality >= 1 && !DebugAllOff && !DebugWaterOff; }
 	// Sun shadow maps (M3.4) need the lit mesh and terrain shaders, which sample them.
 	bool ShadowMaps() const { return ShadowMapSize > 0 && MeshLighting() && !DebugTerrainLightingOff && !DebugShadowsOff; }

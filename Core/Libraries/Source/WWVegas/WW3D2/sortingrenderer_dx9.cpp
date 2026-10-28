@@ -42,6 +42,7 @@
 #include "dx9vertexbuffer.h"
 #include "dx9indexbuffer.h"
 #include "dx9wrapper.h"
+#include "ewmeshshader_dx9.h"
 #include "vertmaterial_dx9.h"
 #include "texture_dx9.h"
 #include <d3d9.h>
@@ -616,6 +617,7 @@ void SortingRendererClass::Flush()
 	}
 	sorted_list.splice(node, unsorted_list);
 
+	EwMeshShader::Begin_Batch();	// EastWind: every draw below goes through DX8Wrapper
 	while (!sorted_list.empty()) {
 		SortingNodeStruct* state = sorted_list.front();
 		sorted_list.pop_front();
@@ -637,6 +639,7 @@ void SortingRendererClass::Flush()
 	DX8Wrapper::_Enable_Triangle_Draw(_EnableTriangleDraw);
 	Flush_Sorting_Pool();
 	DX8Wrapper::_Enable_Triangle_Draw(old_enable);
+	EwMeshShader::End_Batch();
 	DX8Wrapper::Set_Ew_Soft_Particle(false);	// EastWind: the replay left the last node's flag set
 
 	DX8Wrapper::Set_Index_Buffer(nullptr,0);

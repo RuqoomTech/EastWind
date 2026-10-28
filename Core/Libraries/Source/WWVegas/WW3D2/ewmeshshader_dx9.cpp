@@ -25,6 +25,7 @@
 #include "texture_dx9.h"
 #include "assetmgr.h"
 #include "rendobj.h"
+#include "ww3d.h"
 #include "WWLib/ffactory.h"
 #include "WWLib/WWFILE.h"
 #include "WWLib/wwstring.h"
@@ -99,6 +100,97 @@ namespace
 
 	IDirect3DDevice9Ex *Device;
 	bool RestoreFog;
+
+	// Between Begin_Batch() and End_Batch(), End() leaves our shaders bound, so back-to-back
+	// shader draws skip the switch to fixed function and back. BoundVS/BoundPS are what we bound.
+	bool Batching;
+	IDirect3DVertexShader9 *BoundVS;
+	IDirect3DPixelShader9 *BoundPS;
+
+	// Ctrl+Shift+T counters (EwDebugKeys only): CPU time from Begin() to End(), which includes the
+	// draw call itself, and the draw counts, since the last Take_Stats().
+	bool DrawLit;
+	LARGE_INTEGER DrawStart;
+	EwMeshShader::StatsStruct Stats;
+	unsigned StatsFrame;
+
+	// Unbinds whichever of our shaders the device still holds; a caller's own shader stays.
+	void Unbind_Shaders()
+	{
+		if (Device != nullptr && (BoundVS != nullptr || BoundPS != nullptr))
+		{
+			IDirect3DVertexShader9 *vs = nullptr;
+			IDirect3DPixelShader9 *ps = nullptr;
+			Device->GetVertexShader(&vs);
+			Device->GetPixelShader(&ps);
+			if (vs != nullptr)
+				vs->Release();
+			if (ps != nullptr)
+				ps->Release();
+			if (vs != nullptr && vs == BoundVS)
+				Device->SetVertexShader(nullptr);
+			if (ps != nullptr && ps == BoundPS)
+				Device->SetPixelShader(nullptr);
+		}
+		BoundVS = nullptr;
+		BoundPS = nullptr;
+	}
+
+	// Sends only the registers that differ from what the device holds. The terrain, water and
+	// post passes write these registers too, so the device is the only reliable copy.
+	template <bool VERTEX>
+	void Upload(const Float4 *data, UINT count)
+	{
+		if (EwGraphics().DebugConstantDiffOff)
+		{
+			if (VERTEX)
+				Device->SetVertexShaderConstantF(0, &data[0].x, count);
+			else
+				Device->SetPixelShaderConstantF(0, &data[0].x, count);
+			return;
+		}
+		const UINT MAX_REGISTERS = 256;
+		WWASSERT(count <= MAX_REGISTERS);
+		Float4 current[MAX_REGISTERS];
+		if (VERTEX)
+			Device->GetVertexShaderConstantF(0, &current[0].x, count);
+		else
+			Device->GetPixelShaderConstantF(0, &current[0].x, count);
+		for (UINT i = 0; i < count;)
+		{
+			if (memcmp(&current[i], &data[i], sizeof(Float4)) == 0)
+			{
+				++i;
+				continue;
+			}
+			UINT end = i + 1;
+			while (end < count && memcmp(&current[end], &data[end], sizeof(Float4)) != 0)
+				++end;
+			if (VERTEX)
+				Device->SetVertexShaderConstantF(i, &data[i].x, end - i);
+			else
+				Device->SetPixelShaderConstantF(i, &data[i].x, end - i);
+			i = end;
+		}
+	}
+
+	void Bind_Shaders(IDirect3DVertexShader9 *vertex_shader, IDirect3DPixelShader9 *pixel_shader)
+	{
+		IDirect3DVertexShader9 *vs = nullptr;
+		IDirect3DPixelShader9 *ps = nullptr;
+		Device->GetVertexShader(&vs);
+		Device->GetPixelShader(&ps);
+		if (vs != nullptr)
+			vs->Release();
+		if (ps != nullptr)
+			ps->Release();
+		if (vs != vertex_shader)
+			Device->SetVertexShader(vertex_shader);
+		if (ps != pixel_shader)
+			Device->SetPixelShader(pixel_shader);
+		BoundVS = vertex_shader;
+		BoundPS = pixel_shader;
+	}
 
 	// Soft particles: 1 / size of the scene view depth texture EwPostProcess bound on
 	// EW_PARTICLE_DEPTH_SAMPLER, or 0 while none is bound.
@@ -374,6 +466,66 @@ namespace
 		return true;
 	}
 
+	// The op as r = p * a * b + q * a + r * b, for the ops that are that form.
+	bool Linear_Op(DWORD op, float &p, float &q, float &r)
+	{
+		p = q = r = 0.0f;
+		switch (op)
+		{
+		case D3DTOP_SELECTARG1:	q = 1.0f; return true;
+		case D3DTOP_SELECTARG2:	r = 1.0f; return true;
+		case D3DTOP_MODULATE:	p = 1.0f; return true;
+		case D3DTOP_MODULATE2X:	p = 2.0f; return true;
+		case D3DTOP_MODULATE4X:	p = 4.0f; return true;
+		case D3DTOP_ADD:		q = r = 1.0f; return true;
+		case D3DTOP_SUBTRACT:	q = 1.0f; r = -1.0f; return true;
+		case D3DTOP_ADDSMOOTH:	p = -1.0f; q = r = 1.0f; return true;
+		default:				return false;
+		}
+	}
+
+	// One channel of the shader's short stage form, k[0] * T * O + k[1] * T + k[2] * O, where T is the
+	// texture and O the one colour input (DIFFUSE or CURRENT) both channels share. False if the
+	// channel is not that form: other ops, modifiers, TFACTOR or SPECULAR, or a product of one input.
+	bool Short_Channel(const StageOp &s, DWORD &other, float k[3])
+	{
+		DWORD op = s.op;
+		DWORD arg[2] = { s.arg1, s.arg2 };
+		if (op == D3DTOP_DISABLE)	// only the alpha op gets here disabled: it keeps the current alpha
+		{
+			op = D3DTOP_SELECTARG1;
+			arg[0] = D3DTA_CURRENT;
+		}
+		float p, coef[2];
+		if (!Linear_Op(op, p, coef[0], coef[1]))
+			return false;
+		k[0] = k[1] = k[2] = 0.0f;
+		bool texture[2] = { false, false };
+		for (int i = 0; i < 2; ++i)
+		{
+			if (p == 0.0f && coef[i] == 0.0f)
+				continue;
+			if (arg[i] == D3DTA_TEXTURE)
+				texture[i] = true;
+			else if (arg[i] == D3DTA_DIFFUSE || arg[i] == D3DTA_CURRENT)
+			{
+				if (other != ~DWORD(0) && other != arg[i])
+					return false;
+				other = arg[i];
+			}
+			else
+				return false;
+			k[texture[i] ? 1 : 2] += coef[i];
+		}
+		if (p != 0.0f)
+		{
+			if (texture[0] == texture[1])
+				return false;
+			k[0] = p;
+		}
+		return true;
+	}
+
 	// Reads one enabled texture stage. ps gets the stage's 4 pixel shader registers, texgen and
 	// texmatrix the vertex shader's texture coordinate setup.
 	bool Gather_Stage(DWORD stage, int texcoord_sets, Float4 *ps, Float4 &texgen, Float4 *texmatrix, float &has_texture)
@@ -398,6 +550,20 @@ namespace
 		ps[1] = c1;
 		ps[2] = a0;
 		ps[3] = a1;
+
+		// The short form keeps the colour op in x (the shaders test it for DISABLE) and marks itself
+		// in w: -1 for O = DIFFUSE, -2 for O = CURRENT. K1, K2 and K3 replace the other registers.
+		DWORD other = ~DWORD(0);
+		float kc[3], ka[3];
+		if (Short_Channel(colour, other, kc) && Short_Channel(alpha, other, ka))
+		{
+			ps[0].w = (other == D3DTA_CURRENT) ? -2.0f : -1.0f;
+			for (int i = 0; i < 3; ++i)
+			{
+				Float4 k = { kc[i], kc[i], kc[i], ka[i] };
+				ps[1 + i] = k;
+			}
+		}
 
 		if (!colour.Reads_Texture() && !alpha.Reads_Texture())
 			return true;
@@ -463,19 +629,22 @@ namespace
 
 	bool Caller_Has_Shaders()
 	{
+		// Our own shaders, left bound by a batch, are not the caller's.
 		IDirect3DVertexShader9 *vs = nullptr;
 		Device->GetVertexShader(&vs);
 		if (vs)
 		{
 			vs->Release();
-			return true;
+			if (vs != BoundVS)
+				return true;
 		}
 		IDirect3DPixelShader9 *ps = nullptr;
 		Device->GetPixelShader(&ps);
 		if (ps)
 		{
 			ps->Release();
-			return true;
+			if (ps != BoundPS)
+				return true;
 		}
 		return false;
 	}
@@ -588,10 +757,9 @@ namespace
 		Float4 soft = { SceneDepthInvWidth, SceneDepthInvHeight, 1.0f / SOFT_PARTICLE_FADE_DISTANCE, mode };
 		ps[EW_PARTICLE_PS_SOFT] = soft;
 
-		Device->SetVertexShaderConstantF(0, &vs[0].x, EW_MESH_VS_COUNT);
-		Device->SetPixelShaderConstantF(0, &ps[0].x, EW_PARTICLE_PS_SOFT + 1);
-		Device->SetVertexShader(vertex_shader);
-		Device->SetPixelShader(pixel_shader);
+		Upload<true>(vs, EW_MESH_VS_COUNT);
+		Upload<false>(ps, EW_PARTICLE_PS_SOFT + 1);
+		Bind_Shaders(vertex_shader, pixel_shader);
 
 		// The pixel shader fogs itself; End() turns fog back on.
 		RestoreFog = fog.x > 0.5f;
@@ -607,25 +775,91 @@ void EwMeshShader::Set_Scene_Depth(float inv_width, float inv_height)
 	SceneDepthInvHeight = inv_height;
 }
 
+static bool Begin_Draw();
+
 bool EwMeshShader::Begin()
+{
+	const bool timing = EwGraphics().DebugKeys;
+	if (timing)
+		QueryPerformanceCounter(&DrawStart);
+	const bool shader = Begin_Draw();
+	// A fixed-function draw must not see the shaders a batch left bound.
+	if (!shader)
+		Unbind_Shaders();
+	if (timing)
+	{
+		LARGE_INTEGER now;
+		QueryPerformanceCounter(&now);
+		Stats.SetupMs += float(now.QuadPart - DrawStart.QuadPart);
+		++Stats.Calls;
+		if (shader)
+			++(DrawLit ? Stats.LitDraws : Stats.UnlitDraws);
+	}
+	return shader;
+}
+
+EwMeshShader::StatsStruct EwMeshShader::Take_Stats()
+{
+	LARGE_INTEGER frequency;
+	QueryPerformanceFrequency(&frequency);
+	const unsigned frame = WW3D::Get_Frame_Count();
+	const float frames = (frame > StatsFrame) ? float(frame - StatsFrame) : 1.0f;
+	const float to_ms = 1000.0f / float(frequency.QuadPart) / frames;
+	StatsStruct s = Stats;
+	s.Calls /= frames;
+	s.LitDraws /= frames;
+	s.UnlitDraws /= frames;
+	s.SetupMs *= to_ms;
+	s.ShaderDrawMs *= to_ms;
+	Stats = StatsStruct();
+	StatsFrame = frame;
+	return s;
+}
+
+void EwMeshShader::Begin_Batch()
+{
+	Batching = !EwGraphics().DebugShaderBatchOff;
+}
+
+void EwMeshShader::End_Batch()
+{
+	Batching = false;
+	Device = DX8Wrapper::_Get_D3D_Device9();
+	Unbind_Shaders();
+}
+
+static bool Begin_Draw()
 {
 	Device = DX8Wrapper::_Get_D3D_Device9();
 	if (Device == nullptr)
 		return false;
 
-	// Soft particles are unlit, so they do not depend on the lit-mesh option.
-	if (SceneDepthInvWidth > 0.0f && DX8Wrapper::Get_Ew_Soft_Particle() && Render_State(D3DRS_LIGHTING) == FALSE)
-		return Begin_Particle();
+	// Soft particles do not depend on the lit-mesh option. A particle the soft path cannot copy
+	// is drawn as any other unlit draw.
+	const bool lit = Render_State(D3DRS_LIGHTING) != FALSE;
+	DrawLit = lit;
+	if (!lit && SceneDepthInvWidth > 0.0f && DX8Wrapper::Get_Ew_Soft_Particle() && Begin_Particle())
+		return true;
 
-	if (!EwGraphics().MeshLighting())
+	if (lit ? !EwGraphics().MeshLighting() : !EwGraphics().UnlitShader())
 		return false;
 	// The shadow map's caster pass draws depth only, fixed function.
 	if (EwShadowMap::Caster_Pass())
 		return false;
 
-	// Unlit draws and draws with their own shaders are not ours.
-	if (Render_State(D3DRS_LIGHTING) == FALSE || Caller_Has_Shaders())
+	// Draws with their own shaders are not ours, nor point sprites (the snow).
+	if (Caller_Has_Shaders() || Render_State(D3DRS_POINTSPRITEENABLE))
 		return false;
+
+	// The UI (Render2D, identity projection) stays fixed function: it is hundreds of tiny draws
+	// a frame, and switching to shaders and back for each one costs too much.
+	if (!lit)
+	{
+		D3DMATRIX projection;
+		Device->GetTransform(D3DTS_PROJECTION, &projection);
+		if (projection._44 != 0.0f)
+			return false;
+	}
 
 	const DX8Caps *caps = DX8Wrapper::Get_Current_Caps();
 	if (caps->Get_Vertex_Shader_Major_Version() < 3 || caps->Get_Pixel_Shader_Major_Version() < 3)
@@ -635,14 +869,16 @@ bool EwMeshShader::Begin()
 	Device->GetFVF(&fvf);
 	const DWORD allowed = D3DFVF_XYZ | D3DFVF_NORMAL | D3DFVF_DIFFUSE | D3DFVF_SPECULAR | D3DFVF_TEXCOUNT_MASK;
 	const int texcoord_sets = int((fvf & D3DFVF_TEXCOUNT_MASK) >> D3DFVF_TEXCOUNT_SHIFT);
-	if ((fvf & D3DFVF_POSITION_MASK) != D3DFVF_XYZ || !(fvf & D3DFVF_NORMAL) || (fvf & ~allowed) || texcoord_sets > 2)
+	// Lit draws need a normal; unlit ones (lines, particles) mostly have none.
+	const bool has_normal = (fvf & D3DFVF_NORMAL) != 0;
+	if ((fvf & D3DFVF_POSITION_MASK) != D3DFVF_XYZ || (lit && !has_normal) || (fvf & ~allowed) || texcoord_sets > 2)
 		return Fallback(REASON_FVF, fvf);
 
 	IDirect3DVertexShader9 *vertex_shader = EwShaders::Peek_Vertex(
-		EwShaders::Mesh_Vertex_Id((fvf & D3DFVF_DIFFUSE) != 0, (fvf & D3DFVF_SPECULAR) != 0, texcoord_sets));
-	IDirect3DPixelShader9 *pixel_shader = EwShaders::Peek_Pixel(EwShaders::PS_MESH);
+		EwShaders::Mesh_Vertex_Id(has_normal, (fvf & D3DFVF_DIFFUSE) != 0, (fvf & D3DFVF_SPECULAR) != 0, texcoord_sets));
+	IDirect3DPixelShader9 *pixel_shader = EwShaders::Peek_Pixel(lit ? EwShaders::PS_MESH : EwShaders::PS_UNLIT);
 	if (vertex_shader == nullptr || pixel_shader == nullptr)
-		return Fallback(REASON_NO_SHADER, 0);
+		return Fallback(REASON_NO_SHADER, lit ? 0 : 3);
 
 	DWORD blend = Render_State(D3DRS_VERTEXBLEND);
 	if (blend != D3DVBF_DISABLE || Render_State(D3DRS_INDEXEDVERTEXBLENDENABLE))
@@ -683,6 +919,13 @@ bool EwMeshShader::Begin()
 		}
 	}
 
+	// Texture coordinates made from the camera-space normal or reflection vector need a normal.
+	for (int s = 0; s < 2; ++s)
+	{
+		if (!has_normal && (texgen[s].x == 1.0f || texgen[s].x == 3.0f))
+			return Fallback(REASON_TEXCOORD, (DWORD(s) << 16) | DWORD(texgen[s].x));
+	}
+
 	// Material maps: only for the diffuse texture the wrapper bound on stage 0, read through its
 	// texture coordinates, and with stage 1 unused (the material pixel shader runs stage 0 only).
 	// The texture must be the one the wrapper bound: code that sets device textures directly
@@ -692,7 +935,7 @@ bool EwMeshShader::Begin()
 	unsigned house_color = 0;
 	TextureBaseClass *stage0 = DX8Wrapper::Peek_Render_State_Texture(0);
 	TextureClass *diffuse = (stage0 != nullptr) ? stage0->As_TextureClass() : nullptr;
-	if (EwGraphics().MeshNormalMaps() && diffuse != nullptr && has_texture[0] > 0.5f && texgen[0].x == 0.0f
+	if (lit && EwGraphics().MeshNormalMaps() && diffuse != nullptr && has_texture[0] > 0.5f && texgen[0].x == 0.0f
 		&& stage_constants[4].x == float(D3DTOP_DISABLE))
 	{
 		IDirect3DBaseTexture9 *bound = nullptr;
@@ -718,10 +961,10 @@ bool EwMeshShader::Begin()
 		pixel_shader = material_shader;
 	}
 
-	// Lights: the wrapper uses indices 0..3, the same count the shader has.
+	// Lights: the wrapper uses indices 0..3, the same count the shader has. Unlit draws read none.
 	Float4 lights[EW_MESH_MAX_LIGHTS * 5];
 	memset(lights, 0, sizeof(lights));
-	for (DWORD i = 0; i < EW_MESH_MAX_LIGHTS; ++i)
+	for (DWORD i = 0; lit && i < EW_MESH_MAX_LIGHTS; ++i)
 	{
 		BOOL enabled = FALSE;
 		if (FAILED(Device->GetLightEnable(i, &enabled)) || !enabled)
@@ -839,10 +1082,9 @@ bool EwMeshShader::Begin()
 		ps[EW_MESH_PS_HOUSECOLOR].w = (material.Power > 1.0f) ? material.Power : 32.0f;
 	}
 
-	Device->SetVertexShaderConstantF(0, &vs[0].x, EW_MESH_VS_COUNT);
-	Device->SetPixelShaderConstantF(0, &ps[0].x, EW_MESH_PS_COUNT);
-	Device->SetVertexShader(vertex_shader);
-	Device->SetPixelShader(pixel_shader);
+	Upload<true>(vs, EW_MESH_VS_COUNT);
+	Upload<false>(ps, EW_MESH_PS_COUNT);
+	Bind_Shaders(vertex_shader, pixel_shader);
 
 	RestoreMaps = use_material;
 	if (use_material)
@@ -860,8 +1102,14 @@ bool EwMeshShader::Begin()
 
 void EwMeshShader::End()
 {
-	Device->SetVertexShader(nullptr);
-	Device->SetPixelShader(nullptr);
+	if (EwGraphics().DebugKeys)
+	{
+		LARGE_INTEGER now;
+		QueryPerformanceCounter(&now);
+		Stats.ShaderDrawMs += float(now.QuadPart - DrawStart.QuadPart);
+	}
+	if (!Batching)
+		Unbind_Shaders();
 	if (RestoreFog)
 	{
 		Device->SetRenderState(D3DRS_FOGENABLE, TRUE);

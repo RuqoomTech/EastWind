@@ -109,6 +109,7 @@ static void drawFramerateBar();
 #include "WW3D2/ewgraphicsoptions_dx9.h"
 #include "WW3D2/ewshadowmap_dx9.h"
 #include "WW3D2/ewgputimer_dx9.h"
+#include "WW3D2/ewmeshshader_dx9.h"
 #include "Common/OptionPreferences.h"
 #include "WWLib/TARGA.h"
 
@@ -775,7 +776,7 @@ static void ewLoadGraphicsOptions()
 	options.Validate();
 }
 
-// EastWind (EwDebugKeys = yes): Ctrl+Shift+F1..F12, H, L and P switch the DX9 features while the game
+// EastWind (EwDebugKeys = yes): Ctrl+Shift+F1..F12, B, H, K, L, P and U switch the DX9 features while the game
 // runs, so the new and the classic look can be compared at the same spot, and Ctrl+Shift+T shows
 // the GPU time of each part of the frame. The keys are read straight from the keyboard, and the
 // game still sees them.
@@ -812,6 +813,7 @@ static void ewShowGraphicsStatus()
 	const WideChar *hdr = !o.Hdr ? L"off in Options.ini" : o.PostHdr() ? L"on" : L"off (8-bit scene)";
 	const WideChar *soft = !o.SoftParticles ? L"off in Options.ini" : o.PostSoftParticles() ? L"on" : L"off";
 	const WideChar *linear = !o.LinearLighting ? L"off in Options.ini" : o.Linear() ? L"on" : L"off (gamma, classic)";
+	const WideChar *unlit = !o.PerPixelLighting ? L"off in Options.ini" : o.UnlitShader() ? L"shader (new)" : L"fixed function (classic)";
 
 	TheInGameUI->message(L"EastWind graphics: %s   [Ctrl+Shift+F9]", o.DebugAllOff ? L"ALL OFF (classic)" : L"ON");
 	TheInGameUI->message(L"Terrain light: %s   [Ctrl+Shift+F10]", terrain);
@@ -828,6 +830,9 @@ static void ewShowGraphicsStatus()
 	TheInGameUI->message(L"HDR scene: %s   [Ctrl+Shift+H]", hdr);
 	TheInGameUI->message(L"Soft particles: %s   [Ctrl+Shift+P]", soft);
 	TheInGameUI->message(L"Linear lighting: %s   [Ctrl+Shift+L]", linear);
+	TheInGameUI->message(L"Unlit draws: %s   [Ctrl+Shift+U]", unlit);
+	TheInGameUI->message(L"Keep mesh shaders bound: %s   [Ctrl+Shift+B]", o.DebugShaderBatchOff ? L"off (classic)" : L"on");
+	TheInGameUI->message(L"Send changed constants only: %s   [Ctrl+Shift+K]", o.DebugConstantDiffOff ? L"off (classic)" : L"on");
 	TheInGameUI->message(L"GPU time of each pass: [Ctrl+Shift+T]");
 
 	ewShowShaderStatus(L"Terrain shader", EwTerrainLighting::Last_Frame_Passes(), EwTerrainLighting::Last_Reason());
@@ -932,6 +937,9 @@ static void ewShowGpuTimes()
 		TheInGameUI->message(L"GPU time: still measuring, press Ctrl+Shift+T again in a moment");
 		return;
 	}
+	const EwMeshShader::StatsStruct mesh = EwMeshShader::Take_Stats();
+	TheInGameUI->message(L"Mesh draws a frame: %.0f, by shader: %.0f lit, %.0f unlit; CPU: %.2f ms setup, %.2f ms setup and draw of the shader draws",
+		mesh.Calls, mesh.LitDraws, mesh.UnlitDraws, mesh.SetupMs, mesh.ShaderDrawMs);
 	TheInGameUI->message(L"GPU time (average of %d frames): %.2f ms a frame", frames, total);
 	for (int p = EwGpuTimer::FRAME_BEGIN + 1; p < EwGpuTimer::POINT_COUNT; ++p)
 	{
@@ -975,6 +983,9 @@ static void ewPollGraphicsDebugKeys()
 		{ 'H', &o.DebugHdrOff },
 		{ 'P', &o.DebugSoftParticlesOff },
 		{ 'L', &o.DebugLinearLightingOff },
+		{ 'U', &o.DebugUnlitShaderOff },
+		{ 'B', &o.DebugShaderBatchOff },
+		{ 'K', &o.DebugConstantDiffOff },
 	};
 	const int KEY_COUNT = sizeof(keys) / sizeof(keys[0]);
 	static bool was_down[KEY_COUNT];

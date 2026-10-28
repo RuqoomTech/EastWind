@@ -23,7 +23,11 @@
 // material, texture stages, fog) and returns true; End() unbinds them after the draw.
 //
 // Any state the shader does not reproduce leaves the draw to fixed-function, and the reason is
-// logged once. Draws that bring their own shaders, and unlit draws, are left alone.
+// logged once. Draws that bring their own shaders are left alone.
+// Unlit draws (lighting off: lasers, lines, decals, particles) get mesh.hlsl UnlitPS, which runs
+// the texture stages on the vertex colours as fixed function does; screen-space draws (the UI)
+// stay fixed function. They follow
+// EwPerPixelLighting; with EwDebugKeys, Ctrl+Shift+U leaves them to fixed function.
 // Binding only around one draw means code that drives the device directly (terrain, water,
 // shadows) never sees these shaders, and the wrapper's shader caches stay correct.
 //
@@ -53,6 +57,21 @@ public:
 	// Returns true if it did; the caller then calls End() after the draw.
 	static bool Begin();
 	static void End();
+
+	// Between these, End() leaves the shaders bound for the next draw, and Begin() unbinds them
+	// before a fixed-function one. Only around code whose every draw goes through Begin()
+	// (the mesh and sorting renderers' flushes): other code would draw with our shaders.
+	// Ctrl+Shift+T (EwDebugKeys): per-frame averages since the last call. SetupMs is the CPU time in
+	// Begin(); ShaderDrawMs runs from Begin() to End() of the shader draws, so it includes the draw call.
+	struct StatsStruct
+	{
+		float Calls, LitDraws, UnlitDraws, SetupMs, ShaderDrawMs;
+		StatsStruct() : Calls(0), LitDraws(0), UnlitDraws(0), SetupMs(0), ShaderDrawMs(0) {}
+	};
+	static StatsStruct Take_Stats();
+
+	static void Begin_Batch();
+	static void End_Batch();
 
 	// Sets the house colour for the draws of object (a mesh) until Clear_Object(). The colour
 	// is taken from the first container that has one.

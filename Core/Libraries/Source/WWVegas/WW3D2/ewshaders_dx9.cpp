@@ -76,6 +76,19 @@
 #include "particle_vs.h"
 #include "particle_ps.h"
 #include "post_depth_copy_ps.h"
+#include "mesh_t0_vs.h"
+#include "mesh_d_t0_vs.h"
+#include "mesh_s_t0_vs.h"
+#include "mesh_ds_t0_vs.h"
+#include "mesh_t1_vs.h"
+#include "mesh_d_t1_vs.h"
+#include "mesh_s_t1_vs.h"
+#include "mesh_ds_t1_vs.h"
+#include "mesh_t2_vs.h"
+#include "mesh_d_t2_vs.h"
+#include "mesh_s_t2_vs.h"
+#include "mesh_ds_t2_vs.h"
+#include "unlit_ps.h"
 
 namespace
 {
@@ -107,6 +120,18 @@ namespace
 		{ g_ew_post_vs, "post_vs" },
 		{ g_ew_water_vs, "water_vs" },
 		{ g_ew_particle_vs, "particle_vs" },
+		{ g_ew_mesh_t0_vs, "mesh_t0_vs" },
+		{ g_ew_mesh_d_t0_vs, "mesh_d_t0_vs" },
+		{ g_ew_mesh_s_t0_vs, "mesh_s_t0_vs" },
+		{ g_ew_mesh_ds_t0_vs, "mesh_ds_t0_vs" },
+		{ g_ew_mesh_t1_vs, "mesh_t1_vs" },
+		{ g_ew_mesh_d_t1_vs, "mesh_d_t1_vs" },
+		{ g_ew_mesh_s_t1_vs, "mesh_s_t1_vs" },
+		{ g_ew_mesh_ds_t1_vs, "mesh_ds_t1_vs" },
+		{ g_ew_mesh_t2_vs, "mesh_t2_vs" },
+		{ g_ew_mesh_d_t2_vs, "mesh_d_t2_vs" },
+		{ g_ew_mesh_s_t2_vs, "mesh_s_t2_vs" },
+		{ g_ew_mesh_ds_t2_vs, "mesh_ds_t2_vs" },
 	};
 	static_assert(sizeof(VertexCode) / sizeof(VertexCode[0]) == EwShaders::VS_COUNT, "VertexCode must match EwShaders::VertexShaderId");
 
@@ -148,6 +173,7 @@ namespace
 		{ g_ew_water_river_hq_ps, "water_river_hq_ps" },
 		{ g_ew_particle_ps, "particle_ps" },
 		{ g_ew_post_depth_copy_ps, "post_depth_copy_ps" },
+		{ g_ew_unlit_ps, "unlit_ps" },
 	};
 	static_assert(sizeof(PixelCode) / sizeof(PixelCode[0]) == EwShaders::PS_COUNT, "PixelCode must match EwShaders::PixelShaderId");
 

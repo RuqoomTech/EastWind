@@ -11,7 +11,8 @@
 // Alpha test and blending stay hardware states.
 //
 // One vertex shader per vertex layout, so a shader never reads an element the FVF lacks:
-// MeshVS_<N|ND|NS|NDS>_T<0|1|2> (D = diffuse colour, S = specular colour, T = texcoord sets).
+// MeshVS_<N|ND|NS|NDS>_T<0|1|2> (N = normal, D = diffuse colour, S = specular colour,
+// T = texcoord sets), and MeshVS_<|D|S|DS>_T<n> without a normal, for unlit draws.
 //
 // Two pixel shaders: MeshPS reproduces fixed-function, MeshMaterialPS (M3.1b, EwNormalMaps) adds
 // the RA3 material maps that sit beside the diffuse texture (see ewmeshshader_dx9.cpp):
@@ -20,6 +21,9 @@
 //   - <diffuse>_spm: SpecMap. R specular strength, G glow (self-illumination), B house colour.
 // MeshMaterialPS runs texture stage 0 only, which keeps it within the ps_3_0 slot limit;
 // meshes that use stage 1 get MeshPS without the material maps.
+//
+// UnlitPS draws what fixed function draws with lighting off (lasers, lines, decals, unlit
+// meshes, particles without the soft fade), with the same result.
 
 #include "ew_constants.h"
 #include "ew_shadow.h"
@@ -107,7 +111,7 @@ float4 StageTexCoord(int s, float2 uv, float3 csPos, float3 csNormal)
 	return float4(v.xy, 0.0, q);
 }
 
-VsOut MeshVS(VsIn i, bool hasDiffuse, bool hasSpecular, int texSets)
+VsOut MeshVS(VsIn i, bool hasNormal, bool hasDiffuse, bool hasSpecular, int texSets)
 {
 	VsOut o;
 	float4 p = float4(i.position.xyz, 1.0);
@@ -116,12 +120,14 @@ VsOut MeshVS(VsIn i, bool hasDiffuse, bool hasSpecular, int texSets)
 		dot(p, WorldViewProj[2]), dot(p, WorldViewProj[3]));
 
 	float3 worldPos = float3(dot(p, World[0]), dot(p, World[1]), dot(p, World[2]));
-	o.worldNormal = float3(dot(i.normal, WorldNormal[0].xyz), dot(i.normal, WorldNormal[1].xyz),
-		dot(i.normal, WorldNormal[2].xyz));
+	// EwMeshShader gives a draw without a normal no texture coordinates made from one.
+	float3 n = hasNormal ? i.normal : float3(0.0, 0.0, 0.0);
+	o.worldNormal = float3(dot(n, WorldNormal[0].xyz), dot(n, WorldNormal[1].xyz), dot(n, WorldNormal[2].xyz));
 
 	float3 csPos = float3(dot(p, WorldView[0]), dot(p, WorldView[1]), dot(p, WorldView[2]));
-	float3 csNormal = normalize(float3(dot(i.normal, WorldViewNormal[0].xyz),
-		dot(i.normal, WorldViewNormal[1].xyz), dot(i.normal, WorldViewNormal[2].xyz)));
+	float3 csNormal = float3(dot(n, WorldViewNormal[0].xyz), dot(n, WorldViewNormal[1].xyz),
+		dot(n, WorldViewNormal[2].xyz));
+	csNormal = hasNormal ? normalize(csNormal) : csNormal;
 
 	// D3D vertex fog: camera-space depth, or distance with D3DRS_RANGEFOGENABLE.
 	// W3D's camera looks down -z, so the depth is taken as a magnitude.
@@ -139,18 +145,31 @@ VsOut MeshVS(VsIn i, bool hasDiffuse, bool hasSpecular, int texSets)
 	return o;
 }
 
-VsOut MeshVS_N_T0(VsIn i)   { return MeshVS(i, false, false, 0); }
-VsOut MeshVS_ND_T0(VsIn i)  { return MeshVS(i, true,  false, 0); }
-VsOut MeshVS_NS_T0(VsIn i)  { return MeshVS(i, false, true,  0); }
-VsOut MeshVS_NDS_T0(VsIn i) { return MeshVS(i, true,  true,  0); }
-VsOut MeshVS_N_T1(VsIn i)   { return MeshVS(i, false, false, 1); }
-VsOut MeshVS_ND_T1(VsIn i)  { return MeshVS(i, true,  false, 1); }
-VsOut MeshVS_NS_T1(VsIn i)  { return MeshVS(i, false, true,  1); }
-VsOut MeshVS_NDS_T1(VsIn i) { return MeshVS(i, true,  true,  1); }
-VsOut MeshVS_N_T2(VsIn i)   { return MeshVS(i, false, false, 2); }
-VsOut MeshVS_ND_T2(VsIn i)  { return MeshVS(i, true,  false, 2); }
-VsOut MeshVS_NS_T2(VsIn i)  { return MeshVS(i, false, true,  2); }
-VsOut MeshVS_NDS_T2(VsIn i) { return MeshVS(i, true,  true,  2); }
+VsOut MeshVS_N_T0(VsIn i)   { return MeshVS(i, true,  false, false, 0); }
+VsOut MeshVS_ND_T0(VsIn i)  { return MeshVS(i, true,  true,  false, 0); }
+VsOut MeshVS_NS_T0(VsIn i)  { return MeshVS(i, true,  false, true,  0); }
+VsOut MeshVS_NDS_T0(VsIn i) { return MeshVS(i, true,  true,  true,  0); }
+VsOut MeshVS_N_T1(VsIn i)   { return MeshVS(i, true,  false, false, 1); }
+VsOut MeshVS_ND_T1(VsIn i)  { return MeshVS(i, true,  true,  false, 1); }
+VsOut MeshVS_NS_T1(VsIn i)  { return MeshVS(i, true,  false, true,  1); }
+VsOut MeshVS_NDS_T1(VsIn i) { return MeshVS(i, true,  true,  true,  1); }
+VsOut MeshVS_N_T2(VsIn i)   { return MeshVS(i, true,  false, false, 2); }
+VsOut MeshVS_ND_T2(VsIn i)  { return MeshVS(i, true,  true,  false, 2); }
+VsOut MeshVS_NS_T2(VsIn i)  { return MeshVS(i, true,  false, true,  2); }
+VsOut MeshVS_NDS_T2(VsIn i) { return MeshVS(i, true,  true,  true,  2); }
+// Without a normal, for unlit draws (lines, particles, decals).
+VsOut MeshVS_T0(VsIn i)    { return MeshVS(i, false, false, false, 0); }
+VsOut MeshVS_D_T0(VsIn i)  { return MeshVS(i, false, true,  false, 0); }
+VsOut MeshVS_S_T0(VsIn i)  { return MeshVS(i, false, false, true,  0); }
+VsOut MeshVS_DS_T0(VsIn i) { return MeshVS(i, false, true,  true,  0); }
+VsOut MeshVS_T1(VsIn i)    { return MeshVS(i, false, false, false, 1); }
+VsOut MeshVS_D_T1(VsIn i)  { return MeshVS(i, false, true,  false, 1); }
+VsOut MeshVS_S_T1(VsIn i)  { return MeshVS(i, false, false, true,  1); }
+VsOut MeshVS_DS_T1(VsIn i) { return MeshVS(i, false, true,  true,  1); }
+VsOut MeshVS_T2(VsIn i)    { return MeshVS(i, false, false, false, 2); }
+VsOut MeshVS_D_T2(VsIn i)  { return MeshVS(i, false, true,  false, 2); }
+VsOut MeshVS_S_T2(VsIn i)  { return MeshVS(i, false, false, true,  2); }
+VsOut MeshVS_DS_T2(VsIn i) { return MeshVS(i, false, true,  true,  2); }
 
 // ---------------------------------------------------------------------------------------------
 // Pixel shader
@@ -262,6 +281,16 @@ float4 StageArg(float select, float modifier, float4 diffuse, float4 current, fl
 // One texture stage. Ops are per channel: rgb takes the colour op and arguments, a the alpha ones.
 float4 RunStage(int s, float4 diffuse, float4 current, float4 tex, float4 specular)
 {
+	// Short form, set by EwMeshShader when both ops are a plain product, sum or select of the
+	// texture and one colour input: r = K1 * tex * o + K2 * tex + K3 * o. Most stages are this,
+	// and it skips the general code below (about 130 instructions a pixel).
+	float shortForm = Stage[s * 4 + 0].w;
+	[branch] if (shortForm < -0.5)
+	{
+		float4 o = (shortForm < -1.5) ? current : diffuse;
+		return saturate(Stage[s * 4 + 1] * tex * o + Stage[s * 4 + 2] * tex + Stage[s * 4 + 3] * o);
+	}
+
 	float4 colour = Stage[s * 4 + 0];
 	float4 colourMod = Stage[s * 4 + 1];
 	float4 alpha = Stage[s * 4 + 2];
@@ -430,6 +459,35 @@ float4 ShadeMesh(PsIn i, uniform bool material)
 
 float4 MeshPS(PsIn i) : COLOR0         { return ShadeMesh(i, false); }
 float4 MeshMaterialPS(PsIn i) : COLOR0 { return ShadeMesh(i, true); }
+
+// ---------------------------------------------------------------------------------------------
+// Unlit draws
+// ---------------------------------------------------------------------------------------------
+// D3DRS_LIGHTING off: fixed function runs the texture stages on the vertex colours (white and
+// black when the vertex has none), adds the specular colour and fogs. No light is added up, so
+// there is no linear round trip and the result matches fixed function.
+
+float4 UnlitPS(PsIn i) : COLOR0
+{
+	float4 tex0 = (PsOptions.z > 0.5) ? tex2D(Stage0Texture, i.uv0.xy / i.uv0.w) : float4(1.0, 1.0, 1.0, 1.0);
+	float4 tex1 = (PsOptions.w > 0.5) ? tex2D(Stage1Texture, i.uv1.xy / i.uv1.w) : float4(1.0, 1.0, 1.0, 1.0);
+
+	float4 current = i.diffuse;
+	[branch] if (Stage[0].x != OP_DISABLE)
+	{
+		current = RunStage(0, i.diffuse, current, tex0, i.specular);
+		[branch] if (Stage[4].x != OP_DISABLE)
+			current = RunStage(1, i.diffuse, current, tex1, i.specular);
+	}
+	current.rgb = saturate(current.rgb + i.specular.rgb * PsOptions.y);
+
+	[branch] if (Fog.x > 0.5)
+	{
+		float f = saturate((Fog.y - i.worldPosFog.w) * Fog.z);
+		current.rgb = lerp(FogColor.rgb, current.rgb, f);
+	}
+	return current;
+}
 
 // ---------------------------------------------------------------------------------------------
 // Soft particles (EwSoftParticles)

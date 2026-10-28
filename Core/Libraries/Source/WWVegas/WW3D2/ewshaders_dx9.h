@@ -54,6 +54,19 @@ public:
 		VS_POST,			// post.hlsl, screen quad for the post-processing passes (M3.2)
 		VS_WATER,			// water.hlsl, trapezoid and river water with waves and reflection (M3.3a)
 		VS_PARTICLE,		// mesh.hlsl, soft particles (EwSoftParticles)
+		// mesh.hlsl variants without a normal, for unlit draws, in the order of the lit ones.
+		VS_MESH_T0,
+		VS_MESH_D_T0,
+		VS_MESH_S_T0,
+		VS_MESH_DS_T0,
+		VS_MESH_T1,
+		VS_MESH_D_T1,
+		VS_MESH_S_T1,
+		VS_MESH_DS_T1,
+		VS_MESH_T2,
+		VS_MESH_D_T2,
+		VS_MESH_S_T2,
+		VS_MESH_DS_T2,
 		VS_COUNT
 	};
 
@@ -95,6 +108,7 @@ public:
 		PS_WATER_RIVER_HQ,			// water.hlsl, river water seen into: depth colour, refraction, shore foam (M3.3b)
 		PS_PARTICLE,				// mesh.hlsl, soft particles: fade where they meet the scene (EwSoftParticles)
 		PS_POST_DEPTH_COPY,			// post.hlsl, the scene's view depth into R32F for the soft particles
+		PS_UNLIT,					// mesh.hlsl, draws with lighting off, as fixed function
 		PS_COUNT
 	};
 
@@ -108,9 +122,9 @@ public:
 	static IDirect3DVertexShader9 *Peek_Vertex(VertexShaderId id);
 	static IDirect3DPixelShader9 *Peek_Pixel(PixelShaderId id);
 
-	static VertexShaderId Mesh_Vertex_Id(bool diffuse, bool specular, int texcoord_sets)
+	static VertexShaderId Mesh_Vertex_Id(bool normal, bool diffuse, bool specular, int texcoord_sets)
 	{
-		return VertexShaderId(VS_MESH_N_T0 + texcoord_sets * 4 + (diffuse ? 1 : 0) + (specular ? 2 : 0));
+		return VertexShaderId((normal ? VS_MESH_N_T0 : VS_MESH_T0) + texcoord_sets * 4 + (diffuse ? 1 : 0) + (specular ? 2 : 0));
 	}
 
 	// Releases the store's references. Called before the device is released.

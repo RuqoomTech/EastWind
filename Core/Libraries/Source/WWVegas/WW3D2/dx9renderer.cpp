@@ -2186,6 +2186,7 @@ void DX8MeshRendererClass::Flush()
 	WWPROFILE("DX8MeshRenderer::Flush");
 	if (!camera) return;
 	Log_Statistics_String(true);
+	EwMeshShader::Begin_Batch();	// EastWind: every draw below goes through DX8Wrapper
 
 	/*
 	** Render the FVF categories.  Note that it is critical that skins be
@@ -2211,6 +2212,7 @@ void DX8MeshRendererClass::Flush()
 	for (i=0;i<texture_category_container_lists_rigid.Count();++i) {
 		Render_FVF_Category_Container_List_Delayed_Passes(*texture_category_container_lists_rigid[i]);
 	}
+	EwMeshShader::End_Batch();
 
 	DX8Wrapper::Set_Vertex_Buffer(nullptr);
 	DX8Wrapper::Set_Index_Buffer(nullptr,0);
