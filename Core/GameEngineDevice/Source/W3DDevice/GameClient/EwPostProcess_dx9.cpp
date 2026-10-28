@@ -47,6 +47,9 @@ namespace
 	// Bloom strength, until it moves to INI data.
 	const float BLOOM_THRESHOLD = 0.7f;		// scene brightness (luma) where the glow starts
 	const float BLOOM_STRENGTH = 0.8f;
+	// With EwLinearLighting the bloom is added to linear light instead of screen blended, which
+	// lights the area around a glow more; this strength gives about the same halo.
+	const float BLOOM_LINEAR_STRENGTH = 0.45f;
 	const float BLOOM_WEIGHTS[3] = { 0.45f, 0.35f, 0.30f };	// the 1/4, 1/8 and 1/16 size levels
 
 	// Tone mapping strength, until it moves to INI data. Near 0 the curve changes nothing; larger
@@ -704,7 +707,8 @@ namespace
 	// its depth buffer bound again.
 	void Draw_Bloom(IDirect3DDevice9 *device)
 	{
-		const float params[4] = { BLOOM_THRESHOLD, 1.0f / (1.0f - BLOOM_THRESHOLD), BLOOM_STRENGTH, 0.0f };
+		const float strength = EwGraphics().Linear() ? BLOOM_LINEAR_STRENGTH : BLOOM_STRENGTH;
+		const float params[4] = { BLOOM_THRESHOLD, 1.0f / (1.0f - BLOOM_THRESHOLD), strength, 0.0f };
 		const float weights[4] = { BLOOM_WEIGHTS[0], BLOOM_WEIGHTS[1], BLOOM_WEIGHTS[2], 0.0f };
 		device->SetPixelShaderConstantF(EW_POST_PS_BLOOM, params, 1);
 		device->SetPixelShaderConstantF(EW_POST_PS_BLOOM_WEIGHTS, weights, 1);
