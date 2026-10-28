@@ -767,14 +767,15 @@ static void ewLoadGraphicsOptions()
 	options.ColorGrading = prefs.getBool("EwColorGrading", options.ColorGrading);
 	options.FXAA = prefs.getBool("EwFXAA", options.FXAA);
 	options.AmbientOcclusion = prefs.getInt("EwAmbientOcclusion", options.AmbientOcclusion);
+	options.Hdr = prefs.getBool("EwHdr", options.Hdr);
 	options.DebugKeys = prefs.getBool("EwDebugKeys", options.DebugKeys);
 	options.Validate();
 }
 
-// EastWind (EwDebugKeys = yes): Ctrl+Shift+F1..F12 switch the DX9 features while the game runs,
-// so the new and the classic look can be compared at the same spot, and Ctrl+Shift+T shows the
-// GPU time of each part of the frame. The keys are read straight from the keyboard, and the game
-// still sees them.
+// EastWind (EwDebugKeys = yes): Ctrl+Shift+F1..F12 and H switch the DX9 features while the game
+// runs, so the new and the classic look can be compared at the same spot, and Ctrl+Shift+T shows
+// the GPU time of each part of the frame. The keys are read straight from the keyboard, and the
+// game still sees them.
 // One status line: how many passes of the last frame used a shader, or why it did not run.
 static void ewShowShaderStatus(const WideChar *name, unsigned passes, const char *reason)
 {
@@ -805,6 +806,7 @@ static void ewShowGraphicsStatus()
 	const WideChar *shadows = o.ShadowMapSize <= 0 ? L"off in Options.ini" : o.ShadowMaps() ? L"on" : L"off (classic shadows)";
 	const WideChar *ao = o.AmbientOcclusion <= 0 ? L"off in Options.ini" : !o.PostProcess() ? L"off"
 		: o.DebugAoMode == 2 ? L"off" : o.DebugAoMode == 1 ? L"occlusion only" : L"on";
+	const WideChar *hdr = !o.Hdr ? L"off in Options.ini" : o.PostHdr() ? L"on" : L"off (8-bit scene)";
 
 	TheInGameUI->message(L"EastWind graphics: %s   [Ctrl+Shift+F9]", o.DebugAllOff ? L"ALL OFF (classic)" : L"ON");
 	TheInGameUI->message(L"Terrain light: %s   [Ctrl+Shift+F10]", terrain);
@@ -818,6 +820,7 @@ static void ewShowGraphicsStatus()
 	TheInGameUI->message(L"Water shader: %s   [Ctrl+Shift+F3]", water);
 	TheInGameUI->message(L"Sun shadow maps: %s   [Ctrl+Shift+F2]", shadows);
 	TheInGameUI->message(L"Ambient occlusion: %s   [Ctrl+Shift+F1: on, occlusion only, off]", ao);
+	TheInGameUI->message(L"HDR scene: %s   [Ctrl+Shift+H]", hdr);
 	TheInGameUI->message(L"GPU time of each pass: [Ctrl+Shift+T]");
 
 	ewShowShaderStatus(L"Terrain shader", EwTerrainLighting::Last_Frame_Passes(), EwTerrainLighting::Last_Reason());
@@ -825,6 +828,8 @@ static void ewShowGraphicsStatus()
 	ewShowShaderStatus(L"Tree shader", EwTerrainLighting::Last_Frame_Tree_Passes(), EwTerrainLighting::Last_Tree_Reason());
 	ewShowShaderStatus(L"Post-processing scene texture", EwPostProcess::Last_Frame_Passes(EwPostProcess::SCENE),
 		EwPostProcess::Last_Reason(EwPostProcess::SCENE));
+	ewShowShaderStatus(L"HDR scene (16-bit float)", EwPostProcess::Last_Frame_Passes(EwPostProcess::HDR),
+		EwPostProcess::Last_Reason(EwPostProcess::HDR));
 	ewShowShaderStatus(L"Ambient occlusion", EwPostProcess::Last_Frame_Passes(EwPostProcess::AMBIENT_OCCLUSION),
 		EwPostProcess::Last_Reason(EwPostProcess::AMBIENT_OCCLUSION));
 	ewShowShaderStatus(L"Bloom", EwPostProcess::Last_Frame_Passes(EwPostProcess::BLOOM),
@@ -958,6 +963,7 @@ static void ewPollGraphicsDebugKeys()
 		{ VK_F10, &o.DebugTerrainLightingOff },
 		{ VK_F11, &o.DebugMeshLightingOff },
 		{ VK_F12, &o.DebugNormalMapsOff },
+		{ 'H', &o.DebugHdrOff },
 	};
 	const int KEY_COUNT = sizeof(keys) / sizeof(keys[0]);
 	static bool was_down[KEY_COUNT];

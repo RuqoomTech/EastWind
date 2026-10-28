@@ -28,6 +28,7 @@
 #include "WWDebug/wwdebug.h"
 #include "ew_constants.h"
 
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -50,6 +51,12 @@ namespace
 	// Tone mapping strength, until it moves to INI data. Near 0 the curve changes nothing; larger
 	// values give deeper shadows, brighter mid-tones and softer highlights.
 	const float TONE_EXPOSURE = 0.6f;
+
+	// With EwHdr: the 16-bit float scene and bloom format, and the tone curve for it, which shows
+	// scene (gamma) value TONE_HDR_WHITE as white so the light above 1 rolls off instead of clipping.
+	const D3DFORMAT FORMAT_HDR = D3DFMT_A16B16G16R16F;
+	const float TONE_HDR_EXPOSURE = 0.8f;
+	const float TONE_HDR_WHITE = 2.0f;
 
 	// Colour grading: a 256x16 TGA strip (see post.hlsl). The map's own LUT wins over the default.
 	const char *const LUT_DEFAULT_FILE = "Art\\Textures\\EwColorGrading.tga";
@@ -90,6 +97,9 @@ namespace
 		REASON_AO_NO_G16R16F,
 		REASON_AO_CREATE_FAILED,
 		REASON_AO_NO_CAMERA,
+		REASON_HDR_DEBUG_OFF,
+		REASON_HDR_NO_FORMAT,
+		REASON_HDR_CREATE_FAILED,
 		REASON_COUNT
 	};
 
@@ -116,6 +126,9 @@ namespace
 		"the card cannot draw into G16R16F textures",
 		"the AO textures could not be created (HRESULT)",
 		"no 3D camera was given",
+		"switched off with Ctrl+Shift+H",
+		"the card cannot draw, blend and filter 16-bit float textures",
+		"the 16-bit float scene texture could not be created, perhaps with this anti-aliasing (HRESULT)",
 	};
 	static_assert(sizeof(ReasonText) / sizeof(ReasonText[0]) == REASON_COUNT, "ReasonText must match Reason");
 
@@ -137,6 +150,8 @@ namespace
 	IDirect3DStateBlock9 *SavedStates = nullptr;	// all device states, around the post passes
 	D3DSURFACE_DESC TargetDesc;						// the back buffer the textures were made for
 	bool CreateFailed = false;						// do not try again until Release()
+	bool SceneHdr = false;							// SceneTexture is FORMAT_HDR
+	Reason HdrFailed = REASON_COUNT;				// why FORMAT_HDR cannot be used; not tried again until Release()
 
 	// Bloom: two textures at 1/4, 1/8 and 1/16 of the back buffer size. The blur runs across from
 	// [0] into [1] and down from [1] back into [0], so [0] holds each level's result.
@@ -191,7 +206,7 @@ namespace
 	{
 		if (!Logged[reason] && reason != REASON_OFF && reason != REASON_DEBUG_OFF && reason != REASON_EFFECT_OFF
 			&& reason != REASON_TONE_DEBUG_OFF && reason != REASON_GRADE_DEBUG_OFF && reason != REASON_FXAA_DEBUG_OFF
-			&& reason != REASON_AO_DEBUG_OFF && reason != REASON_AO_MSAA)
+			&& reason != REASON_AO_DEBUG_OFF && reason != REASON_AO_MSAA && reason != REASON_HDR_DEBUG_OFF)
 		{
 			Logged[reason] = true;
 			WWDEBUG_SAY(("EwPostProcess: %s, value 0x%x (logged once)", ReasonText[reason], value));
@@ -271,23 +286,27 @@ namespace
 		Release_Com(DepthBuffer);
 	}
 
-	// Makes the scene texture (and multisampled surface) match the back buffer.
-	HRESULT Create_Targets(IDirect3DDevice9 *device, const D3DSURFACE_DESC &desc)
+	// Makes the scene texture (and multisampled surface) match the back buffer, in its format or FORMAT_HDR.
+	HRESULT Create_Targets(IDirect3DDevice9 *device, const D3DSURFACE_DESC &desc, bool hdr)
 	{
 		Release_Targets();
-		HRESULT hr = device->CreateTexture(desc.Width, desc.Height, 1, D3DUSAGE_RENDERTARGET, desc.Format,
+		const D3DFORMAT format = hdr ? FORMAT_HDR : desc.Format;
+		HRESULT hr = device->CreateTexture(desc.Width, desc.Height, 1, D3DUSAGE_RENDERTARGET, format,
 			D3DPOOL_DEFAULT, &SceneTexture, nullptr);
 		if (SUCCEEDED(hr))
 			hr = SceneTexture->GetSurfaceLevel(0, &SceneSurface);
 		if (SUCCEEDED(hr) && desc.MultiSampleType != D3DMULTISAMPLE_NONE)
 		{
-			hr = device->CreateRenderTarget(desc.Width, desc.Height, desc.Format, desc.MultiSampleType,
+			hr = device->CreateRenderTarget(desc.Width, desc.Height, format, desc.MultiSampleType,
 				desc.MultiSampleQuality, FALSE, &MsaaSurface, nullptr);
 		}
 		if (FAILED(hr))
 			Release_Targets();
 		else
+		{
 			TargetDesc = desc;
+			SceneHdr = hdr;
+		}
 		return hr;
 	}
 
@@ -394,7 +413,7 @@ namespace
 			Bloom[i].Height = h;
 			for (int j = 0; j < 2 && SUCCEEDED(hr); ++j)
 			{
-				hr = device->CreateTexture(w, h, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT,
+				hr = device->CreateTexture(w, h, 1, D3DUSAGE_RENDERTARGET, SceneHdr ? FORMAT_HDR : D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT,
 					&Bloom[i].Texture[j], nullptr);
 				if (SUCCEEDED(hr))
 					hr = Bloom[i].Texture[j]->GetSurfaceLevel(0, &Bloom[i].Surface[j]);
@@ -819,9 +838,24 @@ bool EwPostProcess::Begin_Scene(float clear_alpha)
 
 	D3DSURFACE_DESC desc;
 	target->GetDesc(&desc);
-	if (SceneTexture == nullptr || !Same_Target(desc, TargetDesc))
+	const bool hdr = o.PostHdr() && HdrFailed == REASON_COUNT;
+	if (SceneTexture == nullptr || !Same_Target(desc, TargetDesc) || hdr != SceneHdr)
 	{
-		HRESULT hr = CreateFailed ? E_FAIL : Create_Targets(device, desc);
+		HRESULT hr = E_FAIL;
+		if (hdr && !CreateFailed)
+		{
+			// Particles and water blend into the scene, and bloom and the water refraction filter it.
+			if (!EwShaders::Format_Supported(device, D3DUSAGE_RENDERTARGET | D3DUSAGE_QUERY_POSTPIXELSHADER_BLENDING
+				| D3DUSAGE_QUERY_FILTER, D3DRTYPE_TEXTURE, FORMAT_HDR))
+				HdrFailed = REASON_HDR_NO_FORMAT;
+			else if (FAILED(hr = Create_Targets(device, desc, true)))
+			{
+				HdrFailed = REASON_HDR_CREATE_FAILED;
+				Log_Once(REASON_HDR_CREATE_FAILED, hr);
+			}
+		}
+		if (FAILED(hr) && !CreateFailed)
+			hr = Create_Targets(device, desc, false);
 		if (FAILED(hr))
 		{
 			CreateFailed = true;
@@ -843,6 +877,8 @@ bool EwPostProcess::Begin_Scene(float clear_alpha)
 	}
 	BackBuffer = target;
 	DepthBuffer = depth;
+	if (!SceneHdr)
+		Set_Reason(HDR, !o.Hdr ? REASON_EFFECT_OFF : o.DebugHdrOff ? REASON_HDR_DEBUG_OFF : HdrFailed);
 
 	// Ambient occlusion reads the scene's depth, so the scene draws with its own depth texture,
 	// cleared here as the frame clear cleared the back buffer's.
@@ -1009,7 +1045,10 @@ void EwPostProcess::End_Scene(int x, int y, int width, int height, const CameraC
 			Set_Texture(device, EW_POST_DEPTH_SAMPLER, DepthTexture, false);
 		}
 		const float final_flags[4] = { bloom ? 1.0f : 0.0f, tone ? 1.0f : 0.0f, grade ? 1.0f : 0.0f, ao ? 1.0f : 0.0f };
-		const float tone_params[4] = { TONE_EXPOSURE, 1.0f / Filmic_Curve(TONE_EXPOSURE), 0.0f, 0.0f };
+		// The curve works on linear light; 1 / (the curve at white) keeps white at white.
+		const float exposure = SceneHdr ? TONE_HDR_EXPOSURE : TONE_EXPOSURE;
+		const float white = SceneHdr ? powf(TONE_HDR_WHITE, 2.2f) : 1.0f;
+		const float tone_params[4] = { exposure, 1.0f / Filmic_Curve(exposure * white), 0.0f, 0.0f };
 		device->SetPixelShaderConstantF(EW_POST_PS_FINAL, final_flags, 1);
 		device->SetPixelShaderConstantF(EW_POST_PS_TONE, tone_params, 1);
 		device->SetPixelShader(EwShaders::Peek_Pixel(EwShaders::PS_POST_FINAL));
@@ -1023,6 +1062,8 @@ void EwPostProcess::End_Scene(int x, int y, int width, int height, const CameraC
 	if (final_effects || !fxaa)
 		EwGpuTimer::Mark(EwGpuTimer::FINAL);
 	++Stats[SCENE].Passes;
+	if (SceneHdr)
+		++Stats[HDR].Passes;
 	if (bloom)
 		++Stats[BLOOM].Passes;
 	if (tone)
@@ -1072,6 +1113,7 @@ void EwPostProcess::Release()
 	LutUploaded = false;
 	LutFailed = false;
 	CreateFailed = false;
+	HdrFailed = REASON_COUNT;
 	DepthFailed = false;
 	SceneDepthBound = false;
 }

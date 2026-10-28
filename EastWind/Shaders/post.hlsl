@@ -299,8 +299,8 @@ float4 PostFinalPS(float2 uv : TEXCOORD0) : COLOR0
 			+ tex2Dlod(Bloom8, lod_uv).rgb * BloomWeights.y
 			+ tex2Dlod(Bloom16, lod_uv).rgb * BloomWeights.z;
 		bloom = saturate(bloom * BloomParams.z);
-		// Screen blend: 1 - (1 - scene) * (1 - bloom).
-		c = c + bloom * (1.0 - c);
+		// Screen blend: 1 - (1 - scene) * (1 - bloom). Above white (EwHdr) it adds nothing.
+		c = c + bloom * (1.0 - saturate(c));
 	}
 
 	[branch] if (Final.y > 0.5)

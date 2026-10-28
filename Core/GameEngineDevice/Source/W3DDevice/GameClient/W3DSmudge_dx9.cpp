@@ -332,6 +332,23 @@ void W3DSmudgeManager::render(RenderInfoClass &rinfo)
 		DX8Wrapper::_Get_D3D_Device9()->GetRenderTarget(0, &current);
 		if (current)
 		{
+			// The copy cannot convert formats, and the scene texture can be 16-bit float (EwHdr), so
+			// the background texture follows the target's format.
+			D3DSURFACE_DESC target_desc;
+			D3DSURFACE_DESC background_desc;
+			current->GetDesc(&target_desc);
+			if (m_backgroundTexture && SUCCEEDED(m_backgroundTexture->Peek_D3D_Texture()->GetLevelDesc(0, &background_desc))
+				&& background_desc.Format != target_desc.Format)
+			{
+				IDirect3DTexture9 *texture = nullptr;
+				if (SUCCEEDED(DX8Wrapper::_Get_D3D_Device9()->CreateTexture(background_desc.Width, background_desc.Height, 1,
+					D3DUSAGE_RENDERTARGET, target_desc.Format, D3DPOOL_DEFAULT, &texture, nullptr)))
+				{
+					REF_PTR_RELEASE(m_backgroundTexture);
+					m_backgroundTexture = MSGNEW("TextureClass") TextureClass(texture);
+					texture->Release();
+				}
+			}
 			backBuffer = NEW_REF(SurfaceClass, (current));
 			current->Release();
 		}

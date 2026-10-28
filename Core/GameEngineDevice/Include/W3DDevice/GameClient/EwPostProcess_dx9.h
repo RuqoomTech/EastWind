@@ -16,7 +16,7 @@
 */
 
 // EastWind DX9: post-processing (M3.2, Options.ini EwBloom, EwToneMapping, EwColorGrading, EwFXAA;
-// M3.5 EwAmbientOcclusion).
+// M3.5 EwAmbientOcclusion; EwHdr).
 //
 // W3DView::draw calls Begin_Scene() before the 3D scene and End_Scene() after it (and after the
 // view filters). In between, the 3D scene draws into a scene texture the size and format of the
@@ -27,6 +27,12 @@
 //
 // With multisampling the scene draws into a multisampled surface, which End_Scene() resolves into
 // the scene texture first.
+//
+// HDR (EwHdr): the scene texture and the bloom textures are 16-bit float (A16B16G16R16F) in
+// place of the back buffer's format, so additive light (fire, explosions, muzzle flashes) adds up
+// above white instead of clipping. The values keep the 8-bit scene's gamma encoding, so every
+// draw and blend works as before; tone mapping then shows scene value 2 as white. Without the
+// format (it must take blending and filtered reads) the scene stays 8-bit.
 //
 // Without a post effect that changes the picture, the last pass is a plain copy, so the game
 // looks exactly as without the scene texture (M3.2a).
@@ -78,6 +84,7 @@ public:
 		TONE_MAPPING,
 		COLOR_GRADING,
 		FXAA,
+		HDR,
 		EFFECT_COUNT
 	};
 
