@@ -417,3 +417,73 @@ float4 ShadeMesh(PsIn i, uniform bool material)
 
 float4 MeshPS(PsIn i) : COLOR0         { return ShadeMesh(i, false); }
 float4 MeshMaterialPS(PsIn i) : COLOR0 { return ShadeMesh(i, true); }
+
+// ---------------------------------------------------------------------------------------------
+// Soft particles (EwSoftParticles)
+// ---------------------------------------------------------------------------------------------
+// Unlit billboard particles (PointGroupClass) with alpha blending. Texture stage 0 runs as in
+// fixed function; the particle then fades out where it comes within the fade distance of the
+// scene behind it, so it no longer shows a hard line where it cuts into the ground or a building.
+// EwPostProcess copies the scene's view depth into an R32F texture before the particles draw.
+
+struct ParticleVsIn
+{
+	float4 position : POSITION0;
+	float4 diffuse  : COLOR0;
+	float2 uv0      : TEXCOORD0;
+};
+
+struct ParticleVsOut
+{
+	float4 position   : POSITION;
+	float4 uvDepthFog : TEXCOORD0;	// xy texcoord, z view depth, w fog distance
+	float4 diffuse    : COLOR0;
+};
+
+ParticleVsOut ParticleVS(ParticleVsIn i)
+{
+	ParticleVsOut o;
+	float4 p = float4(i.position.xyz, 1.0);
+	o.position = float4(dot(p, WorldViewProj[0]), dot(p, WorldViewProj[1]),
+		dot(p, WorldViewProj[2]), dot(p, WorldViewProj[3]));
+	float3 csPos = float3(dot(p, WorldView[0]), dot(p, WorldView[1]), dot(p, WorldView[2]));
+	float fogDistance = (VsOptions.x > 0.5) ? length(csPos) : abs(csPos.z);
+	o.uvDepthFog = float4(i.uv0, abs(csPos.z), fogDistance);
+	o.diffuse = i.diffuse;
+	return o;
+}
+
+float4 SoftParams : EW_REG(EW_PARTICLE_PS_SOFT);	// xy 1 / target size, z 1 / fade distance, w fade mode
+sampler2D SceneViewDepth : register(s13);			// EW_PARTICLE_DEPTH_SAMPLER
+
+struct ParticlePsIn
+{
+	float4 uvDepthFog : TEXCOORD0;
+	float4 diffuse    : COLOR0;
+};
+
+float4 ParticlePS(ParticlePsIn i, float2 vpos : VPOS) : COLOR0
+{
+	float4 tex = (PsOptions.z > 0.5) ? tex2D(Stage0Texture, i.uvDepthFog.xy) : float4(1.0, 1.0, 1.0, 1.0);
+	float4 c = i.diffuse;
+	[branch] if (Stage[0].x != OP_DISABLE)
+		c = RunStage(0, i.diffuse, i.diffuse, tex, float4(0.0, 0.0, 0.0, 0.0));
+
+	[branch] if (Fog.x > 0.5)
+	{
+		float f = saturate((Fog.y - i.uvDepthFog.w) * Fog.z);
+		c.rgb = lerp(FogColor.rgb, c.rgb, f);
+	}
+
+	float scene = tex2D(SceneViewDepth, (vpos + 0.5) * SoftParams.xy).r;
+	float fade = saturate((scene - i.uvDepthFog.z) * SoftParams.z);
+	// Fade mode by blending: 0 source alpha (fade alpha), 1 additive or premultiplied (fade all),
+	// 2 multiplicative (fade towards white, which changes nothing).
+	if (SoftParams.w < 0.5)
+		c.a *= fade;
+	else if (SoftParams.w < 1.5)
+		c *= fade;
+	else
+		c.rgb = lerp(1.0, c.rgb, fade);
+	return c;
+}

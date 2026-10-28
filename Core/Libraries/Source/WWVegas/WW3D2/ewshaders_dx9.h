@@ -53,6 +53,7 @@ public:
 		VS_TREES_LIT,		// trees.hlsl, per-pixel lit trees (M3.1d), replaces VS_TREES
 		VS_POST,			// post.hlsl, screen quad for the post-processing passes (M3.2)
 		VS_WATER,			// water.hlsl, trapezoid and river water with waves and reflection (M3.3a)
+		VS_PARTICLE,		// mesh.hlsl, soft particles (EwSoftParticles)
 		VS_COUNT
 	};
 
@@ -92,6 +93,8 @@ public:
 		PS_WATER_RIVER,				// water.hlsl, river water with waves, Fresnel and reflection (M3.3a)
 		PS_WATER_TRAPEZOID_HQ,		// water.hlsl, trapezoid water seen into: depth colour, refraction, shore foam (M3.3b)
 		PS_WATER_RIVER_HQ,			// water.hlsl, river water seen into: depth colour, refraction, shore foam (M3.3b)
+		PS_PARTICLE,				// mesh.hlsl, soft particles: fade where they meet the scene (EwSoftParticles)
+		PS_POST_DEPTH_COPY,			// post.hlsl, the scene's view depth into R32F for the soft particles
 		PS_COUNT
 	};
 

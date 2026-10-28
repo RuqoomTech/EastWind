@@ -100,6 +100,12 @@ namespace
 	IDirect3DDevice9Ex *Device;
 	bool RestoreFog;
 
+	// Soft particles: 1 / size of the scene view depth texture EwPostProcess bound on
+	// EW_PARTICLE_DEPTH_SAMPLER, or 0 while none is bound.
+	float SceneDepthInvWidth;
+	float SceneDepthInvHeight;
+	const float SOFT_PARTICLE_FADE_DISTANCE = 8.0f;	// world units; a terrain tile is 10
+
 	// --- M3.1b material maps ---
 
 	// Which map files exist for a diffuse base name, so the disk is searched once per name:
@@ -454,37 +460,172 @@ namespace
 			return 2.0f;
 		return 0.0f;
 	}
+
+	bool Caller_Has_Shaders()
+	{
+		IDirect3DVertexShader9 *vs = nullptr;
+		Device->GetVertexShader(&vs);
+		if (vs)
+		{
+			vs->Release();
+			return true;
+		}
+		IDirect3DPixelShader9 *ps = nullptr;
+		Device->GetPixelShader(&ps);
+		if (ps)
+		{
+			ps->Release();
+			return true;
+		}
+		return false;
+	}
+
+	// The fog registers of the pixel shaders (enable, end, 1 / range) and the range fog flag of the
+	// vertex shaders. False for fog modes other than linear.
+	bool Gather_Fog(Float4 &fog, float &range_fog)
+	{
+		Float4 none = { 0.0f, 0.0f, 0.0f, 0.0f };
+		fog = none;
+		range_fog = 0.0f;
+		if (Render_State(D3DRS_FOGENABLE) == FALSE)
+			return true;
+		DWORD table_mode = Render_State(D3DRS_FOGTABLEMODE);
+		DWORD mode = (table_mode != D3DFOG_NONE) ? table_mode : Render_State(D3DRS_FOGVERTEXMODE);
+		if (mode != D3DFOG_LINEAR)
+			return Fallback(REASON_FOG_MODE, mode);
+		float start = Render_State_Float(D3DRS_FOGSTART);
+		float end = Render_State_Float(D3DRS_FOGEND);
+		float range = end - start;
+		fog.x = 1.0f;
+		fog.y = end;
+		fog.z = (fabsf(range) > 1e-6f) ? 1.0f / range : 1e6f;
+		if (table_mode == D3DFOG_NONE && Render_State(D3DRS_RANGEFOGENABLE))
+			range_fog = 1.0f;
+		return true;
+	}
+
+	// Soft particles: an unlit, blended billboard particle (PointGroupClass) with texture stage 0
+	// only, read through its first texture coordinates. Anything else stays fixed function.
+	bool Begin_Particle()
+	{
+		const DX8Caps *caps = DX8Wrapper::Get_Current_Caps();
+		if (caps->Get_Vertex_Shader_Major_Version() < 3 || caps->Get_Pixel_Shader_Major_Version() < 3 || Caller_Has_Shaders())
+			return false;
+		if (Render_State(D3DRS_ALPHABLENDENABLE) == FALSE || Render_State(D3DRS_ALPHATESTENABLE) != FALSE
+			|| Render_State(D3DRS_BLENDOP) != D3DBLENDOP_ADD)
+			return false;
+		if (Render_State(D3DRS_CLIPPLANEENABLE) != 0 || Render_State(D3DRS_VERTEXBLEND) != D3DVBF_DISABLE
+			|| Render_State(D3DRS_INDEXEDVERTEXBLENDENABLE))
+			return false;
+
+		DWORD fvf = 0;
+		Device->GetFVF(&fvf);
+		const int texcoord_sets = int((fvf & D3DFVF_TEXCOUNT_MASK) >> D3DFVF_TEXCOUNT_SHIFT);
+		if ((fvf & D3DFVF_POSITION_MASK) != D3DFVF_XYZ || !(fvf & D3DFVF_DIFFUSE) || texcoord_sets < 1)
+			return false;
+
+		// How to fade, by blending: 0 fade the alpha, 1 fade everything (additive or premultiplied),
+		// 2 fade towards white (multiplicative, where white changes nothing).
+		const DWORD src = Render_State(D3DRS_SRCBLEND);
+		const DWORD dst = Render_State(D3DRS_DESTBLEND);
+		float mode;
+		if ((src == D3DBLEND_ZERO && dst == D3DBLEND_SRCCOLOR) || (src == D3DBLEND_DESTCOLOR && dst == D3DBLEND_ZERO))
+			mode = 2.0f;
+		else if (src == D3DBLEND_SRCALPHA && dst != D3DBLEND_ZERO)
+			mode = 0.0f;
+		else if (src == D3DBLEND_ONE && dst != D3DBLEND_ZERO)
+			mode = 1.0f;
+		else
+			return false;
+
+		Float4 stage_constants[8];
+		memset(stage_constants, 0, sizeof(stage_constants));
+		stage_constants[0].x = float(D3DTOP_DISABLE);
+		stage_constants[4].x = float(D3DTOP_DISABLE);
+		Float4 texgen = { 0.0f, 0.0f, 0.0f, 0.0f };
+		Float4 texmatrix[4];
+		float has_texture = 0.0f;
+		if (Stage_State(0, D3DTSS_COLOROP) != D3DTOP_DISABLE)
+		{
+			if (!Gather_Stage(0, texcoord_sets, stage_constants, texgen, texmatrix, has_texture))
+				return false;
+			if (Stage_State(1, D3DTSS_COLOROP) != D3DTOP_DISABLE)
+				return false;
+		}
+		if (texgen.x != 0.0f || texgen.y != 0.0f || texgen.z != 0.0f)
+			return false;
+
+		Float4 fog;
+		float range_fog;
+		if (!Gather_Fog(fog, range_fog))
+			return false;
+
+		IDirect3DVertexShader9 *vertex_shader = EwShaders::Peek_Vertex(EwShaders::VS_PARTICLE);
+		IDirect3DPixelShader9 *pixel_shader = EwShaders::Peek_Pixel(EwShaders::PS_PARTICLE);
+		if (vertex_shader == nullptr || pixel_shader == nullptr)
+			return Fallback(REASON_NO_SHADER, 2);
+
+		D3DMATRIX world, view, projection, world_view, world_view_projection;
+		Device->GetTransform(D3DTS_WORLD, &world);
+		Device->GetTransform(D3DTS_VIEW, &view);
+		Device->GetTransform(D3DTS_PROJECTION, &projection);
+		Multiply(world_view, world, view);
+		Multiply(world_view_projection, world_view, projection);
+
+		Float4 vs[EW_MESH_VS_COUNT];
+		memset(vs, 0, sizeof(vs));
+		Columns(&vs[EW_MESH_VS_WVP], world_view_projection, 4);
+		Columns(&vs[EW_MESH_VS_WORLDVIEW], world_view, 3);
+		vs[EW_MESH_VS_OPTIONS].x = range_fog;
+
+		Float4 ps[EW_PARTICLE_PS_SOFT + 1];
+		memset(ps, 0, sizeof(ps));
+		memcpy(&ps[EW_MESH_PS_STAGE], stage_constants, sizeof(stage_constants));
+		ps[EW_MESH_PS_TFACTOR] = Color(D3DCOLOR(Render_State(D3DRS_TEXTUREFACTOR)));
+		ps[EW_MESH_PS_OPTIONS].z = has_texture;
+		ps[EW_MESH_PS_FOG] = fog;
+		ps[EW_MESH_PS_FOGCOLOR] = Color(D3DCOLOR(Render_State(D3DRS_FOGCOLOR)));
+		Float4 soft = { SceneDepthInvWidth, SceneDepthInvHeight, 1.0f / SOFT_PARTICLE_FADE_DISTANCE, mode };
+		ps[EW_PARTICLE_PS_SOFT] = soft;
+
+		Device->SetVertexShaderConstantF(0, &vs[0].x, EW_MESH_VS_COUNT);
+		Device->SetPixelShaderConstantF(0, &ps[0].x, EW_PARTICLE_PS_SOFT + 1);
+		Device->SetVertexShader(vertex_shader);
+		Device->SetPixelShader(pixel_shader);
+
+		// The pixel shader fogs itself; End() turns fog back on.
+		RestoreFog = fog.x > 0.5f;
+		if (RestoreFog)
+			Device->SetRenderState(D3DRS_FOGENABLE, FALSE);
+		return true;
+	}
+}
+
+void EwMeshShader::Set_Scene_Depth(float inv_width, float inv_height)
+{
+	SceneDepthInvWidth = inv_width;
+	SceneDepthInvHeight = inv_height;
 }
 
 bool EwMeshShader::Begin()
 {
+	Device = DX8Wrapper::_Get_D3D_Device9();
+	if (Device == nullptr)
+		return false;
+
+	// Soft particles are unlit, so they do not depend on the lit-mesh option.
+	if (SceneDepthInvWidth > 0.0f && DX8Wrapper::Get_Ew_Soft_Particle() && Render_State(D3DRS_LIGHTING) == FALSE)
+		return Begin_Particle();
+
 	if (!EwGraphics().MeshLighting())
 		return false;
 	// The shadow map's caster pass draws depth only, fixed function.
 	if (EwShadowMap::Caster_Pass())
 		return false;
 
-	Device = DX8Wrapper::_Get_D3D_Device9();
-	if (Device == nullptr)
-		return false;
-
 	// Unlit draws and draws with their own shaders are not ours.
-	if (Render_State(D3DRS_LIGHTING) == FALSE)
+	if (Render_State(D3DRS_LIGHTING) == FALSE || Caller_Has_Shaders())
 		return false;
-	IDirect3DVertexShader9 *caller_vs = nullptr;
-	Device->GetVertexShader(&caller_vs);
-	if (caller_vs)
-	{
-		caller_vs->Release();
-		return false;
-	}
-	IDirect3DPixelShader9 *caller_ps = nullptr;
-	Device->GetPixelShader(&caller_ps);
-	if (caller_ps)
-	{
-		caller_ps->Release();
-		return false;
-	}
 
 	const DX8Caps *caps = DX8Wrapper::Get_Current_Caps();
 	if (caps->Get_Vertex_Shader_Major_Version() < 3 || caps->Get_Pixel_Shader_Major_Version() < 3)
@@ -512,24 +653,11 @@ bool EwMeshShader::Begin()
 	if (clip_planes != 0)
 		return Fallback(REASON_CLIP_PLANES, clip_planes);
 
-	const bool fog_enabled = Render_State(D3DRS_FOGENABLE) != FALSE;
-	Float4 fog = { 0.0f, 0.0f, 0.0f, 0.0f };
-	float range_fog = 0.0f;
-	if (fog_enabled)
-	{
-		DWORD table_mode = Render_State(D3DRS_FOGTABLEMODE);
-		DWORD mode = (table_mode != D3DFOG_NONE) ? table_mode : Render_State(D3DRS_FOGVERTEXMODE);
-		if (mode != D3DFOG_LINEAR)
-			return Fallback(REASON_FOG_MODE, mode);
-		float start = Render_State_Float(D3DRS_FOGSTART);
-		float end = Render_State_Float(D3DRS_FOGEND);
-		float range = end - start;
-		fog.x = 1.0f;
-		fog.y = end;
-		fog.z = (fabsf(range) > 1e-6f) ? 1.0f / range : 1e6f;
-		if (table_mode == D3DFOG_NONE && Render_State(D3DRS_RANGEFOGENABLE))
-			range_fog = 1.0f;
-	}
+	Float4 fog;
+	float range_fog;
+	if (!Gather_Fog(fog, range_fog))
+		return false;
+	const bool fog_enabled = fog.x > 0.5f;
 
 	// Texture stages. A disabled stage 0 leaves the lit colour, and stage 1 only runs after stage 0.
 	Float4 stage_constants[8];

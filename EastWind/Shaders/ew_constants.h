@@ -65,6 +65,10 @@
 #define EW_MESH_PS_MATERIAL_OPTIONS  40  // c40: M3.1b normal map, SpecMap, house colour on, ground ambient scale
 #define EW_MESH_PS_HOUSECOLOR        41  // c41: rgb house colour, w SpecMap specular power
 #define EW_MESH_PS_COUNT             42
+// ParticleVS/ParticlePS (soft particles) use the WVP, world-view and options registers of the
+// vertex side and the stage, texture factor, options and fog registers of the pixel side, plus:
+#define EW_PARTICLE_PS_SOFT          42  // c42: xy 1 / render target size, z 1 / fade distance (world units), w fade mode
+#define EW_PARTICLE_DEPTH_SAMPLER    13  // s13: view depth of the scene before the particles (R32F, EwPostProcess)
 
 // --- terrain_lit.hlsl (vertex + pixel), M3.1c per-pixel terrain lighting; set by EwTerrainLighting_dx9.cpp ---
 // Matrices are uploaded as their columns, like the mesh shader's.

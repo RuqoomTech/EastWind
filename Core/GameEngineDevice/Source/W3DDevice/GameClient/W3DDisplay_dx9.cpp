@@ -768,11 +768,12 @@ static void ewLoadGraphicsOptions()
 	options.FXAA = prefs.getBool("EwFXAA", options.FXAA);
 	options.AmbientOcclusion = prefs.getInt("EwAmbientOcclusion", options.AmbientOcclusion);
 	options.Hdr = prefs.getBool("EwHdr", options.Hdr);
+	options.SoftParticles = prefs.getBool("EwSoftParticles", options.SoftParticles);
 	options.DebugKeys = prefs.getBool("EwDebugKeys", options.DebugKeys);
 	options.Validate();
 }
 
-// EastWind (EwDebugKeys = yes): Ctrl+Shift+F1..F12 and H switch the DX9 features while the game
+// EastWind (EwDebugKeys = yes): Ctrl+Shift+F1..F12, H and P switch the DX9 features while the game
 // runs, so the new and the classic look can be compared at the same spot, and Ctrl+Shift+T shows
 // the GPU time of each part of the frame. The keys are read straight from the keyboard, and the
 // game still sees them.
@@ -807,6 +808,7 @@ static void ewShowGraphicsStatus()
 	const WideChar *ao = o.AmbientOcclusion <= 0 ? L"off in Options.ini" : !o.PostProcess() ? L"off"
 		: o.DebugAoMode == 2 ? L"off" : o.DebugAoMode == 1 ? L"occlusion only" : L"on";
 	const WideChar *hdr = !o.Hdr ? L"off in Options.ini" : o.PostHdr() ? L"on" : L"off (8-bit scene)";
+	const WideChar *soft = !o.SoftParticles ? L"off in Options.ini" : o.PostSoftParticles() ? L"on" : L"off";
 
 	TheInGameUI->message(L"EastWind graphics: %s   [Ctrl+Shift+F9]", o.DebugAllOff ? L"ALL OFF (classic)" : L"ON");
 	TheInGameUI->message(L"Terrain light: %s   [Ctrl+Shift+F10]", terrain);
@@ -821,6 +823,7 @@ static void ewShowGraphicsStatus()
 	TheInGameUI->message(L"Sun shadow maps: %s   [Ctrl+Shift+F2]", shadows);
 	TheInGameUI->message(L"Ambient occlusion: %s   [Ctrl+Shift+F1: on, occlusion only, off]", ao);
 	TheInGameUI->message(L"HDR scene: %s   [Ctrl+Shift+H]", hdr);
+	TheInGameUI->message(L"Soft particles: %s   [Ctrl+Shift+P]", soft);
 	TheInGameUI->message(L"GPU time of each pass: [Ctrl+Shift+T]");
 
 	ewShowShaderStatus(L"Terrain shader", EwTerrainLighting::Last_Frame_Passes(), EwTerrainLighting::Last_Reason());
@@ -832,6 +835,8 @@ static void ewShowGraphicsStatus()
 		EwPostProcess::Last_Reason(EwPostProcess::HDR));
 	ewShowShaderStatus(L"Ambient occlusion", EwPostProcess::Last_Frame_Passes(EwPostProcess::AMBIENT_OCCLUSION),
 		EwPostProcess::Last_Reason(EwPostProcess::AMBIENT_OCCLUSION));
+	ewShowShaderStatus(L"Soft particles (depth copy)", EwPostProcess::Last_Frame_Passes(EwPostProcess::SOFT_PARTICLES),
+		EwPostProcess::Last_Reason(EwPostProcess::SOFT_PARTICLES));
 	ewShowShaderStatus(L"Bloom", EwPostProcess::Last_Frame_Passes(EwPostProcess::BLOOM),
 		EwPostProcess::Last_Reason(EwPostProcess::BLOOM));
 	ewShowShaderStatus(L"Tone mapping", EwPostProcess::Last_Frame_Passes(EwPostProcess::TONE_MAPPING),
@@ -964,6 +969,7 @@ static void ewPollGraphicsDebugKeys()
 		{ VK_F11, &o.DebugMeshLightingOff },
 		{ VK_F12, &o.DebugNormalMapsOff },
 		{ 'H', &o.DebugHdrOff },
+		{ 'P', &o.DebugSoftParticlesOff },
 	};
 	const int KEY_COUNT = sizeof(keys) / sizeof(keys[0]);
 	static bool was_down[KEY_COUNT];

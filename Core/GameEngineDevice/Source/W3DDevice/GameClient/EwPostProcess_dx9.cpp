@@ -25,6 +25,7 @@
 #include "WW3D2/ewshaders_dx9.h"
 #include "WW3D2/ewgraphicsoptions_dx9.h"
 #include "WW3D2/ewgputimer_dx9.h"
+#include "WW3D2/ewmeshshader_dx9.h"
 #include "WWDebug/wwdebug.h"
 #include "ew_constants.h"
 
@@ -100,6 +101,9 @@ namespace
 		REASON_HDR_DEBUG_OFF,
 		REASON_HDR_NO_FORMAT,
 		REASON_HDR_CREATE_FAILED,
+		REASON_SOFT_DEBUG_OFF,
+		REASON_SOFT_NO_R32F,
+		REASON_SOFT_CREATE_FAILED,
 		REASON_COUNT
 	};
 
@@ -129,6 +133,9 @@ namespace
 		"switched off with Ctrl+Shift+H",
 		"the card cannot draw, blend and filter 16-bit float textures",
 		"the 16-bit float scene texture could not be created, perhaps with this anti-aliasing (HRESULT)",
+		"switched off with Ctrl+Shift+P",
+		"the card cannot draw into R32F textures",
+		"the soft particle depth texture could not be created (HRESULT)",
 	};
 	static_assert(sizeof(ReasonText) / sizeof(ReasonText[0]) == REASON_COUNT, "ReasonText must match Reason");
 
@@ -198,6 +205,12 @@ namespace
 	int AoDivisor = 0;
 	bool AoFailed = false;
 
+	// Soft particles: the scene's view depth, copied from DepthTexture before the particles draw,
+	// the size of the scene texture. Bound on EW_PARTICLE_DEPTH_SAMPLER until End_Particles().
+	IDirect3DTexture9 *ParticleDepthTexture = nullptr;
+	IDirect3DSurface9 *ParticleDepthSurface = nullptr;
+	Reason ParticleDepthFailed = REASON_COUNT;	// why it cannot be made; not tried again until Release()
+	bool ParticleDepthBound = false;
 	// Set between Begin_Scene and End_Scene.
 	IDirect3DSurface9 *BackBuffer = nullptr;
 	IDirect3DSurface9 *DepthBuffer = nullptr;
@@ -206,7 +219,8 @@ namespace
 	{
 		if (!Logged[reason] && reason != REASON_OFF && reason != REASON_DEBUG_OFF && reason != REASON_EFFECT_OFF
 			&& reason != REASON_TONE_DEBUG_OFF && reason != REASON_GRADE_DEBUG_OFF && reason != REASON_FXAA_DEBUG_OFF
-			&& reason != REASON_AO_DEBUG_OFF && reason != REASON_AO_MSAA && reason != REASON_HDR_DEBUG_OFF)
+			&& reason != REASON_AO_DEBUG_OFF && reason != REASON_AO_MSAA && reason != REASON_HDR_DEBUG_OFF
+			&& reason != REASON_SOFT_DEBUG_OFF)
 		{
 			Logged[reason] = true;
 			WWDEBUG_SAY(("EwPostProcess: %s, value 0x%x (logged once)", ReasonText[reason], value));
@@ -270,6 +284,9 @@ namespace
 	{
 		Release_Com(DepthSurface);
 		Release_Com(DepthTexture);
+		Release_Com(ParticleDepthSurface);
+		Release_Com(ParticleDepthTexture);
+		ParticleDepthFailed = REASON_COUNT;
 		Release_Ao();
 		Release_Com(MsaaSurface);
 		Release_Com(SceneSurface);
@@ -729,30 +746,105 @@ namespace
 		++Stats[EwPostProcess::AMBIENT_OCCLUSION].Passes;
 	}
 
-	// Draws the blurred occlusion into AoTexture[0] and sets the constants the final pass reads
-	// (c6..c10). u0..v1 is the view rectangle in the scene texture. Ends with the back buffer and
-	// its depth buffer bound again.
-	void Draw_Ao(IDirect3DDevice9 *device, const CameraClass *camera, float u0, float v0, float u1, float v1)
+	// The EW_POST_PS_DEPTH constant: stored depth -> view depth. The projection maps view depth d
+	// to f/(f-n) * (1 - n/d), and the viewport puts that into zmin..zmax.
+	void Depth_Params(const CameraClass *camera, float depth[4])
 	{
 		float znear = 1.0f;
 		float zfar = 1000.0f;
 		float zmin = 0.0f;
 		float zmax = 1.0f;
-		Vector2 vmin;
-		Vector2 vmax;
 		camera->Get_Clip_Planes(znear, zfar);
 		camera->Get_Depth_Range(&zmin, &zmax);
-		camera->Get_View_Plane(vmin, vmax);
 		const float zrange = zmax > zmin ? zmax - zmin : 1.0f;
+		depth[0] = znear * zfar;
+		depth[1] = zfar + (zfar - znear) * zmin / zrange;
+		depth[2] = (zfar - znear) / zrange;
+		depth[3] = zfar < AO_MAX_DEPTH ? zfar : AO_MAX_DEPTH;
+	}
+
+	// The states of the full-screen post passes, with the post vertex shader.
+	void Set_Post_States(IDirect3DDevice9 *device)
+	{
+		device->SetRenderState(D3DRS_ZENABLE, D3DZB_FALSE);
+		device->SetRenderState(D3DRS_ZWRITEENABLE, FALSE);
+		device->SetRenderState(D3DRS_STENCILENABLE, FALSE);
+		device->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
+		device->SetRenderState(D3DRS_ALPHATESTENABLE, FALSE);
+		device->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
+		device->SetRenderState(D3DRS_FILLMODE, D3DFILL_SOLID);
+		device->SetRenderState(D3DRS_FOGENABLE, FALSE);
+		device->SetRenderState(D3DRS_CLIPPLANEENABLE, 0);
+		device->SetRenderState(D3DRS_SCISSORTESTENABLE, FALSE);
+		device->SetRenderState(D3DRS_SRGBWRITEENABLE, FALSE);
+		device->SetRenderState(D3DRS_COLORWRITEENABLE, D3DCOLORWRITEENABLE_RED | D3DCOLORWRITEENABLE_GREEN
+			| D3DCOLORWRITEENABLE_BLUE | D3DCOLORWRITEENABLE_ALPHA);
+		device->SetFVF(POST_FVF);
+		device->SetVertexShader(EwShaders::Peek_Vertex(EwShaders::VS_POST));
+	}
+
+	// Creates the soft particle depth texture for the current scene texture, once.
+	bool Particle_Depth_Ready(IDirect3DDevice9 *device)
+	{
+		if (ParticleDepthTexture == nullptr && ParticleDepthFailed == REASON_COUNT)
+		{
+			HRESULT hr = E_FAIL;
+			if (!EwShaders::Format_Supported(device, D3DUSAGE_RENDERTARGET, D3DRTYPE_TEXTURE, D3DFMT_R32F))
+				ParticleDepthFailed = REASON_SOFT_NO_R32F;
+			else
+			{
+				hr = device->CreateTexture(TargetDesc.Width, TargetDesc.Height, 1, D3DUSAGE_RENDERTARGET, D3DFMT_R32F,
+					D3DPOOL_DEFAULT, &ParticleDepthTexture, nullptr);
+				if (SUCCEEDED(hr))
+					hr = ParticleDepthTexture->GetSurfaceLevel(0, &ParticleDepthSurface);
+				if (FAILED(hr))
+				{
+					Release_Com(ParticleDepthSurface);
+					Release_Com(ParticleDepthTexture);
+					ParticleDepthFailed = REASON_SOFT_CREATE_FAILED;
+				}
+			}
+			if (ParticleDepthFailed != REASON_COUNT)
+				Log_Once(ParticleDepthFailed, hr);
+		}
+		if (ParticleDepthFailed != REASON_COUNT)
+		{
+			Set_Reason(EwPostProcess::SOFT_PARTICLES, ParticleDepthFailed);
+			return false;
+		}
+		return true;
+	}
+
+	// Captures all device states into SavedStates, creating it the first time. False without it.
+	bool Save_States(IDirect3DDevice9 *device)
+	{
+		if (SavedStates == nullptr)
+		{
+			if (FAILED(device->CreateStateBlock(D3DSBT_ALL, &SavedStates)))
+				SavedStates = nullptr;
+		}
+		else
+		{
+			SavedStates->Capture();
+		}
+		return SavedStates != nullptr;
+	}
+
+	// Draws the blurred occlusion into AoTexture[0] and sets the constants the final pass reads
+	// (c6..c10). u0..v1 is the view rectangle in the scene texture. Ends with the back buffer and
+	// its depth buffer bound again.
+	void Draw_Ao(IDirect3DDevice9 *device, const CameraClass *camera, float u0, float v0, float u1, float v1)
+	{
+		Vector2 vmin;
+		Vector2 vmax;
+		camera->Get_View_Plane(vmin, vmax);
 		const float du = u1 > u0 ? u1 - u0 : 1.0f;
 		const float dv = v1 > v0 ? v1 - v0 : 1.0f;
 		const float view_w = vmax.X > vmin.X ? vmax.X - vmin.X : 1.0f;
 		const float view_h = vmax.Y > vmin.Y ? vmax.Y - vmin.Y : 1.0f;
 
-		// Stored depth -> view depth. The projection maps view depth d to f/(f-n) * (1 - n/d), and
-		// the viewport puts that into zmin..zmax.
-		const float depth[4] = { znear * zfar, zfar + (zfar - znear) * zmin / zrange, (zfar - znear) / zrange,
-			zfar < AO_MAX_DEPTH ? zfar : AO_MAX_DEPTH };
+		float depth[4];
+		Depth_Params(camera, depth);
 		// uv -> the view plane at depth 1 (v grows down, y up).
 		const float ray_x = view_w / du;
 		const float ray_y = -view_h / dv;
@@ -880,11 +972,11 @@ bool EwPostProcess::Begin_Scene(float clear_alpha)
 	if (!SceneHdr)
 		Set_Reason(HDR, !o.Hdr ? REASON_EFFECT_OFF : o.DebugHdrOff ? REASON_HDR_DEBUG_OFF : HdrFailed);
 
-	// Ambient occlusion reads the scene's depth, so the scene draws with its own depth texture,
+	// Ambient occlusion and soft particles read the scene's depth, so the scene draws with its own depth texture,
 	// cleared here as the frame clear cleared the back buffer's.
 	DWORD clear = D3DCLEAR_TARGET;
 	SceneDepthBound = false;
-	if (o.PostAo() && Depth_Ready(device))
+	if ((o.PostAo() || o.PostSoftParticles()) && Depth_Ready(device))
 	{
 		hr = device->SetDepthStencilSurface(DepthSurface);
 		if (SUCCEEDED(hr))
@@ -927,38 +1019,15 @@ void EwPostProcess::End_Scene(int x, int y, int width, int height, const CameraC
 	if (x + width > tw) width = tw - x;
 	if (y + height > th) height = th - y;
 
-	if (SavedStates == nullptr)
-	{
-		if (FAILED(device->CreateStateBlock(D3DSBT_ALL, &SavedStates)))
-			SavedStates = nullptr;
-	}
-	else
-	{
-		SavedStates->Capture();
-	}
 	// Without a state block the states cannot be put back, so the back buffer stays as the frame
 	// clear left it.
-	if (width <= 0 || height <= 0 || SavedStates == nullptr)
+	if (!Save_States(device) || width <= 0 || height <= 0)
 	{
 		Release_Saved_Targets();
 		return;
 	}
 
-	device->SetRenderState(D3DRS_ZENABLE, D3DZB_FALSE);
-	device->SetRenderState(D3DRS_ZWRITEENABLE, FALSE);
-	device->SetRenderState(D3DRS_STENCILENABLE, FALSE);
-	device->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
-	device->SetRenderState(D3DRS_ALPHATESTENABLE, FALSE);
-	device->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
-	device->SetRenderState(D3DRS_FILLMODE, D3DFILL_SOLID);
-	device->SetRenderState(D3DRS_FOGENABLE, FALSE);
-	device->SetRenderState(D3DRS_CLIPPLANEENABLE, 0);
-	device->SetRenderState(D3DRS_SCISSORTESTENABLE, FALSE);
-	device->SetRenderState(D3DRS_SRGBWRITEENABLE, FALSE);
-	device->SetRenderState(D3DRS_COLORWRITEENABLE, D3DCOLORWRITEENABLE_RED | D3DCOLORWRITEENABLE_GREEN
-		| D3DCOLORWRITEENABLE_BLUE | D3DCOLORWRITEENABLE_ALPHA);
-	device->SetFVF(POST_FVF);
-	device->SetVertexShader(EwShaders::Peek_Vertex(EwShaders::VS_POST));
+	Set_Post_States(device);
 
 	// Which effects of the final pass run. Bloom also needs its own shaders and textures, colour
 	// grading its LUT texture; without any effect the scene is only copied.
@@ -1095,8 +1164,77 @@ void EwPostProcess::End_Scene(int x, int y, int width, int height, const CameraC
 	Release_Saved_Targets();
 }
 
+void EwPostProcess::Begin_Particles(const CameraClass *camera)
+{
+	const EwGraphicsOptions &o = EwGraphics();
+	if (BackBuffer == nullptr)
+		return;	// no scene texture; Begin_Scene() gave the reason
+	if (!o.SoftParticles)
+		return Set_Reason(SOFT_PARTICLES, REASON_EFFECT_OFF);
+	if (o.DebugSoftParticlesOff)
+		return Set_Reason(SOFT_PARTICLES, REASON_SOFT_DEBUG_OFF);
+	if (!SceneDepthBound)
+		return Set_Reason(SOFT_PARTICLES, DepthReason);
+	if (camera == nullptr)
+		return Set_Reason(SOFT_PARTICLES, REASON_AO_NO_CAMERA);
+	if (EwShaders::Peek_Pixel(EwShaders::PS_POST_DEPTH_COPY) == nullptr || EwShaders::Peek_Vertex(EwShaders::VS_PARTICLE) == nullptr
+		|| EwShaders::Peek_Pixel(EwShaders::PS_PARTICLE) == nullptr)
+		return Set_Reason(SOFT_PARTICLES, REASON_NO_SHADER);
+
+	IDirect3DDevice9 *device = DX8Wrapper::_Get_D3D_Device9();
+	if (ParticleDepthBound || !Particle_Depth_Ready(device))
+		return;
+
+	// Only the main scene: a pass into another target (the water reflection) has its own depth.
+	IDirect3DSurface9 *depth = nullptr;
+	device->GetDepthStencilSurface(&depth);
+	const bool scene_pass = depth == DepthSurface;
+	Release_Com(depth);
+	IDirect3DSurface9 *target = nullptr;
+	device->GetRenderTarget(0, &target);
+	if (!scene_pass || target == nullptr || !Save_States(device))
+	{
+		Release_Com(target);
+		return;
+	}
+
+	// The copy. The state block does not hold the render target and depth buffer, so they are
+	// put back first; it does hold the viewport.
+	device->SetDepthStencilSurface(nullptr);
+	device->SetRenderTarget(0, ParticleDepthSurface);
+	Set_Post_States(device);
+	float depth_params[4];
+	Depth_Params(camera, depth_params);
+	device->SetPixelShaderConstantF(EW_POST_PS_DEPTH, depth_params, 1);
+	Set_Texture(device, EW_POST_DEPTH_SAMPLER, DepthTexture, false);
+	device->SetPixelShader(EwShaders::Peek_Pixel(EwShaders::PS_POST_DEPTH_COPY));
+	Draw_Quad(device, 0, 0, (int)TargetDesc.Width, (int)TargetDesc.Height, 0.0f, 0.0f, 1.0f, 1.0f);
+	device->SetRenderTarget(0, target);
+	device->SetDepthStencilSurface(DepthSurface);
+	target->Release();
+	SavedStates->Apply();
+
+	Set_Texture(device, EW_PARTICLE_DEPTH_SAMPLER, ParticleDepthTexture, false);
+	ParticleDepthBound = true;
+	EwMeshShader::Set_Scene_Depth(1.0f / (float)TargetDesc.Width, 1.0f / (float)TargetDesc.Height);
+	++Stats[SOFT_PARTICLES].Passes;
+}
+
+void EwPostProcess::End_Particles()
+{
+	if (!ParticleDepthBound)
+		return;
+	ParticleDepthBound = false;
+	EwMeshShader::Set_Scene_Depth(0.0f, 0.0f);
+	IDirect3DDevice9 *device = DX8Wrapper::_Get_D3D_Device9();
+	if (device)
+		device->SetTexture(EW_PARTICLE_DEPTH_SAMPLER, nullptr);
+}
+
 void EwPostProcess::Release()
 {
+	if (ParticleDepthBound)
+		End_Particles();
 	if (BackBuffer != nullptr)
 	{
 		IDirect3DDevice9 *device = DX8Wrapper::_Get_D3D_Device9();

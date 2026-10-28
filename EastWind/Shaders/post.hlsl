@@ -442,3 +442,12 @@ float4 PostFxaaPS(float2 uv : TEXCOORD0) : COLOR0
 		finalUv.x += blend * across;
 	return float4(FxaaColor(finalUv), centre.a);
 }
+
+// ---- Soft particles (EwSoftParticles) ----
+
+// Copies the scene's view depth into an R32F texture before the particles draw, so the particle
+// shader (mesh.hlsl ParticlePS) can read it while the INTZ depth stays bound for depth testing.
+float4 PostDepthCopyPS(float2 uv : TEXCOORD0) : COLOR0
+{
+	return View_Depth(uv).xxxx;
+}

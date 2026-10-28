@@ -37,6 +37,9 @@
 // (RenderObjClass::Get_ObjectColor). DX8TextureCategoryClass::Render puts it in the render
 // state around each mesh, so sorted (transparent) draws replay it too. Textures the game
 // already recolours on the CPU (ZHC*) keep that and ignore the SpecMap's house colour mask.
+//
+// Soft particles: Begin() also binds mesh.hlsl ParticleVS/ParticlePS for unlit billboard particles
+// while EwPostProcess has the scene depth bound, so they fade where they meet the scene.
 
 #pragma once
 
@@ -55,6 +58,11 @@ public:
 	// is taken from the first container that has one.
 	static void Set_Object(const RenderObjClass *object);
 	static void Clear_Object();
+
+	// Soft particles (EwSoftParticles): EwPostProcess bound the scene's view depth on
+	// EW_PARTICLE_DEPTH_SAMPLER, and these are 1 / its size; 0, 0 when it is unbound. While it is
+	// bound, billboard particles (DX8Wrapper::Set_Ew_Soft_Particle) draw with the particle shaders.
+	static void Set_Scene_Depth(float inv_width, float inv_height);
 
 	// Forgets which map files exist. Called from DX8Wrapper::Shutdown.
 	static void Shutdown();

@@ -925,6 +925,7 @@ void PointGroupClass::Render(RenderInfoClass &rinfo)
 	DX8Wrapper::Set_Material(PointMaterial);
 	DX8Wrapper::Set_Shader(Shader);
 	DX8Wrapper::Set_Texture(0,Texture);
+	DX8Wrapper::Set_Ew_Soft_Particle(Billboard);	// EastWind: ground-aligned particles keep hard edges
 
 	// Enable sorting if the primitives are translucent and alpha testing is not enabled.
 	// TheSuperHackers @bugfix stephanmeesters 30/06/2026 However, do not apply sorting to ground-aligned particles.
@@ -995,6 +996,7 @@ void PointGroupClass::Render(RenderInfoClass &rinfo)
 		current+=delta;
 	}
 
+	DX8Wrapper::Set_Ew_Soft_Particle(false);
 	// restore the matrices
 	DX8Wrapper::Set_Transform(D3DTS_VIEW,view);
 }
@@ -1855,6 +1857,7 @@ void PointGroupClass::RenderVolumeParticle(RenderInfoClass &rinfo, unsigned int 
 		DX8Wrapper::Set_Material(PointMaterial);
 		DX8Wrapper::Set_Shader(Shader);
 		DX8Wrapper::Set_Texture(0,Texture);
+		DX8Wrapper::Set_Ew_Soft_Particle(Billboard);
 
 		// Enable sorting if the primitives are translucent and alpha testing is not enabled.
 		// TheSuperHackers @info Volumetric particles, both billboarded and ground-aligned, must have sorting enabled to
@@ -1931,6 +1934,7 @@ void PointGroupClass::RenderVolumeParticle(RenderInfoClass &rinfo, unsigned int 
 
 
 
+	DX8Wrapper::Set_Ew_Soft_Particle(false);
 	// restore the matrices
 	DX8Wrapper::Set_Transform(D3DTS_VIEW,view);
 }

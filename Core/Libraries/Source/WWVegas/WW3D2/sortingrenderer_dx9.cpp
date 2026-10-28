@@ -366,6 +366,7 @@ static void Apply_Render_State(RenderStateStruct& render_state)
 {
 	DX8Wrapper::Set_Shader(render_state.shader);
 	DX8Wrapper::Set_Ew_House_Color(render_state.EwHouseColor);
+	DX8Wrapper::Set_Ew_Soft_Particle(render_state.EwSoftParticle);
 
 	DX8Wrapper::Set_Material(render_state.material);
 
@@ -636,6 +637,7 @@ void SortingRendererClass::Flush()
 	DX8Wrapper::_Enable_Triangle_Draw(_EnableTriangleDraw);
 	Flush_Sorting_Pool();
 	DX8Wrapper::_Enable_Triangle_Draw(old_enable);
+	DX8Wrapper::Set_Ew_Soft_Particle(false);	// EastWind: the replay left the last node's flag set
 
 	DX8Wrapper::Set_Index_Buffer(nullptr,0);
 	DX8Wrapper::Set_Vertex_Buffer(nullptr);

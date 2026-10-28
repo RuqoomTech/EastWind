@@ -53,6 +53,7 @@
 #include "W3DDevice/GameClient/W3DStatusCircle.h"
 #include "W3DDevice/GameClient/W3DCustomScene.h"
 #include "W3DDevice/GameClient/W3DShroud.h"
+#include "W3DDevice/GameClient/EwPostProcess_dx9.h"
 #include "WW3D2/camera.h"
 #include "WW3D2/dx8renderer.h"
 #include "WW3D2/sortingrenderer.h"
@@ -884,9 +885,13 @@ void RTS3DScene::Flush(RenderInfoClass & rinfo)
 
 		//don't draw transparent in this mode because they interfere with destination alpha
 		if (m_customPassMode == SCENE_PASS_DEFAULT && Get_Extra_Pass_Polygon_Mode() == EXTRA_PASS_DISABLE)
+		{
+			EwPostProcess::Begin_Particles(&rinfo.Camera);	// EastWind: soft particles read the scene depth
 			DoParticles(rinfo);	//queue up particles for rendering.
+		}
 
 		SortingRendererClass::Flush();	//draw sorted translucent polygons like particles.
+		EwPostProcess::End_Particles();
 	}
 	TheDX8MeshRenderer.Clear_Pending_Delete_Lists();
 }

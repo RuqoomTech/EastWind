@@ -64,6 +64,11 @@
 // effects on, the final pass draws into a second texture the size of the scene texture, which
 // FXAA reads; FXAA alone reads the scene texture.
 //
+// Soft particles (EwSoftParticles): the scene draws with the depth texture of ambient occlusion
+// (so also needs AntiAliasing = 0). Right before the particles, Begin_Particles() copies its view
+// depth into an R32F texture, since the bound depth buffer cannot be read at the same time, and
+// binds that for EwMeshShader's particle shaders; End_Particles() unbinds it after them.
+//
 // Code that copies the screen during the 3D scene must read the current render target, not the
 // back buffer: the DX9 copies of W3DShaderManager (view filters) and W3DSmudgeManager (heat haze)
 // do.
@@ -85,6 +90,7 @@ public:
 		COLOR_GRADING,
 		FXAA,
 		HDR,
+		SOFT_PARTICLES,
 		EFFECT_COUNT
 	};
 
@@ -99,6 +105,11 @@ public:
 	// the view rectangle (in back buffer pixels). camera is the 3D camera the scene drew with; the
 	// ambient occlusion needs it. Does nothing if Begin_Scene() returned false.
 	static void End_Scene(int x, int y, int width, int height, const CameraClass *camera);
+
+	// Around the particles of the 3D scene (W3DScene): binds the scene's view depth for the soft
+	// particle shaders, if the scene draws with the depth texture. camera is the 3D camera.
+	static void Begin_Particles(const CameraClass *camera);
+	static void End_Particles();
 
 	// Frees the scene texture and surfaces. Called from W3DShaderManager::shutdown, which also runs
 	// before a device reset; Begin_Scene() creates them again when needed.
