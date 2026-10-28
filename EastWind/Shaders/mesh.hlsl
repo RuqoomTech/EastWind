@@ -23,6 +23,7 @@
 
 #include "ew_constants.h"
 #include "ew_shadow.h"
+#include "ew_linear.h"
 
 // D3DTEXTUREOP values
 #define OP_DISABLE                    1
@@ -207,6 +208,7 @@ void AddLight(int l, float3 P, float3 N, float sunShadow, float3 V, float power,
 	inout float3 ambient, inout float3 diffuse, inout float3 specular, inout float3 mapSpecular)
 {
 	float4 lightDiffuse = Lights[l * 5 + 0];
+	lightDiffuse.rgb = Ew_To_Linear(lightDiffuse.rgb);
 	float4 lightVector = Lights[l * 5 + 3];
 	float4 lightAtten = Lights[l * 5 + 4];
 
@@ -223,7 +225,7 @@ void AddLight(int l, float3 P, float3 N, float sunShadow, float3 V, float power,
 			atten = (dist <= lightAtten.w) ? 1.0 / max(d, 1e-6) : 0.0;
 		}
 
-		ambient += atten * Lights[l * 5 + 2].rgb;
+		ambient += atten * Ew_To_Linear(Lights[l * 5 + 2].rgb);
 
 		float nl = dot(N, L);
 		if (nl > 0.0)
@@ -233,10 +235,10 @@ void AddLight(int l, float3 P, float3 N, float sunShadow, float3 V, float power,
 			diffuse += atten * nl * lightDiffuse.rgb;
 			float nh = saturate(dot(N, normalize(L + V)));
 			float s = (power > 0.0) ? pow(nh, power) : 1.0;
-			specular += atten * s * Lights[l * 5 + 1].rgb;
+			float3 lightSpecular = Ew_To_Linear(Lights[l * 5 + 1].rgb);
+			specular += atten * s * lightSpecular;
 			if (material)
 			{
-				float3 lightSpecular = Lights[l * 5 + 1].rgb;
 				float3 highlight = (dot(lightSpecular, 1.0) > 0.001) ? lightSpecular : lightDiffuse.rgb;
 				mapSpecular += atten * pow(nh, HouseColor.w) * highlight;
 			}
@@ -368,8 +370,13 @@ float4 ShadeMesh(PsIn i, uniform bool material)
 	float4 matAmbient = SourceColor(MaterialSource.y, Material[1], i.diffuse, i.specular);
 	float4 matSpecular = SourceColor(MaterialSource.z, Material[2], i.diffuse, i.specular);
 	float4 matEmissive = SourceColor(MaterialSource.w, Material[3], i.diffuse, i.specular);
+	// Light sums run in linear space (ew_linear.h); the stages and fog below stay gamma.
+	matDiffuse.rgb = Ew_To_Linear(matDiffuse.rgb);
+	matAmbient.rgb = Ew_To_Linear(matAmbient.rgb);
+	matSpecular.rgb = Ew_To_Linear(matSpecular.rgb);
+	matEmissive.rgb = Ew_To_Linear(matEmissive.rgb);
 
-	float3 ambient = GlobalAmbient.rgb;
+	float3 ambient = Ew_To_Linear(GlobalAmbient.rgb);
 	float3 diffuse = 0.0;
 	float3 specular = 0.0;
 	float3 mapSpecular = 0.0;
@@ -383,8 +390,9 @@ float4 ShadeMesh(PsIn i, uniform bool material)
 	if (material)
 		ambient *= lerp(MaterialOptions.w, 1.0, saturate(N.z * 0.5 + 0.5));
 
-	float4 litDiffuse = float4(saturate(matAmbient.rgb * ambient + matDiffuse.rgb * diffuse + matEmissive.rgb), matDiffuse.a);
-	float4 litSpecular = float4(saturate(matSpecular.rgb * specular) * PsOptions.y, 0.0);
+	float4 litDiffuse = float4(Ew_To_Gamma(saturate(matAmbient.rgb * ambient + matDiffuse.rgb * diffuse + matEmissive.rgb)), matDiffuse.a);
+	float3 specularLinear = saturate(matSpecular.rgb * specular) * PsOptions.y;
+	float4 litSpecular = float4(Ew_To_Gamma(specularLinear), 0.0);
 
 	// Stage 0 disabled leaves the lit diffuse colour; stage 1 runs only after an enabled stage 0.
 	float4 current = litDiffuse;
@@ -398,11 +406,14 @@ float4 ShadeMesh(PsIn i, uniform bool material)
 		}
 	}
 
-	current.rgb = saturate(current.rgb + litSpecular.rgb);
+	// The highlights add in linear space too.
+	float3 lit = Ew_To_Linear(current.rgb) + specularLinear;
+	if (material)
+		lit += spm.r * mapSpecular;
+	current.rgb = Ew_To_Gamma(saturate(lit));
 
 	if (material)
 	{
-		current.rgb = saturate(current.rgb + spm.r * mapSpecular);
 		// Glow shows the (house-coloured) texture unlit.
 		current.rgb = lerp(current.rgb, tex0.rgb, spm.g);
 	}

@@ -69,6 +69,7 @@ float4 TreeLight[EW_TREES_PS_LIGHT_COUNT] : EW_REG(EW_TREES_PS_LIGHT);	// [0] am
 float4 TreeOptions                         : EW_REG(EW_TREES_PS_OPTIONS);	// x shroud on, y light only (debug key)
 
 #include "ew_shadow.h"
+#include "ew_linear.h"
 
 sampler2D TreeTexture : register(s0);
 sampler2D TreeShroud  : register(s1);
@@ -117,12 +118,13 @@ LitVsOut TreesLitVS(LitVsIn i)
 float4 TreesLitPS(LitVsOut i) : COLOR0
 {
 	float3 n = normalize(i.normal);
-	float3 light = TreeLight[0].rgb + i.emissive;
+	// The light adds up in linear space (ew_linear.h).
+	float3 light = Ew_To_Linear(TreeLight[0].rgb) + Ew_To_Linear(i.emissive);
 	float shadow = Ew_Sun_Shadow(i.world, n, TreeLight[1].xyz);
-	light += shadow * TreeLight[4].rgb * saturate(dot(TreeLight[1].xyz, n));
+	light += shadow * Ew_To_Linear(TreeLight[4].rgb) * saturate(dot(TreeLight[1].xyz, n));
 	[unroll] for (int k = 1; k < 3; ++k)
-		light += TreeLight[4 + k].rgb * saturate(dot(TreeLight[1 + k].xyz, n));
-	light = saturate(light) * i.colour;
+		light += Ew_To_Linear(TreeLight[4 + k].rgb) * saturate(dot(TreeLight[1 + k].xyz, n));
+	light = Ew_To_Gamma(saturate(light)) * i.colour;
 
 	float4 t = tex2D(TreeTexture, i.uv.xy);
 	// Debug keys: the light alone. The alpha still cuts the leaves out (alpha test).

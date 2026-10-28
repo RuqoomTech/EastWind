@@ -86,6 +86,7 @@ static void drawFramerateBar();
 #include "W3DDevice/GameClient/EwTerrainLighting_dx9.h"
 #include "W3DDevice/GameClient/EwPostProcess_dx9.h"
 #include "W3DDevice/GameClient/EwWater_dx9.h"
+#include "ew_constants.h"
 #include "WWMath/wwmath.h"
 #include "WWLib/registry.h"
 #include "WW3D2/ww3d.h"
@@ -769,11 +770,12 @@ static void ewLoadGraphicsOptions()
 	options.AmbientOcclusion = prefs.getInt("EwAmbientOcclusion", options.AmbientOcclusion);
 	options.Hdr = prefs.getBool("EwHdr", options.Hdr);
 	options.SoftParticles = prefs.getBool("EwSoftParticles", options.SoftParticles);
+	options.LinearLighting = prefs.getBool("EwLinearLighting", options.LinearLighting);
 	options.DebugKeys = prefs.getBool("EwDebugKeys", options.DebugKeys);
 	options.Validate();
 }
 
-// EastWind (EwDebugKeys = yes): Ctrl+Shift+F1..F12, H and P switch the DX9 features while the game
+// EastWind (EwDebugKeys = yes): Ctrl+Shift+F1..F12, H, L and P switch the DX9 features while the game
 // runs, so the new and the classic look can be compared at the same spot, and Ctrl+Shift+T shows
 // the GPU time of each part of the frame. The keys are read straight from the keyboard, and the
 // game still sees them.
@@ -809,6 +811,7 @@ static void ewShowGraphicsStatus()
 		: o.DebugAoMode == 2 ? L"off" : o.DebugAoMode == 1 ? L"occlusion only" : L"on";
 	const WideChar *hdr = !o.Hdr ? L"off in Options.ini" : o.PostHdr() ? L"on" : L"off (8-bit scene)";
 	const WideChar *soft = !o.SoftParticles ? L"off in Options.ini" : o.PostSoftParticles() ? L"on" : L"off";
+	const WideChar *linear = !o.LinearLighting ? L"off in Options.ini" : o.Linear() ? L"on" : L"off (gamma, classic)";
 
 	TheInGameUI->message(L"EastWind graphics: %s   [Ctrl+Shift+F9]", o.DebugAllOff ? L"ALL OFF (classic)" : L"ON");
 	TheInGameUI->message(L"Terrain light: %s   [Ctrl+Shift+F10]", terrain);
@@ -824,6 +827,7 @@ static void ewShowGraphicsStatus()
 	TheInGameUI->message(L"Ambient occlusion: %s   [Ctrl+Shift+F1: on, occlusion only, off]", ao);
 	TheInGameUI->message(L"HDR scene: %s   [Ctrl+Shift+H]", hdr);
 	TheInGameUI->message(L"Soft particles: %s   [Ctrl+Shift+P]", soft);
+	TheInGameUI->message(L"Linear lighting: %s   [Ctrl+Shift+L]", linear);
 	TheInGameUI->message(L"GPU time of each pass: [Ctrl+Shift+T]");
 
 	ewShowShaderStatus(L"Terrain shader", EwTerrainLighting::Last_Frame_Passes(), EwTerrainLighting::Last_Reason());
@@ -970,6 +974,7 @@ static void ewPollGraphicsDebugKeys()
 		{ VK_F12, &o.DebugNormalMapsOff },
 		{ 'H', &o.DebugHdrOff },
 		{ 'P', &o.DebugSoftParticlesOff },
+		{ 'L', &o.DebugLinearLightingOff },
 	};
 	const int KEY_COUNT = sizeof(keys) / sizeof(keys[0]);
 	static bool was_down[KEY_COUNT];
@@ -2280,6 +2285,12 @@ AGAIN:
 			TheParticleSystemManager->DRAW();
 
 			EwGpuTimer::Mark(EwGpuTimer::FRAME_BEGIN);
+
+			// EastWind DX9: the frame-wide pixel constant of ew_linear.h, read by the lit, water and post shaders.
+			{
+				const float frame_options[4] = { EwGraphics().Linear() ? 1.0f : 0.0f, 0.0f, 0.0f, 0.0f };
+				DX8Wrapper::_Get_D3D_Device9()->SetPixelShaderConstantF(EW_FRAME_PS_OPTIONS, frame_options, 1);
+			}
 
 			// EastWind DX9 (M3.4): the sun shadow map, before the water reflection so it has shadows too.
 			if (m_3DScene && primaryW3DView && TheTerrainRenderObject)

@@ -37,6 +37,7 @@ struct EwGraphicsOptions
 	int AmbientOcclusion;	// EwAmbientOcclusion: 0 off, 1 at half resolution, 2 at full resolution (M3.5)
 	bool Hdr;				// EwHdr: the post-processing scene texture is 16-bit float, so light adds up above white
 	bool SoftParticles;		// EwSoftParticles: particles fade where they meet the scene (needs the AO depth texture's conditions)
+	bool LinearLighting;	// EwLinearLighting: the shaders add light up in linear space (ew_linear.h)
 	bool DebugKeys;			// EwDebugKeys: Ctrl+Shift+F1..F12 switch the features above while the game runs
 
 	// Set by the debug keys (W3DDisplay), never saved. They only turn features off that
@@ -55,6 +56,7 @@ struct EwGraphicsOptions
 	int DebugAoMode;				// Ctrl+Shift+F1 cycles: 0 ambient occlusion on, 1 the occlusion alone, 2 off
 	bool DebugHdrOff;				// Ctrl+Shift+H: 8-bit scene texture
 	bool DebugSoftParticlesOff;		// Ctrl+Shift+P: hard-edged particles
+	bool DebugLinearLightingOff;	// Ctrl+Shift+L: light adds up in gamma space, as before
 
 	EwGraphicsOptions()
 		: PerPixelLighting(false)
@@ -68,6 +70,7 @@ struct EwGraphicsOptions
 		, AmbientOcclusion(0)
 		, Hdr(false)
 		, SoftParticles(false)
+		, LinearLighting(false)
 		, DebugKeys(false)
 		, DebugAllOff(false)
 		, DebugTerrainLightingOff(false)
@@ -83,6 +86,7 @@ struct EwGraphicsOptions
 		, DebugAoMode(0)
 		, DebugHdrOff(false)
 		, DebugSoftParticlesOff(false)
+		, DebugLinearLightingOff(false)
 	{
 	}
 
@@ -104,6 +108,7 @@ struct EwGraphicsOptions
 	bool PostHdr() const { return Hdr && !DebugHdrOff; }
 	// Soft particles read the scene depth, which the post-processing scene texture provides.
 	bool PostSoftParticles() const { return SoftParticles && !DebugSoftParticlesOff; }
+	bool Linear() const { return LinearLighting && !DebugAllOff && !DebugLinearLightingOff; }
 	bool WaterShader() const { return WaterQuality >= 1 && !DebugAllOff && !DebugWaterOff; }
 	// Sun shadow maps (M3.4) need the lit mesh and terrain shaders, which sample them.
 	bool ShadowMaps() const { return ShadowMapSize > 0 && MeshLighting() && !DebugTerrainLightingOff && !DebugShadowsOff; }

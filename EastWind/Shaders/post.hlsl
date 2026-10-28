@@ -32,11 +32,16 @@
 // The switches are uniform branches, so the off parts cost nothing. Samples inside a
 // branch use tex2Dlod, which needs no screen-space gradients.
 //
+// With linear lighting (EwLinearLighting, ew_linear.h) the bloom levels hold linear light, and
+// the final pass decodes the scene after the ambient occlusion, adds the bloom (no screen blend:
+// light adds up, the tone curve rolls it off) and tone maps, then encodes before the colour LUT.
+//
 // PostFxaaPS (M3.2d, EwFXAA) runs last, on the finished colours: it finds edges by their
 // brightness contrast, follows each edge to its ends and blends across it, so jagged
 // polygon and alpha-test edges look smooth. It reads only inside the view rectangle (Clamp).
 
 #include "ew_constants.h"
+#include "ew_linear.h"
 
 float4 Texel        : EW_REG(EW_POST_PS_TEXEL);
 float4 BloomParams  : EW_REG(EW_POST_PS_BLOOM);
@@ -104,7 +109,8 @@ float4 PostBrightPS(float2 uv : TEXCOORD0) : COLOR0
 	float luma = dot(c, float3(0.2126, 0.7152, 0.0722));
 	// 0 at the threshold, 1 at full white; squared, so mid-bright ground glows little.
 	float k = saturate((luma - BloomParams.x) * BloomParams.y);
-	return float4(c * (k * k), 1.0);
+	// The threshold is on the gamma value, so the same parts glow with linear lighting.
+	return float4(Ew_To_Linear(c) * (k * k), 1.0);
 }
 
 float4 PostDownPS(float2 uv : TEXCOORD0) : COLOR0
@@ -133,10 +139,14 @@ float3 FilmicCurve(float3 x)
 // The scene holds display (gamma) values in 0..1. The curve works on linear light, and
 // dividing by the curve at full white (Tone.y) keeps white at white, so nothing clips.
 // The larger the exposure (Tone.x), the stronger the curve; near 0 it does nothing.
+float3 ToneCurve(float3 linear_light)
+{
+	return saturate(FilmicCurve(linear_light * Tone.x) * Tone.y);
+}
+
 float3 ToneMap(float3 c)
 {
-	float3 linear_light = pow(max(c, 1.0e-5), 2.2) * Tone.x;
-	return pow(saturate(FilmicCurve(linear_light) * Tone.y), 1.0 / 2.2);
+	return pow(ToneCurve(pow(max(c, 1.0e-5), 2.2)), 1.0 / 2.2);
 }
 
 // The colour LUT is a 256x16 strip: 16 slices of 16x16, blue picks the slice, red goes
@@ -302,6 +312,8 @@ float4 PostFinalPS(float2 uv : TEXCOORD0) : COLOR0
 		c *= ao;
 	}
 
+	c = Ew_To_Linear(c);
+
 	[branch] if (Final.x > 0.5)
 	{
 		float4 lod_uv = float4(uv, 0.0, 0.0);
@@ -309,12 +321,13 @@ float4 PostFinalPS(float2 uv : TEXCOORD0) : COLOR0
 			+ tex2Dlod(Bloom8, lod_uv).rgb * BloomWeights.y
 			+ tex2Dlod(Bloom16, lod_uv).rgb * BloomWeights.z;
 		bloom = saturate(bloom * BloomParams.z);
-		// Screen blend: 1 - (1 - scene) * (1 - bloom). Above white (EwHdr) it adds nothing.
-		c = c + bloom * (1.0 - saturate(c));
+		// Gamma: screen blend, 1 - (1 - scene) * (1 - bloom); above white (EwHdr) it adds nothing.
+		c = Ew_Linear() ? c + bloom : c + bloom * (1.0 - saturate(c));
 	}
 
 	[branch] if (Final.y > 0.5)
-		c = ToneMap(c);
+		c = Ew_Linear() ? ToneCurve(c) : ToneMap(c);
+	c = Ew_To_Gamma(c);
 
 	[branch] if (Final.z > 0.5)
 		c = ColorGrade(c);

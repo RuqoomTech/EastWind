@@ -144,4 +144,7 @@
 #define EW_SHADOW_PS_COUNT       6
 #define EW_SHADOW_SAMPLER        12  // s12, above every texture stage the wrapper and fixed function use
 
+// --- ew_linear.h (pixel), frame-wide options; set once a frame by W3DDisplay ---
+#define EW_FRAME_PS_OPTIONS      206 // c206: x linear lighting on (EwLinearLighting)
+
 #endif // EW_CONSTANTS_H

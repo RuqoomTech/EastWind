@@ -32,6 +32,7 @@
 
 #include "ew_constants.h"
 #include "ew_shadow.h"
+#include "ew_linear.h"
 
 float4 WorldViewProj[4]                : EW_REG(EW_TERRAIN_VS_WVP);
 float4 World[3]                        : EW_REG(EW_TERRAIN_VS_WORLD);
@@ -60,18 +61,25 @@ float3 Grid_Normal(float4 texel)
 	return normalize(texel.xyz * 2.0 - 1.0);
 }
 
-// shadow scales the first light, the sun the shadow map is drawn from.
-float3 SunLight(float3 n, float shadow)
+// shadow scales the first light, the sun the shadow map is drawn from. linearLight (pixel
+// shaders only) adds the colours up in linear space (ew_linear.h).
+float3 Sun_Colour(int k, uniform bool linearLight)
 {
-	float3 c = Sun[0].rgb + shadow * Sun[4].rgb * saturate(dot(Sun[1].xyz, n));
+	return linearLight ? Ew_To_Linear(Sun[k].rgb) : Sun[k].rgb;
+}
+
+float3 SunLight(float3 n, float shadow, uniform bool linearLight)
+{
+	float3 c = Sun_Colour(0, linearLight) + shadow * Sun_Colour(4, linearLight) * saturate(dot(Sun[1].xyz, n));
 	[unroll] for (int k = 1; k < 3; ++k)
-		c += Sun[4 + k].rgb * saturate(dot(Sun[1 + k].xyz, n));
+		c += Sun_Colour(4 + k, linearLight) * saturate(dot(Sun[1 + k].xyz, n));
 	return saturate(c);
 }
 
+// The vertex shader's split of the CPU light, which was added up in gamma space.
 float3 SunLight(float3 n)
 {
-	return SunLight(n, 1.0);
+	return SunLight(n, 1.0, false);
 }
 
 struct VsIn
@@ -159,12 +167,12 @@ struct PsIn
 };
 
 // The per-pixel light: the sun against the filtered grid normal, shadowed, plus the vertex's
-// extra light.
+// extra light. With linear lighting the extra light is taken as a colour and decoded too.
 float3 Pixel_Light(float2 grid, float3 world, float3 extra, float3 vertexLight)
 {
 	float3 n = Grid_Normal(tex2D(GridNormals, grid));
 	float shadow = Ew_Sun_Shadow(world, n, Sun[1].xyz);
-	float3 light = saturate(SunLight(n, shadow) + extra);
+	float3 light = Ew_To_Gamma(saturate(SunLight(n, shadow, true) + Ew_To_Linear(extra)));
 	// Debug keys: the vertex colour is the classic per-vertex light.
 	if (Debug.x > 0.5)
 		light = vertexLight;
