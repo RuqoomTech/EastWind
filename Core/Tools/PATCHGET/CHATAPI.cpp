@@ -78,7 +78,7 @@ static int checksLeft = 0;
 static bool cantConnect = false;
 static std::list<QueuedDownload> queuedDownloads;
 
-BOOL CALLBACK downloadDialogProc( HWND hwndDlg, UINT uMsg, WPARAM wParam,
+INT_PTR CALLBACK downloadDialogProc( HWND hwndDlg, UINT uMsg, WPARAM wParam,
     LPARAM lParam );
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -154,7 +154,7 @@ HRESULT DownloadManagerMunkee::OnStatusUpdate( int status )
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
-BOOL CALLBACK simpleDialogProc( HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam )
+INT_PTR CALLBACK simpleDialogProc( HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam )
 {
   switch( uMsg )
   {
@@ -463,7 +463,7 @@ static void StartPatchCheck()
 ///////////////////////////////////////////////////////////////////////////////////////
 
 
-BOOL CALLBACK downloadDialogProc( HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam )
+INT_PTR CALLBACK downloadDialogProc( HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam )
 {
 	//   HRESULT res;
 
@@ -583,10 +583,10 @@ DWORD        dwDownloadAdvise;
 uint32       g_AppVer=-1;
 
 
-BOOL CALLBACK Download_Dialog_Proc( HWND hwndDlg, UINT uMsg, WPARAM wParam,
+INT_PTR CALLBACK Download_Dialog_Proc( HWND hwndDlg, UINT uMsg, WPARAM wParam,
     LPARAM lParam );
 
-BOOL CALLBACK Simple_Dialog_Proc( HWND hwndDlg, UINT uMsg, WPARAM wParam,
+INT_PTR CALLBACK Simple_Dialog_Proc( HWND hwndDlg, UINT uMsg, WPARAM wParam,
     LPARAM lParam );
 
 HWND CreatePrimaryWin();
@@ -1241,7 +1241,7 @@ void ClosedownDownload()
 
 
 
-BOOL CALLBACK Download_Dialog_Proc( HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam )
+INT_PTR CALLBACK Download_Dialog_Proc( HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam )
 {
 //	char    fullpath[ 256 ];
 //   char    localfile[ 256];
@@ -1354,7 +1354,7 @@ BOOL CALLBACK Download_Dialog_Proc( HWND hwndDlg, UINT uMsg, WPARAM wParam, LPAR
 
 
 // Whoeee this is an exciting one...
-BOOL CALLBACK Simple_Dialog_Proc( HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam )
+INT_PTR CALLBACK Simple_Dialog_Proc( HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam )
 {
   switch( uMsg )
   {

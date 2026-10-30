@@ -342,7 +342,7 @@ int			Show_Message				( HWND window_handle, int message_num1 );
 void		Stop_Sound_Playing			();
 BOOL 		Valid_Environment 			();
 
-BOOL 		CALLBACK	Dialog_Box_Proc	( HWND window_handle, UINT message, WPARAM w_param, LPARAM l_param );
+INT_PTR	CALLBACK	Dialog_Box_Proc	( HWND window_handle, UINT message, WPARAM w_param, LPARAM l_param );
 LRESULT 	CALLBACK	Wnd_Proc 		( HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam );
 
 
@@ -1730,7 +1730,7 @@ unsigned int MainWindow::Run_OpenFile(int cd_drive, const char *filename, bool w
 
 	BOOL ret = ShellExecuteEx(&executeInfo);
 
-	if ((ret == 0) || ((int)(executeInfo.hInstApp) <= 32)) {
+	if ((ret == 0) || ((INT_PTR)(executeInfo.hInstApp) <= 32)) {
 		Msg(__LINE__, TEXT(__FILE__), TEXT("Couldn't find executable for %s\n"), filepath);
 		return 0;
 	}
@@ -2542,7 +2542,7 @@ LRESULT CALLBACK  Wnd_Proc ( HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lPa
 //   06/04/1996  MML : Created.
 //=============================================================================
 
-BOOL CALLBACK  Dialog_Box_Proc( HWND window_handle, UINT message, WPARAM w_param, LPARAM l_param )
+INT_PTR CALLBACK  Dialog_Box_Proc( HWND window_handle, UINT message, WPARAM w_param, LPARAM l_param )
 {
 	int		i = 0, j = 0;
 	int		nResult = 0;
@@ -2668,7 +2668,7 @@ BOOL CALLBACK  Dialog_Box_Proc( HWND window_handle, UINT message, WPARAM w_param
 				//-----------------------------------------------------------------------
 				// Set Icon.
 				//-----------------------------------------------------------------------
-				SendMessage( window_handle, WM_SETICON, ICON_SMALL, (long)LoadIcon( Main::hInstance, MAKEINTRESOURCE(1)));
+				SendMessage( window_handle, WM_SETICON, ICON_SMALL, (LPARAM)LoadIcon( Main::hInstance, MAKEINTRESOURCE(1)));
 
 			#if(BACKGROUND_BITMAP)
 
