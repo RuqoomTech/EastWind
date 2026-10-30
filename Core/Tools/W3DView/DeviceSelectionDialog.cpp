@@ -195,7 +195,7 @@ CDeviceSelectionDialog::OnOK ()
 //
 //  DoModal
 //
-int
+INT_PTR
 CDeviceSelectionDialog::DoModal ()
 {
 	BOOL bFoundDevice = FALSE;

@@ -2826,7 +2826,7 @@ Real WbView3d::getCurrentZoom()
 }
 
 // ----------------------------------------------------------------------------
-void WbView3d::OnTimer(UINT nIDEvent)
+void WbView3d::OnTimer(UINT_PTR nIDEvent)
 {
 	if (getLastDrawTime()+UPDATE_TIME<::GetTickCount())
 	{
