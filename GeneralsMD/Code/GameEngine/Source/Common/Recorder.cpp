@@ -49,7 +49,6 @@
 #include "Common/CRCDebug.h"
 #include "Common/OptionPreferences.h"
 #include "Common/version.h"
-#include "Lib/PathUtil.h"
 #include <Utility/bit_adapter.h>
 
 constexpr const char s_genrep[] = "GENREP";
@@ -1610,9 +1609,10 @@ RecorderClass::CullBadCommandsResult RecorderClass::cullBadCommands() {
 
 	while (msg != nullptr) {
 		next = msg->next();
-		if ((msg->getType() > GameMessage::MSG_BEGIN_NETWORK_MESSAGES) &&
-				(msg->getType() < GameMessage::MSG_END_NETWORK_MESSAGES) &&
-				(msg->getType() != GameMessage::MSG_LOGIC_CRC)) {
+		if (msg->getType() > GameMessage::MSG_BEGIN_NETWORK_MESSAGES && msg->getType() < GameMessage::MSG_END_NETWORK_MESSAGES)
+		{
+			DEBUG_ASSERTCRASH(msg->getType() != GameMessage::MSG_LOGIC_CRC,
+				("Use MSG_LOGIC_CRC_PLAYBACK instead of MSG_LOGIC_CRC during replay playback"));
 
 			deleteInstance(msg);
 		}
@@ -1687,10 +1687,8 @@ AsciiString RecorderClass::getLastReplayFileName()
 			AsciiString players;
 			AsciiString full;
 			AsciiString fullPlusNum;
-			AsciiString mapName = game->getMap();
-			const char *fname = mapName.reverseFind('\\');
-			if (fname)
-				mapName = fname+1;
+			const AsciiString mapPath = game->getMap();
+			const char* mapName = getFileName(mapPath.str());
 			for (Int i=0; i<MAX_SLOTS; ++i)
 			{
 				GameSlot *slot = game->getSlot(i);
@@ -1701,7 +1699,7 @@ AsciiString RecorderClass::getLastReplayFileName()
 					players.concat(player);
 				}
 			}
-			full.format("%s%s_%d_%d", players.str(), mapName.str(), game->getSeed(), game->getLocalSlotNum());
+			full.format("%s%s_%d_%d", players.str(), mapName, game->getSeed(), game->getLocalSlotNum());
 			AsciiString testString;
 			testString.format("%s%s%s", getReplayDir().str(), full.str(), replayExtention);
 

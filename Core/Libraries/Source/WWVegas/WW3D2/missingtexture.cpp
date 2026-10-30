@@ -70,36 +70,25 @@ void MissingTexture::_Init()
 		MIP_LEVELS_ALL
 	);
 
-	D3DLOCKED_RECT locked_rect;
-	RECT rect;
-	rect.left=0;
-	rect.right=missing_image_width;
-	rect.top=0;
-	rect.bottom=missing_image_height;
-	DX9_ErrorCode(
-		tex->LockRect(
-			0,
-			&locked_rect,
-			&rect,
-			0));
-
-	unsigned *buffer=(unsigned*)locked_rect.pBits;
-	//unsigned char *pixels=(unsigned char *)missing_image_pixels;
-	for (unsigned y=0;y<missing_image_height;y++)
+	// TheSuperHackers @fix bobtista 09/10/2026 Fill every mip level with the solid color.
+	for (unsigned level=0;level<tex->GetLevelCount();++level)
 	{
-		for (unsigned x=0; x<missing_image_width; x++)
+		D3DSURFACE_DESC desc;
+		D3DLOCKED_RECT locked_rect;
+		DX9_ErrorCode(tex->GetLevelDesc(level,&desc));
+		DX9_ErrorCode(tex->LockRect(level,&locked_rect,nullptr,0));
+
+		for (unsigned y=0;y<desc.Height;y++)
 		{
-			//*buffer++=missing_image_palette[*pixels++];
-			*buffer++=0x7FFF00FF;
+			unsigned *buffer=reinterpret_cast<unsigned*>(static_cast<unsigned char*>(locked_rect.pBits)+y*locked_rect.Pitch);
+			for (unsigned x=0;x<desc.Width;x++)
+			{
+				buffer[x]=0x7FFF00FF;
+			}
 		}
-		buffer=(unsigned*)locked_rect.pBits;
-		buffer+=locked_rect.Pitch/sizeof(unsigned)*y;
+
+		DX9_ErrorCode(tex->UnlockRect(level));
 	}
-
-	DX9_ErrorCode(tex->UnlockRect(0));
-
-	// Box-filter each mip level from the one above.
-	DX9_ErrorCode(DX9Wrapper::_Filter_Texture(tex));
 
 	_MissingTexture=tex;
 /*
