@@ -1000,6 +1000,11 @@ void RecorderClass::handleCRCMessage(UnsignedInt newCRC, Int playerIndex, Bool f
 	if (isLocalPlayer)
 	{
 		UnsignedInt playbackCRC = m_crcInfo.readCRC();
+		if (TheGlobalData->m_replayCRCLog)
+		{
+			printf("CRC Frame %d %8.8X\n", TheGameLogic->getFrame() - m_crcInfo.GetQueueSize() - 1, newCRC);
+			return;
+		}
 		//DEBUG_LOG(("RecorderClass::handleCRCMessage() - Comparing CRCs of InGame:%8.8X Replay:%8.8X Frame:%d from Player %d",
 		//	playbackCRC, newCRC, TheGameLogic->getFrame()-m_crcInfo.GetQueueSize()-1, playerIndex));
 		if (TheGameLogic->getFrame() > 0 && newCRC != playbackCRC && !m_crcInfo.sawCRCMismatch())

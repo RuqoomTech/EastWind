@@ -123,6 +123,7 @@ public:
 	// TheSuperHackers @feature helmutbuhler 11/04/2025
 	// Run game without graphics, input or audio.
 	Bool m_headless;
+	Bool m_replayCRCLog; ///< Replay playback prints every CRC and ignores mismatches (to compare two builds)
 
 	Bool m_windowed;
 	Int m_xResolution;
