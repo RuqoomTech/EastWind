@@ -55,11 +55,9 @@ target_sources(z_generals PRIVATE
 # Manifest: DPI awareness metadata (nice to have but not essential)
 if(MSVC)
     # VS2005 and later adds default manifest, we need to turn it off to prevent conflict with custom manifest
-    if(NOT IS_VS6_BUILD)
-        target_link_options(z_generals PRIVATE
-            "/MANIFEST:NO"
-        )
-    endif()
+    target_link_options(z_generals PRIVATE
+        "/MANIFEST:NO"
+    )
 
     target_sources(z_generals PRIVATE
         RTS.RC

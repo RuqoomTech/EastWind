@@ -53,24 +53,16 @@ if(MINGW)
 endif()
 
 # Find/Add build dependencies and stubs shared by all projects
-if((WIN32 OR "${CMAKE_SYSTEM}" MATCHES "Windows") AND ${CMAKE_SIZEOF_VOID_P} EQUAL 4)
-    include(cmake/dx8.cmake)
-endif()
+# Direct3D 9 and DirectInput 8 come with the Windows SDK.
+add_library(d3d9lib INTERFACE)
+target_link_libraries(d3d9lib INTERFACE d3d9 dinput8 dxguid)
 
-if (IS_VS6_BUILD)
-    include(cmake/stlport.cmake)
-else()
-    add_library(stlport INTERFACE)
-endif()
+add_library(stlport INTERFACE)
 
 include(cmake/config.cmake)
 include(cmake/eastwind.cmake)
 include(cmake/gamespy.cmake)
-if (IS_VS6_BUILD)
-    add_library(gamemath INTERFACE)
-else()
-    include(cmake/gamemath.cmake)
-endif()
+include(cmake/gamemath.cmake)
 include(cmake/lzhl.cmake)
 include(cmake/stb.cmake)
 
@@ -99,10 +91,6 @@ add_subdirectory(Core)
 # Add main build targets
 if(RTS_BUILD_ZEROHOUR)
     add_subdirectory(GeneralsMD)
-endif()
-
-if(RTS_BUILD_GENERALS)
-    add_subdirectory(Generals)
 endif()
 
 if(RTS_BUILD_OPTION_TESTS)

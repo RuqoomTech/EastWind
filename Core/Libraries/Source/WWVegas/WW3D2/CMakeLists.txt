@@ -73,6 +73,9 @@ set(WW3D2_SRC
     formconv.h
     FramGrab.cpp
     framgrab.h
+    gputimer.cpp
+    gputimer.h
+    graphicsoptions.h
     hanim.cpp
     hanim.h
     #hanimmgr.cpp
@@ -126,6 +129,8 @@ set(WW3D2_SRC
     #meshmdl.cpp
     #meshmdl.h
     #meshmdlio.cpp
+    meshshader.cpp
+    meshshader.h
     metalmap.cpp
     metalmap.h
     missingtexture.cpp
@@ -178,6 +183,10 @@ set(WW3D2_SRC
     seglinerenderer.h
     #shader.cpp
     #shader.h
+    shaderlibrary.cpp
+    shaderlibrary.h
+    shadowmap.cpp
+    shadowmap.h
     shattersystem.cpp
     shattersystem.h
     shdlib.h
@@ -237,13 +246,17 @@ set(WW3D2_SRC
 
 add_library(corei_ww3d2 INTERFACE)
 
+# The HLSL shaders compiled by cmake/eastwind_shaders.cmake: build them first and find their headers.
+add_dependencies(corei_ww3d2 ew_shaders)
+target_include_directories(corei_ww3d2 INTERFACE "${EW_SHADER_OUTPUT_DIR}")
+
 target_sources(corei_ww3d2 INTERFACE ${WW3D2_SRC})
 
 target_include_directories(corei_ww3d2 INTERFACE
     "${CMAKE_CURRENT_SOURCE_DIR}"
 )
 
-if (MSVC AND NOT IS_VS6_BUILD)
+if (MSVC)
     target_link_libraries(corei_ww3d2 INTERFACE
         comsuppw
     )

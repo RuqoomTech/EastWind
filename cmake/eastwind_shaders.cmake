@@ -3,8 +3,8 @@
 # Sources are EastWind/Shaders/*.hlsl. Each entry below compiles to
 # ${CMAKE_BINARY_DIR}/ew_shaders/<name>.h, a BYTE array g_ew_<name> that shaderlibrary.cpp
 # embeds in the exe, so the game needs no shader files and no D3DCompiler/D3DX at runtime.
-# The files that include these headers get the ew_shaders dependency and include folder
-# from cmake/eastwind_dx9.cmake (see EastWind/dx9_new_files.txt).
+# corei_ww3d2 and corei_gameenginedevice_private, whose files include these headers, get the
+# ew_shaders dependency and include folder in their CMakeLists.txt.
 
 set(EW_SHADER_SOURCE_DIR "${CMAKE_SOURCE_DIR}/EastWind/Shaders")
 set(EW_SHADER_OUTPUT_DIR "${CMAKE_BINARY_DIR}/ew_shaders")
@@ -16,7 +16,7 @@ find_program(EW_FXC_EXECUTABLE NAMES fxc HINTS "$ENV{WindowsSdkVerBinPath}/x64" 
     DOC "fxc.exe from the Windows SDK, used to compile the EastWind HLSL shaders")
 unset(_ew_fxc_dirs)
 if(NOT EW_FXC_EXECUTABLE)
-    message(FATAL_ERROR "EW_RENDERER=DX9 needs fxc.exe from the Windows 10/11 SDK. Set EW_FXC_EXECUTABLE to its path.")
+    message(FATAL_ERROR "EastWind needs fxc.exe from the Windows 10/11 SDK. Set EW_FXC_EXECUTABLE to its path.")
 endif()
 
 option(EW_SHADER_DEBUG "Compile the EastWind shaders without optimisation and with debug info." OFF)

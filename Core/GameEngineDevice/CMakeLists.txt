@@ -55,6 +55,7 @@ set(GAMEENGINEDEVICE_SRC
     Include/W3DDevice/GameClient/W3DMouse.h
     Include/W3DDevice/GameClient/W3DParticleSys.h
 #    Include/W3DDevice/GameClient/W3DPoly.h
+    Include/W3DDevice/GameClient/W3DPostProcess.h
     Include/W3DDevice/GameClient/W3DProfilerFrameCapture.h
 #    Include/W3DDevice/GameClient/W3DProjectedShadow.h
     Include/W3DDevice/GameClient/W3DPropBuffer.h
@@ -68,6 +69,7 @@ set(GAMEENGINEDEVICE_SRC
     Include/W3DDevice/GameClient/W3DSnow.h
 #    Include/W3DDevice/GameClient/W3DStatusCircle.h
     Include/W3DDevice/GameClient/W3DTerrainBackground.h
+    Include/W3DDevice/GameClient/W3DTerrainLighting.h
     Include/W3DDevice/GameClient/W3DTerrainParticles.h
     Include/W3DDevice/GameClient/W3DTerrainTracks.h
     Include/W3DDevice/GameClient/W3DTerrainVisual.h
@@ -77,6 +79,7 @@ set(GAMEENGINEDEVICE_SRC
     Include/W3DDevice/GameClient/W3DScreenshot.h
 #    Include/W3DDevice/GameClient/W3DVolumetricShadow.h
     Include/W3DDevice/GameClient/W3DWater.h
+    Include/W3DDevice/GameClient/W3DWaterShader.h
     Include/W3DDevice/GameClient/W3DWaterTracks.h
 #    Include/W3DDevice/GameClient/W3DWaypointBuffer.h
 #    Include/W3DDevice/GameClient/W3DWebBrowser.h
@@ -159,6 +162,7 @@ set(GAMEENGINEDEVICE_SRC
     Source/W3DDevice/GameClient/W3DMouse.cpp
     Source/W3DDevice/GameClient/W3DParticleSys.cpp
 #    Source/W3DDevice/GameClient/W3DPoly.cpp
+    Source/W3DDevice/GameClient/W3DPostProcess.cpp
     Source/W3DDevice/GameClient/W3DProfilerFrameCapture.cpp
     Source/W3DDevice/GameClient/W3DPropBuffer.cpp
     Source/W3DDevice/GameClient/W3DScorch.cpp
@@ -170,6 +174,7 @@ set(GAMEENGINEDEVICE_SRC
     Source/W3DDevice/GameClient/W3DSnow.cpp
 #    Source/W3DDevice/GameClient/W3DStatusCircle.cpp
     Source/W3DDevice/GameClient/W3DTerrainBackground.cpp
+    Source/W3DDevice/GameClient/W3DTerrainLighting.cpp
     Source/W3DDevice/GameClient/W3DTerrainParticles.cpp
     Source/W3DDevice/GameClient/W3DTerrainTracks.cpp
     Source/W3DDevice/GameClient/W3DTerrainVisual.cpp
@@ -180,6 +185,7 @@ set(GAMEENGINEDEVICE_SRC
     Source/W3DDevice/GameClient/stb_image_write_impl.cpp
 #    Source/W3DDevice/GameClient/W3dWaypointBuffer.cpp
 #    Source/W3DDevice/GameClient/W3DWebBrowser.cpp
+    Source/W3DDevice/GameClient/W3DWaterShader.cpp
     Source/W3DDevice/GameClient/Water/W3DWater.cpp
     Source/W3DDevice/GameClient/Water/W3DWaterTracks.cpp
     Source/W3DDevice/GameClient/WorldHeightMap.cpp
@@ -195,18 +201,20 @@ set(GAMEENGINEDEVICE_SRC
     Source/Win32Device/GameClient/Win32Mouse.cpp
 )
 
-# Add C++ 17 FileSystem implementation for non-VS6 builds
-if(NOT IS_VS6_BUILD)
-    list(APPEND GAMEENGINEDEVICE_SRC
-        Include/StdDevice/Common/StdLocalFile.h
-        Include/StdDevice/Common/StdLocalFileSystem.h
-        Source/StdDevice/Common/StdLocalFile.cpp
-        Source/StdDevice/Common/StdLocalFileSystem.cpp
-    )
-endif()
+# C++ 17 FileSystem implementation
+list(APPEND GAMEENGINEDEVICE_SRC
+    Include/StdDevice/Common/StdLocalFile.h
+    Include/StdDevice/Common/StdLocalFileSystem.h
+    Source/StdDevice/Common/StdLocalFile.cpp
+    Source/StdDevice/Common/StdLocalFileSystem.cpp
+)
 
 add_library(corei_gameenginedevice_private INTERFACE)
 add_library(corei_gameenginedevice_public INTERFACE)
+
+# The HLSL shaders compiled by cmake/eastwind_shaders.cmake: build them first and find their headers.
+add_dependencies(corei_gameenginedevice_private ew_shaders)
+target_include_directories(corei_gameenginedevice_private INTERFACE "${EW_SHADER_OUTPUT_DIR}")
 
 target_sources(corei_gameenginedevice_private INTERFACE ${GAMEENGINEDEVICE_SRC})
 

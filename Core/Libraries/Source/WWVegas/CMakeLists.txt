@@ -2,7 +2,7 @@
 add_library(core_wwcommon INTERFACE)
 
 target_link_libraries(core_wwcommon INTERFACE
-    d3d8lib
+    d3d9lib
     deps_dbghelp
     deps_miles
     deps_usp10

@@ -242,10 +242,6 @@ target_include_directories(z_ww3d2 PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}"
 )
 
-target_compile_definitions(z_ww3d2 PRIVATE
-    $<$<BOOL:${IS_VS6_BUILD}>:WINVER=0x0500>
-)
-
 target_precompile_headers(z_ww3d2 PRIVATE
     [["Precompiled/BasePrecomp.h"]] # Must be first
     [["dx9wrapper.h"]]

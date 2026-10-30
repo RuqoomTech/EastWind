@@ -16,13 +16,6 @@ else()
     set(IS_MINGW_BUILD FALSE)
 endif()
 
-# Set variable for VS6 to handle special cases.
-if (DEFINED MSVC_VERSION AND MSVC_VERSION LESS 1300)
-    set(IS_VS6_BUILD TRUE)
-else()
-    set(IS_VS6_BUILD FALSE)
-endif()
-
 # Make release builds have debug information too.
 if(MSVC)
     # Create PDB for Release as long as debug info was generated during compile.
@@ -43,30 +36,16 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)  # Ensures only ISO features are used
 set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
 
-if (NOT IS_VS6_BUILD)
-    if (MSVC)
-        # Multithreaded build.
-        add_compile_options(/MP)
-        # Enforce strict __cplusplus version
-        add_compile_options(/Zc:__cplusplus)
-    else()
-        add_compile_options(-Wsuggest-override)
-        # Prevent FMA contraction (a*b+c -> fmadd) which skips intermediate
-        # rounding and breaks cross-platform deterministic math parity with MSVC (/fp:precise).
-        add_compile_options(-ffp-contract=off)
-    endif()
+if (MSVC)
+    # Multithreaded build.
+    add_compile_options(/MP)
+    # Enforce strict __cplusplus version
+    add_compile_options(/Zc:__cplusplus)
 else()
-    if(RTS_BUILD_OPTION_VC6_FULL_DEBUG)
-        set_property(GLOBAL PROPERTY JOB_POOLS compile=1 link=1)
-    else()
-        # Define two pools: 'compile' with plenty of slots, 'link' with just one
-        set_property(GLOBAL PROPERTY JOB_POOLS compile=0 link=1)
-    endif()
-
-    # Tell CMake that all compile steps go into 'compile'
-    set(CMAKE_JOB_POOL_COMPILE compile)
-    # and all link steps go into 'link' (so only one link ever runs since vc6 can't handle multithreaded linking)
-    set(CMAKE_JOB_POOL_LINK link)
+    add_compile_options(-Wsuggest-override)
+    # Prevent FMA contraction (a*b+c -> fmadd) which skips intermediate
+    # rounding and breaks cross-platform deterministic math parity with MSVC (/fp:precise).
+    add_compile_options(-ffp-contract=off)
 endif()
 
 if(RTS_BUILD_OPTION_ASAN)

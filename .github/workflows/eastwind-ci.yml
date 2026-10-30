@@ -20,29 +20,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # The vc6 builds are the retail compatible ones and are used by the replay check.
-  build-generalsmd-vc6:
-    name: Build GeneralsMD${{ matrix.preset && '' }}
-    permissions:
-      contents: read
-    strategy:
-      matrix:
-        include:
-          - preset: "vc6"
-            tools: true
-            extras: true
-          - preset: "vc6-releaselog"
-            tools: true
-            extras: true
-      fail-fast: false
-    uses: ./.github/workflows/reusable-build-toolchain.yml
-    with:
-      game: "GeneralsMD"
-      preset: ${{ matrix.preset }}
-      tools: ${{ matrix.tools }}
-      extras: ${{ matrix.extras }}
-    secrets: inherit
-
   build-generalsmd-win32:
     name: Build GeneralsMD${{ matrix.preset && '' }}
     permissions:
@@ -56,13 +33,6 @@ jobs:
           - preset: "win32-debug"
             tools: true
             extras: true
-          # EastWind DX9 renderer (cmake/EastWindPresets.json).
-          - preset: "win32-dx9"
-            tools: true
-            extras: true
-          - preset: "win32-dx9-debug"
-            tools: true
-            extras: true
       fail-fast: false
     uses: ./.github/workflows/reusable-build-toolchain.yml
     with:
@@ -71,40 +41,4 @@ jobs:
       tools: ${{ matrix.tools }}
       extras: ${{ matrix.extras }}
       tests: true
-    secrets: inherit
-
-  # DX9 files against their DX8 originals: upstream changes to port, include switches, preset drift.
-  dx9-sync-check:
-    name: DX9 Sync Check
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          fetch-depth: 0 # the check diffs each DX8 file against the commit its DX9 file started from
-
-      - name: Run dx9_sync_check.py
-        run: python3 EastWind/Scripts/dx9_sync_check.py check -v
-
-  # Needs trimmed retail game data. Set the repository variable EW_REPLAY_CHECK to 'true'
-  # once the R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY and R2_ENDPOINT_URL secrets are configured.
-  replaycheck-generalsmd:
-    name: Replay Check GeneralsMD${{ matrix.preset && '' }}
-    needs: build-generalsmd-vc6
-    if: ${{ vars.EW_REPLAY_CHECK == 'true' }}
-    permissions:
-      contents: read
-    strategy:
-      matrix:
-        include:
-          - preset: "vc6+t+e"
-          - preset: "vc6-releaselog+t+e"
-      fail-fast: false
-    uses: ./.github/workflows/reusable-check-replays.yml
-    with:
-      game: "GeneralsMD"
-      userdata: "GeneralsReplays/GeneralsZH/1.04"
-      preset: ${{ matrix.preset }}
     secrets: inherit

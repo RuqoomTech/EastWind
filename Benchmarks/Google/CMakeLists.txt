@@ -10,11 +10,3 @@ if(RTS_BUILD_ZEROHOUR)
     )
 endif()
 
-if(RTS_BUILD_GENERALS)
-    add_executable(g_googlebenchmark)
-    target_link_libraries(g_googlebenchmark PRIVATE
-        corei_googlebenchmark
-        g_gameenginedevice
-        gi_always
-    )
-endif()
