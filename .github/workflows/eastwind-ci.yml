@@ -42,3 +42,46 @@ jobs:
       extras: ${{ matrix.extras }}
       tests: true
     secrets: inherit
+
+  # The reusable workflow only sets up MSVC for win32 presets, so win64 has its own steps here.
+  build-generalsmd-win64:
+    name: Build GeneralsMD (${{ matrix.preset }}+t+e)
+    runs-on: windows-2022
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    strategy:
+      matrix:
+        preset: ["win64", "win64-debug"]
+      fail-fast: false
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Cache CMake Dependencies
+        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        with:
+          path: build\${{ matrix.preset }}\_deps
+          key: cmake-deps-${{ matrix.preset }}-${{ hashFiles('CMakePresets.json','cmake/**/*.cmake','**/CMakeLists.txt') }}
+
+      - name: Set Up VC2022 Environment
+        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
+        with:
+          arch: x64
+
+      - name: Configure
+        shell: pwsh
+        run: |
+          cmake --preset ${{ matrix.preset }} `
+            -DRTS_BUILD_ZEROHOUR=ON `
+            -DRTS_BUILD_CORE_TOOLS=ON -DRTS_BUILD_ZEROHOUR_TOOLS=ON `
+            -DRTS_BUILD_CORE_EXTRAS=ON -DRTS_BUILD_ZEROHOUR_EXTRAS=ON `
+            -DRTS_BUILD_OPTION_TESTS=ON
+
+      - name: Build
+        shell: pwsh
+        run: cmake --build --preset ${{ matrix.preset }}
+
+      - name: Test
+        shell: pwsh
+        run: ctest --preset ${{ matrix.preset }} --verbose
