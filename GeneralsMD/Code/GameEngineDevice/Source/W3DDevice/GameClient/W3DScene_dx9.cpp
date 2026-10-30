@@ -65,6 +65,7 @@
 #include "WW3D2/dx9caps.h"
 #include "WW3D2/colorspace.h"
 #include "WW3D2/ewshadowmap_dx9.h"
+#include "WW3D2/ewgputimer_dx9.h"
 
 #include "WW3D2/shdlib.h"
 
@@ -867,6 +868,7 @@ void RTS3DScene::Flush(RenderInfoClass & rinfo)
 
 	// (gth) CNC3 Flush the shader meshes
 	SHD_FLUSH;
+	EwGpuTimer::Mark(EwGpuTimer::SCENE_MESHES);
 
 	// Draw the trees last so they alpha blend onto everything correctly.
 	DoTrees(rinfo);
@@ -874,8 +876,10 @@ void RTS3DScene::Flush(RenderInfoClass & rinfo)
 	//don't draw shadows in this mode because they interfere with destination alpha
 	if (m_customPassMode == SCENE_PASS_DEFAULT && Get_Extra_Pass_Polygon_Mode() == EXTRA_PASS_DISABLE)
 		DoShadows(rinfo, true);	//draw all stencil shadows
+	EwGpuTimer::Mark(EwGpuTimer::SCENE_TREES);
 
 	WW3D::Render_And_Clear_Static_Sort_Lists(rinfo);	//draws things like water
+	EwGpuTimer::Mark(EwGpuTimer::SCENE_WATER);
 
 	if (m_customPassMode == SCENE_PASS_DEFAULT && Get_Extra_Pass_Polygon_Mode() == EXTRA_PASS_DISABLE)
 		flushTranslucentObjects(rinfo);	//draw all translucent meshes which don't need per-polygon sorting.
@@ -893,6 +897,7 @@ void RTS3DScene::Flush(RenderInfoClass & rinfo)
 		SortingRendererClass::Flush();	//draw sorted translucent polygons like particles.
 		EwPostProcess::End_Particles();
 	}
+	EwGpuTimer::Mark(EwGpuTimer::SCENE_PARTICLES);
 	TheDX8MeshRenderer.Clear_Pending_Delete_Lists();
 }
 
@@ -1215,6 +1220,7 @@ void RTS3DScene::Customized_Render( RenderInfoClass &rinfo )
 		else
 		robj->Render(rinfo);
 	}
+	EwGpuTimer::Mark(EwGpuTimer::SCENE_TERRAIN);
 
 	if (m_drawTerrainOnly) {
 		return;

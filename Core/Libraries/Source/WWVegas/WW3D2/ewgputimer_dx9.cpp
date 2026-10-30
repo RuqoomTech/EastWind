@@ -170,6 +170,8 @@ void EwGpuTimer::Mark(Point point)
 	if (Current < 0 || !Sets[Current].Open || Sets[Current].Issued[point])
 		return;
 	QuerySet &q = Sets[Current];
+	if (point > RENDER_TARGETS && point < SCENE && (!q.Issued[RENDER_TARGETS] || q.Issued[SCENE]))
+		return;
 	q.Stamp[point]->Issue(D3DISSUE_END);
 	q.Issued[point] = true;
 	if (point == FRAME_END)

@@ -35,7 +35,14 @@ public:
 		FRAME_BEGIN,		// start of the frame, before the sun shadow map
 		SHADOW_MAP,			// sun shadow map
 		RENDER_TARGETS,		// water reflection and projected shadow textures
-		SCENE,				// the 3D scene into the post-processing texture
+		// The main 3D scene in parts (RTS3DScene). These count only between RENDER_TARGETS and
+		// SCENE, so the shadow map and reflection passes, which draw the same code, are left out.
+		SCENE_TERRAIN,		// the clear and the terrain (roads, shroud)
+		SCENE_MESHES,		// opaque units, buildings and props, decal shadows
+		SCENE_TREES,		// trees and stencil shadows
+		SCENE_WATER,		// water (the static sort lists)
+		SCENE_PARTICLES,	// translucent meshes, particles and other sorted triangles
+		SCENE,				// the rest of the 3D scene into the post-processing texture
 		AO,					// ambient occlusion and its blur
 		BLOOM,				// bloom bright pass, downsamples and blurs
 		FINAL,				// final pass (or the copy) onto the back buffer
