@@ -227,7 +227,6 @@ void AddLight(int l, float3 P, float3 N, float sunShadow, float3 V, float power,
 	inout float3 ambient, inout float3 diffuse, inout float3 specular, inout float3 mapSpecular)
 {
 	float4 lightDiffuse = Lights[l * 5 + 0];
-	lightDiffuse.rgb = Ew_To_Linear(lightDiffuse.rgb);
 	float4 lightVector = Lights[l * 5 + 3];
 	float4 lightAtten = Lights[l * 5 + 4];
 
@@ -244,7 +243,7 @@ void AddLight(int l, float3 P, float3 N, float sunShadow, float3 V, float power,
 			atten = (dist <= lightAtten.w) ? 1.0 / max(d, 1e-6) : 0.0;
 		}
 
-		ambient += atten * Ew_To_Linear(Lights[l * 5 + 2].rgb);
+		ambient += atten * Lights[l * 5 + 2].rgb;
 
 		float nl = dot(N, L);
 		if (nl > 0.0)
@@ -252,14 +251,18 @@ void AddLight(int l, float3 P, float3 N, float sunShadow, float3 V, float power,
 			// The sun's light is shadowed; its ambient is not.
 			atten *= (lightDiffuse.w > 2.0 && lightAtten.x > 0.5) ? sunShadow : 1.0;
 			diffuse += atten * nl * lightDiffuse.rgb;
-			float nh = saturate(dot(N, normalize(L + V)));
-			float s = (power > 0.0) ? pow(nh, power) : 1.0;
-			float3 lightSpecular = Ew_To_Linear(Lights[l * 5 + 1].rgb);
-			specular += atten * s * lightSpecular;
-			if (material)
+			// Specular off (most game meshes) and no SpecMap: no highlight to add.
+			[branch] if (material || PsOptions.y > 0.5)
 			{
-				float3 highlight = (dot(lightSpecular, 1.0) > 0.001) ? lightSpecular : lightDiffuse.rgb;
-				mapSpecular += atten * pow(nh, HouseColor.w) * highlight;
+				float nh = saturate(dot(N, normalize(L + V)));
+				float s = (power > 0.0) ? pow(nh, power) : 1.0;
+				float3 lightSpecular = Lights[l * 5 + 1].rgb;
+				specular += atten * s * lightSpecular;
+				if (material)
+				{
+					float3 highlight = (dot(lightSpecular, 1.0) > 0.001) ? lightSpecular : lightDiffuse.rgb;
+					mapSpecular += atten * pow(nh, HouseColor.w) * highlight;
+				}
 			}
 		}
 	}
@@ -395,17 +398,17 @@ float4 ShadeMesh(PsIn i, uniform bool material)
 		tex0.rgb = lerp(base, saturate(tinted), spm.b * MaterialOptions.z);
 	}
 
-	float4 matDiffuse = SourceColor(MaterialSource.x, Material[0], i.diffuse, i.specular);
-	float4 matAmbient = SourceColor(MaterialSource.y, Material[1], i.diffuse, i.specular);
-	float4 matSpecular = SourceColor(MaterialSource.z, Material[2], i.diffuse, i.specular);
-	float4 matEmissive = SourceColor(MaterialSource.w, Material[3], i.diffuse, i.specular);
 	// Light sums run in linear space (ew_linear.h); the stages and fog below stay gamma.
-	matDiffuse.rgb = Ew_To_Linear(matDiffuse.rgb);
-	matAmbient.rgb = Ew_To_Linear(matAmbient.rgb);
-	matSpecular.rgb = Ew_To_Linear(matSpecular.rgb);
-	matEmissive.rgb = Ew_To_Linear(matEmissive.rgb);
+	// EwMeshShader decodes the light, material and ambient colours once a draw; only the vertex
+	// colours are decoded here.
+	float4 vertexDiffuse = float4(Ew_To_Linear(i.diffuse.rgb), i.diffuse.a);
+	float4 vertexSpecular = float4(Ew_To_Linear(i.specular.rgb), i.specular.a);
+	float4 matDiffuse = SourceColor(MaterialSource.x, Material[0], vertexDiffuse, vertexSpecular);
+	float4 matAmbient = SourceColor(MaterialSource.y, Material[1], vertexDiffuse, vertexSpecular);
+	float4 matSpecular = SourceColor(MaterialSource.z, Material[2], vertexDiffuse, vertexSpecular);
+	float4 matEmissive = SourceColor(MaterialSource.w, Material[3], vertexDiffuse, vertexSpecular);
 
-	float3 ambient = Ew_To_Linear(GlobalAmbient.rgb);
+	float3 ambient = GlobalAmbient.rgb;
 	float3 diffuse = 0.0;
 	float3 specular = 0.0;
 	float3 mapSpecular = 0.0;
@@ -435,13 +438,16 @@ float4 ShadeMesh(PsIn i, uniform bool material)
 		}
 	}
 
-	// The highlights add in linear space too.
-	float3 lit = Ew_To_Linear(current.rgb) + specularLinear;
-	if (material)
-		lit += spm.r * mapSpecular;
-	// Not clamped: with EwHdr the float scene keeps highlights above white for the tone curve
-	// and bloom; an 8-bit scene clamps them on write as before.
-	current.rgb = Ew_To_Gamma(lit);
+	// The highlights add in linear space too; without any the round trip changes nothing.
+	[branch] if (material || PsOptions.y > 0.5)
+	{
+		float3 lit = Ew_To_Linear(current.rgb) + specularLinear;
+		if (material)
+			lit += spm.r * mapSpecular;
+		// Not clamped: with EwHdr the float scene keeps highlights above white for the tone curve
+		// and bloom; an 8-bit scene clamps them on write as before.
+		current.rgb = Ew_To_Gamma(lit);
+	}
 
 	if (material)
 	{

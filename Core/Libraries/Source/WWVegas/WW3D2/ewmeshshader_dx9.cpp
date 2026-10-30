@@ -369,6 +369,20 @@ namespace
 		return f;
 	}
 
+	// A light or material colour for ShadeMesh: decoded to linear here once a draw when linear
+	// lighting is on (as ew_linear.h Ew_To_Linear, signed), instead of in every pixel. Alpha stays.
+	float To_Linear(float v) { return (v < 0.0f) ? -powf(-v, 2.2f) : powf(v, 2.2f); }
+	Float4 Lit(Float4 c)
+	{
+		if (EwGraphics().Linear())
+		{
+			c.x = To_Linear(c.x);
+			c.y = To_Linear(c.y);
+			c.z = To_Linear(c.z);
+		}
+		return c;
+	}
+
 	void Multiply(D3DMATRIX &out, const D3DMATRIX &a, const D3DMATRIX &b)
 	{
 		D3DMATRIX r;
@@ -976,10 +990,10 @@ static bool Begin_Draw()
 			return Fallback(REASON_SPOT_LIGHT, i);
 
 		Float4 *l = &lights[i * 5];
-		l[0] = Color(light.Diffuse);
+		l[0] = Lit(Color(light.Diffuse));
 		l[0].w = (light.Type == D3DLIGHT_POINT) ? 1.0f : 3.0f;
-		l[1] = Color(light.Specular);
-		l[2] = Color(light.Ambient);
+		l[1] = Lit(Color(light.Specular));
+		l[2] = Lit(Color(light.Ambient));
 		if (light.Type == D3DLIGHT_DIRECTIONAL)
 		{
 			// The shader wants the direction towards the light.
@@ -1053,11 +1067,11 @@ static bool Begin_Draw()
 	memset(ps, 0, sizeof(ps));
 	memcpy(&ps[EW_MESH_PS_STAGE], stage_constants, sizeof(stage_constants));
 	ps[EW_MESH_PS_TFACTOR] = Color(D3DCOLOR(Render_State(D3DRS_TEXTUREFACTOR)));
-	ps[EW_MESH_PS_AMBIENT] = Color(D3DCOLOR(Render_State(D3DRS_AMBIENT)));
-	ps[EW_MESH_PS_MATERIAL + 0] = Color(material.Diffuse);
-	ps[EW_MESH_PS_MATERIAL + 1] = Color(material.Ambient);
-	ps[EW_MESH_PS_MATERIAL + 2] = Color(material.Specular);
-	ps[EW_MESH_PS_MATERIAL + 3] = Color(material.Emissive);
+	ps[EW_MESH_PS_AMBIENT] = Lit(Color(D3DCOLOR(Render_State(D3DRS_AMBIENT))));
+	ps[EW_MESH_PS_MATERIAL + 0] = Lit(Color(material.Diffuse));
+	ps[EW_MESH_PS_MATERIAL + 1] = Lit(Color(material.Ambient));
+	ps[EW_MESH_PS_MATERIAL + 2] = Lit(Color(material.Specular));
+	ps[EW_MESH_PS_MATERIAL + 3] = Lit(Color(material.Emissive));
 	ps[EW_MESH_PS_MATSOURCE].x = Material_Source(D3DRS_DIFFUSEMATERIALSOURCE, color_vertex, fvf);
 	ps[EW_MESH_PS_MATSOURCE].y = Material_Source(D3DRS_AMBIENTMATERIALSOURCE, color_vertex, fvf);
 	ps[EW_MESH_PS_MATSOURCE].z = Material_Source(D3DRS_SPECULARMATERIALSOURCE, color_vertex, fvf);
