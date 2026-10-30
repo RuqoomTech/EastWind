@@ -30,4 +30,20 @@ TEST(GameMemory, OversizedAllocationThrows)
 	const size_t tooBig = static_cast<size_t>(INT_MAX) + 1;
 	EXPECT_THROW(TheDynamicMemoryAllocator->allocateBytes(tooBig, "test"), ErrorCode);
 }
+
+// Pool blocks sit back to back, so odd sizes must not push the next block off pointer alignment.
+TEST(GameMemory, AllocationsArePointerAligned)
+{
+	void *blocks[3][64];
+	for (int n = 0; n < 3; ++n)
+		for (int size = 1; size <= 64; ++size)
+		{
+			void *p = TheDynamicMemoryAllocator->allocateBytes(size, "test");
+			blocks[n][size - 1] = p;
+			EXPECT_EQ(reinterpret_cast<uintptr_t>(p) % alignof(void *), 0u) << "size " << size;
+		}
+	for (auto &row : blocks)
+		for (void *p : row)
+			TheDynamicMemoryAllocator->freeBytes(p);
+}
 #endif
