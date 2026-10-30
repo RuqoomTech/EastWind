@@ -1873,7 +1873,7 @@ void DX9TextureCategoryClass::Render()
 
 		// EastWind M3.1b: the house colour of this mesh's object, for its material maps. It is part
 		// of the render state, so sorted draws capture it too.
-		EwMeshShader::Set_Object(mesh);
+		MeshShader::Set_Object(mesh);
 
 		if ((!!mesh->Peek_Model()->Get_Flag(MeshGeometryClass::SORT)) && WW3D::Is_Sorting_Enabled()) {
 			renderer->Render_Sorted(mesh->Get_Base_Vertex_Offset(),mesh->Get_Bounding_Sphere());
@@ -1935,7 +1935,7 @@ void DX9TextureCategoryClass::Render()
 				renderer->Render(mesh->Get_Base_Vertex_Offset());
 		}
 
-		EwMeshShader::Clear_Object();
+		MeshShader::Clear_Object();
 //--------------------------------------------------------------------
 		if (mesh->Get_ObjectScale() != 1.0f)
 			DX9Wrapper::Set_DX9_Render_State(D3DRS_NORMALIZENORMALS, FALSE);
@@ -2186,7 +2186,7 @@ void DX9MeshRendererClass::Flush()
 	WWPROFILE("DX9MeshRenderer::Flush");
 	if (!camera) return;
 	Log_Statistics_String(true);
-	EwMeshShader::Begin_Batch();	// EastWind: every draw below goes through DX9Wrapper
+	MeshShader::Begin_Batch();	// EastWind: every draw below goes through DX9Wrapper
 
 	/*
 	** Render the FVF categories.  Note that it is critical that skins be
@@ -2212,7 +2212,7 @@ void DX9MeshRendererClass::Flush()
 	for (i=0;i<texture_category_container_lists_rigid.Count();++i) {
 		Render_FVF_Category_Container_List_Delayed_Passes(*texture_category_container_lists_rigid[i]);
 	}
-	EwMeshShader::End_Batch();
+	MeshShader::End_Batch();
 
 	DX9Wrapper::Set_Vertex_Buffer(nullptr);
 	DX9Wrapper::Set_Index_Buffer(nullptr,0);

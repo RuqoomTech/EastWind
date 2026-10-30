@@ -15,9 +15,9 @@
 **	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// EastWind DX9: GPU time of each part of a frame, for the debug status (EwDebugKeys = yes).
+// EastWind DX9: GPU time of each part of a frame, for the debug status (DebugKeys = yes).
 //
-// W3DDisplay and EwPostProcess call Mark() at fixed points of the frame. Each mark issues a
+// W3DDisplay and W3DPostProcess call Mark() at fixed points of the frame. Each mark issues a
 // D3D9 timestamp query; the time of a part is the GPU time from the previous mark that ran to
 // its own. Results are read a few frames later without waiting (a ring of query sets) and
 // averaged over 60 frames. Frames the driver marks disjoint (clock change) are thrown away.
@@ -26,7 +26,7 @@
 
 #pragma once
 
-class EwGpuTimer
+class GpuTimer
 {
 public:
 	// In frame order. A part is named by the mark that ends it.
@@ -52,7 +52,7 @@ public:
 	};
 
 	// Issues the mark's timestamp; only the first of each mark in a frame counts. FRAME_BEGIN
-	// starts a frame and FRAME_END closes it. Does nothing unless EwGraphics().DebugKeys.
+	// starts a frame and FRAME_END closes it. Does nothing unless Get_Graphics_Options().DebugKeys.
 	static void Mark(Point point);
 
 	// The last finished 60-frame average, in milliseconds. part_ms[p] is the average of mark p's

@@ -8,10 +8,10 @@
 
 #include "shader_constants.h"
 
-float4 WorldViewProj[4]                 : EW_REG(EW_TREES_VS_WVP);
-float4 Wave[EW_TREES_MAX_SWAY + 1]      : EW_REG(EW_TREES_VS_WAVE);
-float4 ShroudOffset                     : EW_REG(EW_TREES_VS_SHROUD_OFS);
-float4 ShroudScale                      : EW_REG(EW_TREES_VS_SHROUD_SCALE);
+float4 WorldViewProj[4]                 : SHADER_REG(TREES_VS_WVP);
+float4 Wave[TREES_MAX_SWAY + 1]      : SHADER_REG(TREES_VS_WAVE);
+float4 ShroudOffset                     : SHADER_REG(TREES_VS_SHROUD_OFS);
+float4 ShroudScale                      : SHADER_REG(TREES_VS_SHROUD_SCALE);
 
 struct VsIn
 {
@@ -46,12 +46,12 @@ VsOut TreesVS(VsIn i)
 	return o;
 }
 
-// --- Per-pixel lit trees (M3.1d, EwPerPixelLighting); set by W3DTreeBuffer::drawTrees ---
+// --- Per-pixel lit trees (M3.1d, PerPixelLighting); set by W3DTreeBuffer::drawTrees ---
 //
 // The CPU lights trees per vertex (W3DTreeBuffer::doLighting): the ambient of the first object
 // light plus the material emissive plus each light's diffuse against the vertex normal, clamped
 // to 0..1, times the mesh vertex colour. drawTrees then darkens pushed-aside trees (normal.y).
-// TreesLitPS does the same per pixel. With EwPerPixelLighting the vertex buffer has the
+// TreesLitPS does the same per pixel. With PerPixelLighting the vertex buffer has the
 // DX9_FVF_XYZNDUV1TG3 layout, and the three extra coordinates hold what doLighting needs:
 //   TEXCOORD1 the vertex normal, turned with the tree (as doLighting gets it)
 //   TEXCOORD2 the material emissive
@@ -65,8 +65,8 @@ VsOut TreesVS(VsIn i)
 // (shader_shadow.h). The trees are drawn in world space (the terrain's identity transform), so the
 // swayed position is the world position.
 
-float4 TreeLight[EW_TREES_PS_LIGHT_COUNT] : EW_REG(EW_TREES_PS_LIGHT);	// [0] ambient, [1..3] direction to the light, [4..6] diffuse
-float4 TreeOptions                         : EW_REG(EW_TREES_PS_OPTIONS);	// x shroud on, y light only (debug key)
+float4 TreeLight[TREES_PS_LIGHT_COUNT] : SHADER_REG(TREES_PS_LIGHT);	// [0] ambient, [1..3] direction to the light, [4..6] diffuse
+float4 TreeOptions                         : SHADER_REG(TREES_PS_OPTIONS);	// x shroud on, y light only (debug key)
 
 #include "shader_shadow.h"
 #include "shader_linear.h"
@@ -119,12 +119,12 @@ float4 TreesLitPS(LitVsOut i) : COLOR0
 {
 	float3 n = normalize(i.normal);
 	// The light adds up in linear space (shader_linear.h).
-	float3 light = Ew_To_Linear(TreeLight[0].rgb) + Ew_To_Linear(i.emissive);
-	float shadow = Ew_Sun_Shadow(i.world, n, TreeLight[1].xyz);
-	light += shadow * Ew_To_Linear(TreeLight[4].rgb) * saturate(dot(TreeLight[1].xyz, n));
+	float3 light = To_Linear(TreeLight[0].rgb) + To_Linear(i.emissive);
+	float shadow = Sun_Shadow(i.world, n, TreeLight[1].xyz);
+	light += shadow * To_Linear(TreeLight[4].rgb) * saturate(dot(TreeLight[1].xyz, n));
 	[unroll] for (int k = 1; k < 3; ++k)
-		light += Ew_To_Linear(TreeLight[4 + k].rgb) * saturate(dot(TreeLight[1 + k].xyz, n));
-	light = Ew_To_Gamma(saturate(light)) * i.colour;
+		light += To_Linear(TreeLight[4 + k].rgb) * saturate(dot(TreeLight[1 + k].xyz, n));
+	light = To_Gamma(saturate(light)) * i.colour;
 
 	float4 t = tex2D(TreeTexture, i.uv.xy);
 	// Debug keys: the light alone. The alpha still cuts the leaves out (alpha test).

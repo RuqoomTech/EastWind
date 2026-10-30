@@ -91,7 +91,7 @@ void DoShadows(RenderInfoClass & rinfo, Bool stencilPass)
 			//This function gets called many times by the W3D renderer
 			//so we use this flag to make sure shadows rendered only once per frame.
 			// EastWind M3.4: the stencil shadow volumes give way to the sun shadow map.
-			if (TheW3DShadowManager->isShadowScene() && !EwShadowMap::Active())
+			if (TheW3DShadowManager->isShadowScene() && !ShadowMap::Active())
 				TheW3DVolumetricShadowManager->renderShadows(projectionCount);
 	}
 	if (TheW3DShadowManager && stencilPass)	//reset so no more shadow processing this frame.

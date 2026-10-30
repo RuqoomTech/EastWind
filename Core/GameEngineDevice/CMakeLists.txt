@@ -213,8 +213,8 @@ add_library(corei_gameenginedevice_private INTERFACE)
 add_library(corei_gameenginedevice_public INTERFACE)
 
 # The HLSL shaders compiled by cmake/eastwind_shaders.cmake: build them first and find their headers.
-add_dependencies(corei_gameenginedevice_private ew_shaders)
-target_include_directories(corei_gameenginedevice_private INTERFACE "${EW_SHADER_OUTPUT_DIR}")
+add_dependencies(corei_gameenginedevice_private hlsl_shaders)
+target_include_directories(corei_gameenginedevice_private INTERFACE "${SHADER_OUTPUT_DIR}")
 
 target_sources(corei_gameenginedevice_private INTERFACE ${GAMEENGINEDEVICE_SRC})
 

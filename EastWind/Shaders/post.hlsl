@@ -1,18 +1,18 @@
 // EastWind DX9: post-processing passes (M3.2).
-// The 3D scene draws into a scene texture (EwPostProcess). These passes draw a
+// The 3D scene draws into a scene texture (W3DPostProcess). These passes draw a
 // screen quad from that texture onto the back buffer, before the 2D scene and UI.
 //
-// PostVS takes the quad already in clip space; EwPostProcess applies the D3D9
+// PostVS takes the quad already in clip space; W3DPostProcess applies the D3D9
 // half-pixel offset to the positions, so texel centres land on pixel centres.
 //
-// Bloom (M3.2b, EwBloom):
+// Bloom (M3.2b, Bloom):
 //   PostBrightPS   scene -> 1/4 size: 4x4 box average, keeps what is brighter than the threshold
 //   PostDownPS     1/4 -> 1/8 -> 1/16: 4x4 box average
 //   PostBlurPS     9-tap Gaussian along Texel.zw, run across and then down at each size
 // The scene is 8 bits a channel, so the bloom is added with a screen blend, which
 // brightens without clipping to flat white.
 //
-// Ambient occlusion (M3.5, EwAmbientOcclusion), from the scene's depth (an INTZ texture):
+// Ambient occlusion (M3.5, AmbientOcclusion), from the scene's depth (an INTZ texture):
 //   PostAoPS       the occlusion at half or full size: each pixel rebuilds its camera-space
 //                  position and normal from the depth, then looks at 12 points on a spiral
 //                  around it, a fixed world radius wide. A point counts as an occluder by how
@@ -25,30 +25,30 @@
 // up to the scene size by the four nearest AO texels whose depth matches the pixel's.
 //
 // PostFinalPS draws the scene onto the back buffer with what is on, in this order:
-//   ambient occlusion  darkens the scene (M3.5, EwAmbientOcclusion)
-//   bloom          the three blurred sizes, screen-blended over the scene (M3.2b, EwBloom)
-//   tone mapping   a filmic curve (M3.2c, EwToneMapping)
-//   colour grading a colour LUT (M3.2c, EwColorGrading)
+//   ambient occlusion  darkens the scene (M3.5, AmbientOcclusion)
+//   bloom          the three blurred sizes, screen-blended over the scene (M3.2b, Bloom)
+//   tone mapping   a filmic curve (M3.2c, ToneMapping)
+//   colour grading a colour LUT (M3.2c, ColorGrading)
 // The switches are uniform branches, so the off parts cost nothing. Samples inside a
 // branch use tex2Dlod, which needs no screen-space gradients.
 //
-// With linear lighting (EwLinearLighting, shader_linear.h) the bloom levels hold linear light, and
+// With linear lighting (LinearLighting, shader_linear.h) the bloom levels hold linear light, and
 // the final pass decodes the scene after the ambient occlusion, adds the bloom (no screen blend:
 // light adds up, the tone curve rolls it off) and tone maps, then encodes before the colour LUT.
 //
-// PostFxaaPS (M3.2d, EwFXAA) runs last, on the finished colours: it finds edges by their
+// PostFxaaPS (M3.2d, FXAA) runs last, on the finished colours: it finds edges by their
 // brightness contrast, follows each edge to its ends and blends across it, so jagged
 // polygon and alpha-test edges look smooth. It reads only inside the view rectangle (Clamp).
 
 #include "shader_constants.h"
 #include "shader_linear.h"
 
-float4 Texel        : EW_REG(EW_POST_PS_TEXEL);
-float4 BloomParams  : EW_REG(EW_POST_PS_BLOOM);
-float4 BloomWeights : EW_REG(EW_POST_PS_BLOOM_WEIGHTS);
-float4 Final        : EW_REG(EW_POST_PS_FINAL);
-float4 Tone         : EW_REG(EW_POST_PS_TONE);
-float4 Clamp        : EW_REG(EW_POST_PS_CLAMP);
+float4 Texel        : SHADER_REG(POST_PS_TEXEL);
+float4 BloomParams  : SHADER_REG(POST_PS_BLOOM);
+float4 BloomWeights : SHADER_REG(POST_PS_BLOOM_WEIGHTS);
+float4 Final        : SHADER_REG(POST_PS_FINAL);
+float4 Tone         : SHADER_REG(POST_PS_TONE);
+float4 Clamp        : SHADER_REG(POST_PS_CLAMP);
 
 sampler2D Scene   : register(s0);
 sampler2D Bloom4  : register(s1);
@@ -56,14 +56,14 @@ sampler2D Bloom8  : register(s2);
 sampler2D Bloom16 : register(s3);
 sampler2D ColorLut : register(s4);
 
-float4 DepthParams : EW_REG(EW_POST_PS_DEPTH);
-float4 AoRay       : EW_REG(EW_POST_PS_AO_RAY);
-float4 AoParams    : EW_REG(EW_POST_PS_AO);
-float4 AoParams2   : EW_REG(EW_POST_PS_AO2);
-float4 AoFinal     : EW_REG(EW_POST_PS_AO_FINAL);
+float4 DepthParams : SHADER_REG(POST_PS_DEPTH);
+float4 AoRay       : SHADER_REG(POST_PS_AO_RAY);
+float4 AoParams    : SHADER_REG(POST_PS_AO);
+float4 AoParams2   : SHADER_REG(POST_PS_AO2);
+float4 AoFinal     : SHADER_REG(POST_PS_AO_FINAL);
 
-sampler2D AoMap      : register(s5);	// EW_POST_AO_SAMPLER
-sampler2D SceneDepth : register(s6);	// EW_POST_DEPTH_SAMPLER
+sampler2D AoMap      : register(s5);	// POST_AO_SAMPLER
+sampler2D SceneDepth : register(s6);	// POST_DEPTH_SAMPLER
 
 struct PostVsIn
 {
@@ -110,7 +110,7 @@ float4 PostBrightPS(float2 uv : TEXCOORD0) : COLOR0
 	// 0 at the threshold, 1 at full white; squared, so mid-bright ground glows little.
 	float k = saturate((luma - BloomParams.x) * BloomParams.y);
 	// The threshold is on the gamma value, so the same parts glow with linear lighting.
-	return float4(Ew_To_Linear(c) * (k * k), 1.0);
+	return float4(To_Linear(c) * (k * k), 1.0);
 }
 
 float4 PostDownPS(float2 uv : TEXCOORD0) : COLOR0
@@ -191,10 +191,10 @@ float3 View_Pos(float2 uv)
 	return View_Pos(uv, View_Depth(uv));
 }
 
-#define EW_AO_TAPS 12
-// The spiral: tap k sits at (k + 0.5) / EW_AO_TAPS of the radius and turns 7 times around
+#define AO_TAPS 12
+// The spiral: tap k sits at (k + 0.5) / AO_TAPS of the radius and turns 7 times around
 // over all taps, so neighbouring taps point in very different directions.
-static const float2 EwAoSpiral[EW_AO_TAPS] =
+static const float2 AoSpiral[AO_TAPS] =
 {
 	float2(-0.258819,  0.965926), float2( 0.707107, -0.707107), float2(-0.965926,  0.258819),
 	float2( 0.965926,  0.258819), float2(-0.707107, -0.707107), float2( 0.258819,  0.965926),
@@ -239,10 +239,10 @@ float4 PostAoPS(float2 uv : TEXCOORD0, float2 vpos : VPOS) : COLOR0
 
 	float r2 = AoParams.x * AoParams.x;
 	float sum = 0.0;
-	[unroll] for (int k = 0; k < EW_AO_TAPS; ++k)
+	[unroll] for (int k = 0; k < AO_TAPS; ++k)
 	{
-		float along = (k + 0.5) / EW_AO_TAPS;
-		float2 tap = mul(turn, EwAoSpiral[k]) * along;
+		float along = (k + 0.5) / AO_TAPS;
+		float2 tap = mul(turn, AoSpiral[k]) * along;
 		float2 tap_uv = clamp(uv + tap * radius_uv, Clamp.xy, Clamp.zw);
 		float3 v = View_Pos(tap_uv) - p;
 		float vv = dot(v, v);
@@ -250,12 +250,12 @@ float4 PostAoPS(float2 uv : TEXCOORD0, float2 vpos : VPOS) : COLOR0
 		float falloff = saturate(1.0 - vv / r2);
 		sum += falloff * saturate(rise - AoParams.z);
 	}
-	float ao = saturate(1.0 - sum * AoParams.y * (2.0 / EW_AO_TAPS));
+	float ao = saturate(1.0 - sum * AoParams.y * (2.0 / AO_TAPS));
 	return float4(lerp(1.0, ao, fade), depth, 0.0, 1.0);
 }
 
 // Depth-aware blur along Texel.zw (one AO texel across or down).
-static const float EwAoBlurWeights[5] = { 0.2270, 0.1945, 0.1216, 0.0541, 0.0162 };
+static const float AoBlurWeights[5] = { 0.2270, 0.1945, 0.1216, 0.0541, 0.0162 };
 
 float Ao_Depth_Weight(float tap_depth, float depth)
 {
@@ -265,14 +265,14 @@ float Ao_Depth_Weight(float tap_depth, float depth)
 float4 PostAoBlurPS(float2 uv : TEXCOORD0) : COLOR0
 {
 	float2 centre = tex2Dlod(AoMap, float4(uv, 0.0, 0.0)).rg;
-	float sum = centre.r * EwAoBlurWeights[0];
-	float weight = EwAoBlurWeights[0];
+	float sum = centre.r * AoBlurWeights[0];
+	float weight = AoBlurWeights[0];
 	[unroll] for (int k = 1; k < 5; ++k)
 	{
 		float2 a = tex2Dlod(AoMap, float4(clamp(uv + Texel.zw * k, Clamp.xy, Clamp.zw), 0.0, 0.0)).rg;
 		float2 b = tex2Dlod(AoMap, float4(clamp(uv - Texel.zw * k, Clamp.xy, Clamp.zw), 0.0, 0.0)).rg;
-		float wa = EwAoBlurWeights[k] * Ao_Depth_Weight(a.g, centre.g);
-		float wb = EwAoBlurWeights[k] * Ao_Depth_Weight(b.g, centre.g);
+		float wa = AoBlurWeights[k] * Ao_Depth_Weight(a.g, centre.g);
+		float wb = AoBlurWeights[k] * Ao_Depth_Weight(b.g, centre.g);
 		sum += a.r * wa + b.r * wb;
 		weight += wa + wb;
 	}
@@ -312,7 +312,7 @@ float4 PostFinalPS(float2 uv : TEXCOORD0) : COLOR0
 		c *= ao;
 	}
 
-	c = Ew_To_Linear(c);
+	c = To_Linear(c);
 
 	[branch] if (Final.x > 0.5)
 	{
@@ -321,13 +321,13 @@ float4 PostFinalPS(float2 uv : TEXCOORD0) : COLOR0
 			+ tex2Dlod(Bloom8, lod_uv).rgb * BloomWeights.y
 			+ tex2Dlod(Bloom16, lod_uv).rgb * BloomWeights.z;
 		bloom = saturate(bloom * BloomParams.z);
-		// Gamma: screen blend, 1 - (1 - scene) * (1 - bloom); above white (EwHdr) it adds nothing.
-		c = Ew_Linear() ? c + bloom : c + bloom * (1.0 - saturate(c));
+		// Gamma: screen blend, 1 - (1 - scene) * (1 - bloom); above white (Hdr) it adds nothing.
+		c = Linear_Lighting() ? c + bloom : c + bloom * (1.0 - saturate(c));
 	}
 
 	[branch] if (Final.y > 0.5)
-		c = Ew_Linear() ? ToneCurve(c) : ToneMap(c);
-	c = Ew_To_Gamma(c);
+		c = Linear_Lighting() ? ToneCurve(c) : ToneMap(c);
+	c = To_Gamma(c);
 
 	[branch] if (Final.z > 0.5)
 		c = ColorGrade(c);
@@ -456,7 +456,7 @@ float4 PostFxaaPS(float2 uv : TEXCOORD0) : COLOR0
 	return float4(FxaaColor(finalUv), centre.a);
 }
 
-// ---- Soft particles (EwSoftParticles) ----
+// ---- Soft particles (SoftParticles) ----
 
 // Copies the scene's view depth into an R32F texture before the particles draw, so the particle
 // shader (mesh.hlsl ParticlePS) can read it while the INTZ depth stays bound for depth testing.

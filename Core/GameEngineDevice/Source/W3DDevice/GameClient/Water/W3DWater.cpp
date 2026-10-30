@@ -255,15 +255,15 @@ void WaterRenderObjClass::setupJbaWaterShader()
 		DX9Wrapper::Set_DX9_Sampler_State(2,  D3DSAMP_ADDRESSU, D3DTADDRESS_WRAP);
 		DX9Wrapper::Set_DX9_Sampler_State(2,  D3DSAMP_ADDRESSV, D3DTADDRESS_WRAP);
 
-		EwD3DMatrix curView;
+		D3DMatrix curView;
 		DX9Wrapper::_Get_DX9_Transform(D3DTS_VIEW, curView);
-		EwD3DMatrix inv;
+		D3DMatrix inv;
 		float det;
-		EwD3DMatrixInverse(&inv, &det, &curView);
-		EwD3DMatrix scale;
-		EwD3DMatrixScaling(&scale, NOISE_REPEAT_FACTOR, NOISE_REPEAT_FACTOR,1);
-		EwD3DMatrix destMatrix = inv * scale;
-		EwD3DMatrixTranslation(&scale, m_riverVOrigin, m_riverVOrigin,0);
+		D3DMatrixInverse(&inv, &det, &curView);
+		D3DMatrix scale;
+		D3DMatrixScaling(&scale, NOISE_REPEAT_FACTOR, NOISE_REPEAT_FACTOR,1);
+		D3DMatrix destMatrix = inv * scale;
+		D3DMatrixTranslation(&scale, m_riverVOrigin, m_riverVOrigin,0);
 		destMatrix = destMatrix*scale;
 		DX9Wrapper::_Set_DX9_Transform(D3DTS_TEXTURE2, destMatrix);
 
@@ -277,7 +277,7 @@ void WaterRenderObjClass::setupJbaWaterShader()
 	m_pDev->SetSamplerState( 3, D3DSAMP_MINFILTER, D3DTEXF_LINEAR );
 	m_pDev->SetSamplerState( 3, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR );
 	if (m_riverWaterPixelShader){
-		DX9Wrapper::_Get_D3D_Device9()->SetPixelShaderConstantF(0,   EwD3DVector4(REFLECTION_FACTOR, REFLECTION_FACTOR, REFLECTION_FACTOR, 1.0f), 1);
+		DX9Wrapper::_Get_D3D_Device9()->SetPixelShaderConstantF(0,   D3DVector4(REFLECTION_FACTOR, REFLECTION_FACTOR, REFLECTION_FACTOR, 1.0f), 1);
 		DX9Wrapper::_Get_D3D_Device9()->SetPixelShader(m_riverWaterPixelShader);
 	}
 }
@@ -902,8 +902,8 @@ void WaterRenderObjClass::ReAcquireResources()
 		// EastWind: embedded HLSL ports of wave.vso and wave.pso (EastWind/Shaders/wave.hlsl).
 		// DX8 returned here when a shader failed to load, which also skipped the reflection texture
 		// and the water tracks below. Without the shaders the sea now draws without them instead.
-		m_dwWaveVertexShader = EwShaders::Vertex(EwShaders::VS_WAVE);
-		m_dwWavePixelShader = EwShaders::Pixel(EwShaders::PS_WAVE);
+		m_dwWaveVertexShader = ShaderLibrary::Vertex(ShaderLibrary::VS_WAVE);
+		m_dwWavePixelShader = ShaderLibrary::Pixel(ShaderLibrary::PS_WAVE);
 
 		// Create reflection texture
 		m_pReflectionTexture = DX9Wrapper::Create_Render_Target (SEA_REFLECTION_SIZE, SEA_REFLECTION_SIZE);
@@ -917,8 +917,8 @@ void WaterRenderObjClass::ReAcquireResources()
 		// EastWind: DX8 assembled these from ps.1.1 text at runtime; now they are embedded HLSL
 		// (EastWind/Shaders/water.hlsl). The third one, m_waterPixelShader, was never drawn with
 		// and stays null.
-		m_riverWaterPixelShader = EwShaders::Pixel(EwShaders::PS_RIVER);
-		m_trapezoidWaterPixelShader = EwShaders::Pixel(EwShaders::PS_TRAPEZOID);
+		m_riverWaterPixelShader = ShaderLibrary::Pixel(ShaderLibrary::PS_RIVER);
+		m_trapezoidWaterPixelShader = ShaderLibrary::Pixel(ShaderLibrary::PS_TRAPEZOID);
 	}
 
 	//W3D Invalidate textures after losing the device and since we peek at the textures directly, it won't
@@ -1384,7 +1384,7 @@ void WaterRenderObjClass::loadSetting( Setting *setting, TimeOfDay timeOfDay )
 /** EastWind DX9 (M3.3a): the height of the visible water area nearest to where the middle of the
 	* view meets it. The reflection of the water shader mirrors the scene about this height. */
 //-------------------------------------------------------------------------------------------------
-static Bool ewFindMirrorLevel(CameraClass *cam, Real &level)
+static Bool findMirrorLevel(CameraClass *cam, Real &level)
 {
 	const Matrix3D &transform = cam->Get_Transform();
 	const Vector3 position = transform.Get_Translation();
@@ -1448,14 +1448,14 @@ void WaterRenderObjClass::updateRenderTargetTextures(CameraClass *cam)
 
 	// EastWind DX9 (M3.3a): the reflection of the water shader, for the polygon water types.
 	if ((m_waterType == WATER_TYPE_0_TRANSLUCENT || m_waterType == WATER_TYPE_3_GRIDMESH) &&
-		TheTerrainRenderObject && TheTerrainRenderObject->getMap() && EwWater::Wants_Reflection())
+		TheTerrainRenderObject && TheTerrainRenderObject->getMap() && W3DWaterShader::Wants_Reflection())
 	{
 		Real level = 0;
 		IDirect3DSurface9 *target = nullptr;
 		IDirect3DSurface9 *depth = nullptr;
-		if (!ewFindMirrorLevel(cam, level))
-			EwWater::Skip_Reflection("no water area in view");
-		else if (EwWater::Begin_Reflection(&target, &depth))
+		if (!findMirrorLevel(cam, level))
+			W3DWaterShader::Skip_Reflection("no water area in view");
+		else if (W3DWaterShader::Begin_Reflection(&target, &depth))
 			renderMirrorInto(cam, level, target, depth);
 	}
 }
@@ -1469,7 +1469,7 @@ void WaterRenderObjClass::renderMirrorInto(CameraClass *cam, Real level, IDirect
 {
 #ifdef EXTENDED_STATS
 	if (DX9Wrapper::stats.m_disableWater) {
-		EwWater::Skip_Reflection("water disabled");
+		W3DWaterShader::Skip_Reflection("water disabled");
 		return;
 	}
 #endif
@@ -1489,7 +1489,7 @@ void WaterRenderObjClass::renderMirrorInto(CameraClass *cam, Real level, IDirect
 	DX9Wrapper::Set_Render_Target(target, depth);
 
 	float sky[3];
-	EwWater::Sky_Color(sky);
+	W3DWaterShader::Sky_Color(sky);
 	if (WW3D::Begin_Render(true, true, Vector3(sky[0], sky[1], sky[2])) == WW3D_ERROR_OK)
 	{
 		cam->Set_Transform(reflectedTransform);
@@ -1520,11 +1520,11 @@ void WaterRenderObjClass::renderMirrorInto(CameraClass *cam, Real level, IDirect
 		ShaderClass::Invert_Backface_Culling(false);
 
 		WW3D::End_Render(false);
-		EwWater::End_Reflection(level);
+		W3DWaterShader::End_Reflection(level);
 	}
 	else
 	{
-		EwWater::Skip_Reflection("WW3D::Begin_Render failed");
+		W3DWaterShader::Skip_Reflection("WW3D::Begin_Render failed");
 	}
 
 	// Change the rendertarget back to the main backbuffer
@@ -1714,17 +1714,17 @@ void WaterRenderObjClass::Render(RenderInfoClass & rinfo)
 				/**************************************************************************************/
 
 				//get current view matrix
-				EwD3DMatrix curView;
+				D3DMatrix curView;
 				DX9Wrapper::_Get_DX9_Transform(D3DTS_VIEW, curView);
 
 				//get inverse of view matrix(= view to world matrix)
-				EwD3DMatrix inv;
+				D3DMatrix inv;
 				Real det;
-				EwD3DMatrixInverse(&inv, &det, &curView);
+				D3DMatrixInverse(&inv, &det, &curView);
 
 				//create clipping matrix by inserting our plane equation into the 1st column
-				EwD3DMatrix clipMatrix;
-				EwD3DMatrixIdentity(&clipMatrix);
+				D3DMatrix clipMatrix;
+				D3DMatrixIdentity(&clipMatrix);
 				clipMatrix(0,0)=WaterNormal.X;
 				clipMatrix(1,0)=WaterNormal.Y;
 				clipMatrix(2,0)=WaterNormal.Z;
@@ -1898,7 +1898,7 @@ void WaterRenderObjClass::drawSea(RenderInfoClass & rinfo)
 	if (!getClippedWaterPlane(&rinfo.Camera,&seaBox))
 		return;	//the sea is not visible
 
-	EwD3DMatrix matProj, matView, matWW3D;
+	D3DMatrix matProj, matView, matWW3D;
 
 	//create a transform which will flip the y and z coordinates to fit our system
 	memset(&matWW3D,0,sizeof(D3DMATRIX));
@@ -1974,8 +1974,8 @@ void WaterRenderObjClass::drawSea(RenderInfoClass & rinfo)
 
 	m_pDev->SetRenderState(D3DRS_ZWRITEENABLE , FALSE);
 
-	EwD3DMatrix mat;
-	memset(&mat,0,sizeof(EwD3DMatrix));
+	D3DMatrix mat;
+	memset(&mat,0,sizeof(D3DMatrix));
 
 	mat._11 = 0.5f; mat._12 = -0.5f; mat._13 = 0.5f;   mat._14=0.5f;
 	mat._21 = 0.5f; mat._22 = 0.5f; mat._23 = 0.0f;   mat._24=0.0f;
@@ -1985,15 +1985,15 @@ void WaterRenderObjClass::drawSea(RenderInfoClass & rinfo)
 	m_pDev->SetVertexShaderConstantF(CV_TEXPROJ_0, (const float*)&mat, 4);
 
 	// Setup constants
-	m_pDev->SetVertexShaderConstantF(CV_ZERO,   EwD3DVector4(0.0f, 0.0f, 0.0f, 0.0f), 1);
-	m_pDev->SetVertexShaderConstantF(CV_ONE,    EwD3DVector4(1.0f, 1.0f, 1.0f, 1.0f), 1);
+	m_pDev->SetVertexShaderConstantF(CV_ZERO,   D3DVector4(0.0f, 0.0f, 0.0f, 0.0f), 1);
+	m_pDev->SetVertexShaderConstantF(CV_ONE,    D3DVector4(1.0f, 1.0f, 1.0f, 1.0f), 1);
 
 	// The bump offset that ps.1.1 texbem read from D3DTSS_BUMPENVMAT* is a constant in ps_2_0.
-	m_pDev->SetPixelShaderConstantF(EW_WAVE_PS_BUMPMAT, EwD3DVector4(m_fBumpScale, 0.0f, 0.0f, m_fBumpScale), 1);
+	m_pDev->SetPixelShaderConstantF(WAVE_PS_BUMPMAT, D3DVector4(m_fBumpScale, 0.0f, 0.0f, m_fBumpScale), 1);
 
 	// D3D9 builds the vertex declaration from the FVF, which DX8 took from the shader declaration.
 	// Bound through the wrapper so the Set_Vertex_Shader at the end unbinds the shader again.
-	static_assert(CV_WORLDVIEWPROJ_0 == EW_WAVE_VS_WVP && CV_TEXPROJ_0 == EW_WAVE_VS_TEXPROJ, "wave.hlsl registers changed");
+	static_assert(CV_WORLDVIEWPROJ_0 == WAVE_VS_WVP && CV_TEXPROJ_0 == WAVE_VS_TEXPROJ, "wave.hlsl registers changed");
 	DX9Wrapper::Set_Vertex_Shader(DX9_FVF_XYZDUV1);
 	DX9Wrapper::Set_Vertex_Shader_Program(m_dwWaveVertexShader);
 	m_pDev->SetPixelShader(m_dwWavePixelShader);
@@ -2012,8 +2012,8 @@ void WaterRenderObjClass::drawSea(RenderInfoClass & rinfo)
 
 	Int patchX,patchY,startX,startY;
 
-	EwD3DMatrix patchMatrix;
-	memset(&patchMatrix,0,sizeof(EwD3DMatrix));
+	D3DMatrix patchMatrix;
+	memset(&patchMatrix,0,sizeof(D3DMatrix));
 	patchMatrix._11=PATCH_SCALE;
 	patchMatrix._22=1.0f;
 	patchMatrix._33=PATCH_SCALE;
@@ -2026,16 +2026,16 @@ void WaterRenderObjClass::drawSea(RenderInfoClass & rinfo)
 	{
 		for (startX=patchX=(seaBox.Center.X-seaBox.Extent.X)/(PATCH_WIDTH*PATCH_SCALE); (patchX*PATCH_WIDTH*PATCH_SCALE)<(seaBox.Center.X+seaBox.Extent.X); patchX++)
 		{
-			EwD3DMatrix matWorldViewProj, matTemp, matTempWorld;
+			D3DMatrix matWorldViewProj, matTemp, matTempWorld;
 			patchMatrix._41=(float)(patchX*PATCH_WIDTH*PATCH_SCALE );
 			patchMatrix._43=(float)(patchY*PATCH_WIDTH*PATCH_SCALE );
 			//convert the default D3D coordinate system into ours
-			EwD3DMatrixMultiply(&matTempWorld, &patchMatrix, &matWW3D);
+			D3DMatrixMultiply(&matTempWorld, &patchMatrix, &matWW3D);
 
-			EwD3DMatrixMultiply(&matTemp, &matTempWorld, &matView);
-			EwD3DMatrixMultiply(&matWorldViewProj, &matTemp, &matProj);
+			D3DMatrixMultiply(&matTemp, &matTempWorld, &matView);
+			D3DMatrixMultiply(&matWorldViewProj, &matTemp, &matProj);
 			//matrices must be transposed before loading into vertex shader registers
-			EwD3DMatrixTranspose(&matWorldViewProj, &matWorldViewProj);
+			D3DMatrixTranspose(&matWorldViewProj, &matWorldViewProj);
 			m_pDev->SetVertexShaderConstantF(CV_WORLDVIEWPROJ_0, (const float*)&matWorldViewProj, 4);	//pass transform matrix into shader
 
 			m_pDev->DrawIndexedPrimitive(D3DPT_TRIANGLESTRIP,0,0,m_numVertices,0,m_numIndices);
@@ -2085,11 +2085,11 @@ void WaterRenderObjClass::drawSea(RenderInfoClass & rinfo)
 		{
 			for (startX=patchX=(seaBox.Center.X-seaBox.Extent.X)/(PATCH_WIDTH*PATCH_SCALE); (patchX*PATCH_WIDTH*PATCH_SCALE)<(seaBox.Center.X+seaBox.Extent.X); patchX++)
 			{
-				EwD3DMatrix matTemp;
+				D3DMatrix matTemp;
 				patchMatrix._41=(float)(patchX*PATCH_WIDTH*PATCH_SCALE);
 				patchMatrix._43=(float)(patchY*PATCH_WIDTH*PATCH_SCALE);
 
-				EwD3DMatrixMultiply(&matTemp, &patchMatrix, &matWW3D);
+				D3DMatrixMultiply(&matTemp, &patchMatrix, &matWW3D);
 
 				DX9Wrapper::_Set_DX9_Transform(D3DTS_WORLD, matTemp);
 
@@ -3045,10 +3045,10 @@ void WaterRenderObjClass::drawRiverWater(PolygonTrigger *pTrig)
 	if (pTrig->getNumPoints() > 0)
 		riverLevel /= pTrig->getNumPoints();
 	const Real riverAlpha = ((m_settings[m_tod].waterDiffuse >> 24) & 0xff) / 255.0f;
-	const Bool ewWaterShader = m_riverWaterPixelShader && EwWater::Begin(EwWater::RIVER, riverLevel, endLen, riverAlpha);
+	const Bool waterShader = m_riverWaterPixelShader && W3DWaterShader::Begin(W3DWaterShader::RIVER, riverLevel, endLen, riverAlpha);
 	DX9Wrapper::Draw_Triangles(	0,rectangleCount*2, 0,	(rectangleCount+1)*2);
-	if (ewWaterShader)
-		EwWater::End();
+	if (waterShader)
+		W3DWaterShader::End();
 	if (wireframeForDebug) {
 		DX9Wrapper::_Get_D3D_Device9()->SetRenderState(D3DRS_FILLMODE,D3DFILL_SOLID);
 	}
@@ -3138,15 +3138,15 @@ void WaterRenderObjClass::setupFlatWaterShader()
 		DX9Wrapper::Set_DX9_Sampler_State(2,  D3DSAMP_ADDRESSU, D3DTADDRESS_WRAP);
 		DX9Wrapper::Set_DX9_Sampler_State(2,  D3DSAMP_ADDRESSV, D3DTADDRESS_WRAP);
 
-		EwD3DMatrix curView;
+		D3DMatrix curView;
 		DX9Wrapper::_Get_DX9_Transform(D3DTS_VIEW, curView);
-		EwD3DMatrix inv;
+		D3DMatrix inv;
 		float det;
-		EwD3DMatrixInverse(&inv, &det, &curView);
-		EwD3DMatrix scale;
-		EwD3DMatrixScaling(&scale, NOISE_REPEAT_FACTOR, NOISE_REPEAT_FACTOR,1);
-		EwD3DMatrix destMatrix = inv * scale;
-		EwD3DMatrixTranslation(&scale, m_riverVOrigin, m_riverVOrigin,0);
+		D3DMatrixInverse(&inv, &det, &curView);
+		D3DMatrix scale;
+		D3DMatrixScaling(&scale, NOISE_REPEAT_FACTOR, NOISE_REPEAT_FACTOR,1);
+		D3DMatrix destMatrix = inv * scale;
+		D3DMatrixTranslation(&scale, m_riverVOrigin, m_riverVOrigin,0);
 		destMatrix = destMatrix*scale;
 		DX9Wrapper::_Set_DX9_Transform(D3DTS_TEXTURE2, destMatrix);
 
@@ -3158,7 +3158,7 @@ void WaterRenderObjClass::setupFlatWaterShader()
 	m_pDev->SetSamplerState( 2, D3DSAMP_MINFILTER, D3DTEXF_LINEAR );
 	m_pDev->SetSamplerState( 2, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR );
 	if (m_trapezoidWaterPixelShader){
-		DX9Wrapper::_Get_D3D_Device9()->SetPixelShaderConstantF(0,   EwD3DVector4(REFLECTION_FACTOR, REFLECTION_FACTOR, REFLECTION_FACTOR, 1.0f), 1);
+		DX9Wrapper::_Get_D3D_Device9()->SetPixelShaderConstantF(0,   D3DVector4(REFLECTION_FACTOR, REFLECTION_FACTOR, REFLECTION_FACTOR, 1.0f), 1);
 		DX9Wrapper::_Get_D3D_Device9()->SetPixelShader(m_trapezoidWaterPixelShader);
 	}
 }
@@ -3429,11 +3429,11 @@ void WaterRenderObjClass::drawTrapezoidWater(Vector3 points[4])
 //#endif // FEATHER_WATER
 //#endif //WAVY_WATER
 		// EastWind DX9 (M3.3a): the water shader, with waves, Fresnel and the reflection.
-		const Real ewWaterLevel = (points[0].Z + points[1].Z + points[2].Z + points[3].Z) * 0.25f;
-		const Bool ewWaterShader = m_trapezoidWaterPixelShader && EwWater::Begin(EwWater::TRAPEZOID, ewWaterLevel, 0.0f, 1.0f);
+		const Real waterLevel = (points[0].Z + points[1].Z + points[2].Z + points[3].Z) * 0.25f;
+		const Bool waterShader = m_trapezoidWaterPixelShader && W3DWaterShader::Begin(W3DWaterShader::TRAPEZOID, waterLevel, 0.0f, 1.0f);
 		DX9Wrapper::Draw_Triangles(	0,rectangleCount*2, 0,	(rectangleCount+1)*2);//lorenzen thinks this is where to itereate the soft shoreline effect
-		if (ewWaterShader)
-			EwWater::End();
+		if (waterShader)
+			W3DWaterShader::End();
 	}
 
 

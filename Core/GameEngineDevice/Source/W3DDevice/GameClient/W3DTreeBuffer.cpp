@@ -628,15 +628,15 @@ void W3DTreeBuffer::setTextureLOD(Int lod)
 		((W3DTreeTextureClass*)m_treeTexture)->setLOD(lod);
 }
 
-// EastWind M3.1d: with m_ewLitFormat the vertices are VertexFormatXYZNDUV1TG3, which starts with
+// EastWind M3.1d: with m_litFormat the vertices are VertexFormatXYZNDUV1TG3, which starts with
 // the fields of VertexFormatXYZNDUV1. The code writes through VertexFormatXYZNDUV1 and steps by
 // the size of the format in use.
-static inline Int ewTreeVertexSize(Bool litFormat)
+static inline Int treeVertexSize(Bool litFormat)
 {
 	return litFormat ? sizeof(VertexFormatXYZNDUV1TG3) : sizeof(VertexFormatXYZNDUV1);
 }
 
-static inline VertexFormatXYZNDUV1 *ewTreeVertexAt(VertexFormatXYZNDUV1 *vb, Int index, Int vertexSize)
+static inline VertexFormatXYZNDUV1 *treeVertexAt(VertexFormatXYZNDUV1 *vb, Int index, Int vertexSize)
 {
 	return (VertexFormatXYZNDUV1 *)((char *)vb + index * vertexSize);
 }
@@ -757,7 +757,7 @@ void W3DTreeBuffer::loadTreesInVertexAndIndexBuffers(RefRenderObjListIterator *p
 		UnsignedShort *curIb = ib;
 
 		VertexFormatXYZNDUV1 *curVb = vb;
-		const Int vertexSize = ewTreeVertexSize(m_ewLitFormat);
+		const Int vertexSize = treeVertexSize(m_litFormat);
 
 
 
@@ -906,7 +906,7 @@ void W3DTreeBuffer::loadTreesInVertexAndIndexBuffers(RefRenderObjListIterator *p
 				} else {
 					curVb->diffuse = diffuse;
 				}
-				if (m_ewLitFormat) {
+				if (m_litFormat) {
 					// EastWind M3.1d: what doLighting used above, so TreesLitPS can light the tree per pixel.
 					VertexFormatXYZNDUV1TG3 *lit = (VertexFormatXYZNDUV1TG3 *)curVb;
 					lit->Sx = 0.0f;
@@ -930,7 +930,7 @@ void W3DTreeBuffer::loadTreesInVertexAndIndexBuffers(RefRenderObjListIterator *p
 					lit->SxTy = ((colour >> 8) & 0xff) / 255.0f;
 					lit->SxTz = (colour & 0xff) / 255.0f;
 				}
-				curVb = ewTreeVertexAt(curVb, 1, vertexSize);
+				curVb = treeVertexAt(curVb, 1, vertexSize);
 				m_curNumTreeVertices[bNdx]++;
 			}
 
@@ -974,7 +974,7 @@ void W3DTreeBuffer::updateVertexBuffer()
 		}
 
 		VertexFormatXYZNDUV1 *curVb;
-		const Int vertexSize = ewTreeVertexSize(m_ewLitFormat);
+		const Int vertexSize = treeVertexSize(m_litFormat);
 
 		Int curTree;
 		for (curTree=0; curTree<m_numTrees; curTree++) {
@@ -994,7 +994,7 @@ void W3DTreeBuffer::updateVertexBuffer()
 			DEBUG_ASSERTCRASH(type>=0 && m_treeTypes[type].m_mesh!=nullptr, ("Invalid tree type or mesh."));
 
 			Int startVertex = m_trees[curTree].firstIndex;
-			curVb = ewTreeVertexAt(vb, startVertex, vertexSize);
+			curVb = treeVertexAt(vb, startVertex, vertexSize);
 			Int i;
 			Int numVertex = m_treeTypes[type].m_mesh->Peek_Model()->Get_Vertex_Count();
 			Vector3 *pVert = m_treeTypes[type].m_mesh->Peek_Model()->Get_Vertex_Array();
@@ -1028,7 +1028,7 @@ void W3DTreeBuffer::updateVertexBuffer()
 				curVb->y = vLoc.Y;
 				curVb->z = vLoc.Z;
 				curVb->ny = 1.0f - m_treeTypes[type].m_data->m_darkening*m_trees[curTree].pushAside;
-				curVb = ewTreeVertexAt(curVb, 1, vertexSize);
+				curVb = treeVertexAt(curVb, 1, vertexSize);
 			}
 		}
 	}
@@ -1075,9 +1075,9 @@ W3DTreeBuffer::W3DTreeBuffer()
 	m_treeTexture = nullptr;
 	m_dwTreeVertexShader = 0;
 	m_dwTreePixelShader = 0;
-	m_ewLitFormat = false;
+	m_litFormat = false;
 	for (i=0; i<MAX_SWAY_TYPES; i++) {
-		m_ewLastSway[i].Set(0, 0, 0);
+		m_lastSway[i].Set(0, 0, 0);
 	}
 	clearAllTrees();
 	allocateTreeBuffers();
@@ -1199,16 +1199,16 @@ void W3DTreeBuffer::allocateTreeBuffers()
 {
 	// EastWind: the sway vertex shader is the embedded HLSL port of Trees.vso (EastWind/Shaders/trees.hlsl).
 	// The pixel stages stay fixed-function, so Trees.pso is not loaded; DX8 never used it either.
-	m_dwTreeVertexShader = EwShaders::Vertex(EwShaders::VS_TREES);
+	m_dwTreeVertexShader = ShaderLibrary::Vertex(ShaderLibrary::VS_TREES);
 
-	// EastWind M3.1d: with EwPerPixelLighting the vertices also carry the normal, emissive and mesh
+	// EastWind M3.1d: with PerPixelLighting the vertices also carry the normal, emissive and mesh
 	// colour, for TreesLitPS. TreesVS draws the same vertices, so the debug keys can switch per frame.
 	// Without TreesVS the fixed-function stages would read the normal as the shroud coordinates, so
 	// that case keeps the classic format.
-	m_ewLitFormat = EwGraphics().PerPixelLighting && m_dwTreeVertexShader != nullptr
-		&& EwShaders::Peek_Vertex(EwShaders::VS_TREES_LIT) != nullptr
-		&& EwShaders::Peek_Pixel(EwShaders::PS_TREES_LIT) != nullptr;
-	const unsigned treeFvf = m_ewLitFormat ? DX9_FVF_XYZNDUV1TG3 : DX9_FVF_XYZNDUV1;
+	m_litFormat = Get_Graphics_Options().PerPixelLighting && m_dwTreeVertexShader != nullptr
+		&& ShaderLibrary::Peek_Vertex(ShaderLibrary::VS_TREES_LIT) != nullptr
+		&& ShaderLibrary::Peek_Pixel(ShaderLibrary::PS_TREES_LIT) != nullptr;
+	const unsigned treeFvf = m_litFormat ? DX9_FVF_XYZNDUV1TG3 : DX9_FVF_XYZNDUV1;
 
 	Int i;
 	for	(i=0; i<MAX_BUFFERS; i++) {
@@ -1503,7 +1503,7 @@ void W3DTreeBuffer::drawTrees(CameraClass * camera, RefRenderObjListIterator *pD
 {
 	USE_PERF_TIMER(Tree_Render)
 	// EastWind M3.4: the sun shadow map draws the trees as they were drawn last frame.
-	if (EwShadowMap::Caster_Pass()) {
+	if (ShadowMap::Caster_Pass()) {
 		drawTreeCasters();
 		return;
 	}
@@ -1536,7 +1536,7 @@ void W3DTreeBuffer::drawTrees(CameraClass * camera, RefRenderObjListIterator *pD
 			swayFactor[i] = f1*m_swayOffsets[minOffset] + f2*m_swayOffsets[minOffset+1];
 			swayFactor[i] *= m_curSwayFactor[i];
 		}
-		m_ewLastSway[i] = swayFactor[i];
+		m_lastSway[i] = swayFactor[i];
 	}
 
 	m_isTerrainPass = false;
@@ -1554,7 +1554,7 @@ void W3DTreeBuffer::drawTrees(CameraClass * camera, RefRenderObjListIterator *pD
 
 	Int curTree;
 	// Draw tree shadows. Not with the sun shadow map, where the trees cast into it.
-	if (m_shadow && TheW3DProjectedShadowManager && TheGlobalData->m_useShadowDecals && !EwShadowMap::Active()) {
+	if (m_shadow && TheW3DProjectedShadowManager && TheGlobalData->m_useShadowDecals && !ShadowMap::Active()) {
 		for (curTree=0; curTree<m_numTrees; curTree++) {
 			Int type = m_trees[curTree].treeType;
 			if (type<0) {
@@ -1698,41 +1698,41 @@ void W3DTreeBuffer::drawTrees(CameraClass * camera, RefRenderObjListIterator *pD
 	DX9Wrapper::Apply_Render_State_Changes();
 
 	// EastWind M3.1d: per-pixel lit trees (TreesLitVS/TreesLitPS) when the buffers carry the light
-	// inputs and the unit and building light is per pixel (EwGraphics().MeshLighting()).
+	// inputs and the unit and building light is per pixel (Get_Graphics_Options().MeshLighting()).
 	IDirect3DVertexShader9 *treeVertexShader = m_dwTreeVertexShader;
 	IDirect3DPixelShader9 *treePixelShader = nullptr;
-	if (!EwGraphics().PerPixelLighting) {
-		EwTerrainLighting::Tree_Pass("off in Options.ini");
-	} else if (!m_ewLitFormat) {
-		EwTerrainLighting::Tree_Pass("the device has no vs_3_0/ps_3_0 for the tree shaders");
-	} else if (!EwGraphics().MeshLighting()) {
-		EwTerrainLighting::Tree_Pass("unit and building light is classic");
+	if (!Get_Graphics_Options().PerPixelLighting) {
+		W3DTerrainLighting::Tree_Pass("off in Options.ini");
+	} else if (!m_litFormat) {
+		W3DTerrainLighting::Tree_Pass("the device has no vs_3_0/ps_3_0 for the tree shaders");
+	} else if (!Get_Graphics_Options().MeshLighting()) {
+		W3DTerrainLighting::Tree_Pass("unit and building light is classic");
 	} else {
-		treeVertexShader = EwShaders::Peek_Vertex(EwShaders::VS_TREES_LIT);
-		treePixelShader = EwShaders::Peek_Pixel(EwShaders::PS_TREES_LIT);
-		EwTerrainLighting::Tree_Pass(nullptr);
+		treeVertexShader = ShaderLibrary::Peek_Vertex(ShaderLibrary::VS_TREES_LIT);
+		treePixelShader = ShaderLibrary::Peek_Pixel(ShaderLibrary::PS_TREES_LIT);
+		W3DTerrainLighting::Tree_Pass(nullptr);
 	}
 
 	if (treeVertexShader) {
-		EwD3DMatrix matProj, matView, matWorld;
+		D3DMatrix matProj, matView, matWorld;
 		DX9Wrapper::_Get_DX9_Transform(D3DTS_WORLD, matWorld);
 		DX9Wrapper::_Get_DX9_Transform(D3DTS_VIEW, matView);
 		DX9Wrapper::_Get_DX9_Transform(D3DTS_PROJECTION, matProj);
-		EwD3DMatrix mat;
-		EwD3DMatrixMultiply( &mat, &matView, &matProj );
-		EwD3DMatrixMultiply( &mat, &matWorld, &mat );
-		EwD3DMatrixTranspose( &mat, &mat );
+		D3DMatrix mat;
+		D3DMatrixMultiply( &mat, &matView, &matProj );
+		D3DMatrixMultiply( &mat, &matWorld, &mat );
+		D3DMatrixTranspose( &mat, &mat );
 
 		// c4  - Composite World-View-Projection Matrix
-		DX9Wrapper::_Get_D3D_Device9()->SetVertexShaderConstantF(  EW_TREES_VS_WVP, (const float*)&mat,  4 );
+		DX9Wrapper::_Get_D3D_Device9()->SetVertexShaderConstantF(  TREES_VS_WVP, (const float*)&mat,  4 );
 		Vector4 noSway(0,0,0,0);
-		DX9Wrapper::_Get_D3D_Device9()->SetVertexShaderConstantF(  EW_TREES_VS_WAVE, (const float*)&noSway,  1 );
+		DX9Wrapper::_Get_D3D_Device9()->SetVertexShaderConstantF(  TREES_VS_WAVE, (const float*)&noSway,  1 );
 
 		// c8 - c8+MAX_SWAY_TYPES - the sway amount.
-		static_assert(MAX_SWAY_TYPES == EW_TREES_MAX_SWAY, "trees.hlsl must have room for every sway type");
+		static_assert(MAX_SWAY_TYPES == TREES_MAX_SWAY, "trees.hlsl must have room for every sway type");
 		for	(i=0; i<MAX_SWAY_TYPES; i++) {
 			Vector4 sway4(swayFactor[i].X, swayFactor[i].Y, swayFactor[i].Z, 0);
-			DX9Wrapper::_Get_D3D_Device9()->SetVertexShaderConstantF(  EW_TREES_VS_WAVE+1+i, (const float*)&sway4,  1 );
+			DX9Wrapper::_Get_D3D_Device9()->SetVertexShaderConstantF(  TREES_VS_WAVE+1+i, (const float*)&sway4,  1 );
 		}
 
 		W3DShroud *shroud;
@@ -1746,16 +1746,16 @@ void W3DTreeBuffer::drawTrees(CameraClass * camera, RefRenderObjListIterator *pD
 			xoffset = -(float)shroud->getDrawOriginX() + width;
 			yoffset = -(float)shroud->getDrawOriginY() + height;
 			Vector4 offset(xoffset, yoffset, 0, 0);
-			DX9Wrapper::_Get_D3D_Device9()->SetVertexShaderConstantF(  EW_TREES_VS_SHROUD_OFS, (const float*)&offset,  1 );
+			DX9Wrapper::_Get_D3D_Device9()->SetVertexShaderConstantF(  TREES_VS_SHROUD_OFS, (const float*)&offset,  1 );
 			width = 1.0f/(width*shroud->getTextureWidth());
 			height = 1.0f/(height*shroud->getTextureHeight());
 			offset.Set(width, height, 1, 1);
-			DX9Wrapper::_Get_D3D_Device9()->SetVertexShaderConstantF(  EW_TREES_VS_SHROUD_SCALE, (const float*)&offset,  1 );
+			DX9Wrapper::_Get_D3D_Device9()->SetVertexShaderConstantF(  TREES_VS_SHROUD_SCALE, (const float*)&offset,  1 );
 
 		} else {
 			Vector4 offset(0,0,0,0);
-			DX9Wrapper::_Get_D3D_Device9()->SetVertexShaderConstantF(  EW_TREES_VS_SHROUD_OFS, (const float*)&offset,  1 );
-			DX9Wrapper::_Get_D3D_Device9()->SetVertexShaderConstantF(  EW_TREES_VS_SHROUD_SCALE, (const float*)&offset,  1 );
+			DX9Wrapper::_Get_D3D_Device9()->SetVertexShaderConstantF(  TREES_VS_SHROUD_OFS, (const float*)&offset,  1 );
+			DX9Wrapper::_Get_D3D_Device9()->SetVertexShaderConstantF(  TREES_VS_SHROUD_SCALE, (const float*)&offset,  1 );
 		}
 
 		DX9Wrapper::Set_Vertex_Shader_Program(treeVertexShader);
@@ -1764,7 +1764,7 @@ void W3DTreeBuffer::drawTrees(CameraClass * camera, RefRenderObjListIterator *pD
 			// to each light with its diffuse colour.
 			static_assert(MAX_GLOBAL_LIGHTS == 3, "trees.hlsl lights trees with three lights");
 			const GlobalData::TerrainLighting *objectLighting = TheGlobalData->m_terrainObjectsLighting[TheGlobalData->m_timeOfDay];
-			Vector4 light[EW_TREES_PS_COUNT];
+			Vector4 light[TREES_PS_COUNT];
 			light[0].Set(objectLighting[0].ambient.red, objectLighting[0].ambient.green, objectLighting[0].ambient.blue, 0);
 			for (i=0; i<MAX_GLOBAL_LIGHTS; i++) {
 				Vector3 direction(objectLighting[i].lightPos.x, objectLighting[i].lightPos.y, objectLighting[i].lightPos.z);
@@ -1772,9 +1772,9 @@ void W3DTreeBuffer::drawTrees(CameraClass * camera, RefRenderObjListIterator *pD
 				light[1+i].Set(-direction.X, -direction.Y, -direction.Z, 0);
 				light[4+i].Set(objectLighting[i].diffuse.red, objectLighting[i].diffuse.green, objectLighting[i].diffuse.blue, 0);
 			}
-			light[EW_TREES_PS_OPTIONS].Set(TheTerrainRenderObject->getShroud() != nullptr ? 1.0f : 0.0f,
-				EwGraphics().DebugTerrainLightOnly ? 1.0f : 0.0f, 0, 0);
-			DX9Wrapper::_Get_D3D_Device9()->SetPixelShaderConstantF(EW_TREES_PS_LIGHT, (const float*)light, EW_TREES_PS_COUNT);
+			light[TREES_PS_OPTIONS].Set(TheTerrainRenderObject->getShroud() != nullptr ? 1.0f : 0.0f,
+				Get_Graphics_Options().DebugTerrainLightOnly ? 1.0f : 0.0f, 0, 0);
+			DX9Wrapper::_Get_D3D_Device9()->SetPixelShaderConstantF(TREES_PS_LIGHT, (const float*)light, TREES_PS_COUNT);
 			DX9Wrapper::Set_Pixel_Shader(treePixelShader);
 		}
 #if 0
@@ -1783,7 +1783,7 @@ void W3DTreeBuffer::drawTrees(CameraClass * camera, RefRenderObjListIterator *pD
 		Real mulTwoX = 0.5f;
 		if(TheGlobalData && TheGlobalData->m_useOverbright)
 			mulTwoX = 1.0f;
-		DX9Wrapper::_Get_D3D_Device9()->SetPixelShaderConstantF(1, EwD3DVector4(mulTwoX, mulTwoX, mulTwoX, mulTwoX), 1);
+		DX9Wrapper::_Get_D3D_Device9()->SetPixelShaderConstantF(1, D3DVector4(mulTwoX, mulTwoX, mulTwoX, mulTwoX), 1);
 #endif
 
 	} else {
@@ -1841,24 +1841,24 @@ void W3DTreeBuffer::drawTreeCasters()
 	DX9Wrapper::Set_DX9_Texture_Stage_State(0, D3DTSS_TEXCOORDINDEX, 0);
 	DX9Wrapper::Apply_Render_State_Changes();
 
-	EwD3DMatrix matProj, matView, matWorld;
+	D3DMatrix matProj, matView, matWorld;
 	DX9Wrapper::_Get_DX9_Transform(D3DTS_WORLD, matWorld);
 	DX9Wrapper::_Get_DX9_Transform(D3DTS_VIEW, matView);
 	DX9Wrapper::_Get_DX9_Transform(D3DTS_PROJECTION, matProj);
-	EwD3DMatrix mat;
-	EwD3DMatrixMultiply(&mat, &matView, &matProj);
-	EwD3DMatrixMultiply(&mat, &matWorld, &mat);
-	EwD3DMatrixTranspose(&mat, &mat);
-	device->SetVertexShaderConstantF(EW_TREES_VS_WVP, (const float*)&mat, 4);
+	D3DMatrix mat;
+	D3DMatrixMultiply(&mat, &matView, &matProj);
+	D3DMatrixMultiply(&mat, &matWorld, &mat);
+	D3DMatrixTranspose(&mat, &mat);
+	device->SetVertexShaderConstantF(TREES_VS_WVP, (const float*)&mat, 4);
 	Vector4 noSway(0, 0, 0, 0);
-	device->SetVertexShaderConstantF(EW_TREES_VS_WAVE, (const float*)&noSway, 1);
+	device->SetVertexShaderConstantF(TREES_VS_WAVE, (const float*)&noSway, 1);
 	Int i;
 	for (i=0; i<MAX_SWAY_TYPES; i++) {
-		Vector4 sway4(m_ewLastSway[i].X, m_ewLastSway[i].Y, m_ewLastSway[i].Z, 0);
-		device->SetVertexShaderConstantF(EW_TREES_VS_WAVE+1+i, (const float*)&sway4, 1);
+		Vector4 sway4(m_lastSway[i].X, m_lastSway[i].Y, m_lastSway[i].Z, 0);
+		device->SetVertexShaderConstantF(TREES_VS_WAVE+1+i, (const float*)&sway4, 1);
 	}
-	device->SetVertexShaderConstantF(EW_TREES_VS_SHROUD_OFS, (const float*)&noSway, 1);
-	device->SetVertexShaderConstantF(EW_TREES_VS_SHROUD_SCALE, (const float*)&noSway, 1);
+	device->SetVertexShaderConstantF(TREES_VS_SHROUD_OFS, (const float*)&noSway, 1);
+	device->SetVertexShaderConstantF(TREES_VS_SHROUD_SCALE, (const float*)&noSway, 1);
 
 	for (Int bNdx=0; bNdx<MAX_BUFFERS; bNdx++) {
 		if (m_curNumTreeIndices[bNdx]==0) {

@@ -1,7 +1,7 @@
-// EastWind DX9: lit-mesh shader (M3.1a, EwPerPixelLighting).
+// EastWind DX9: lit-mesh shader (M3.1a, PerPixelLighting).
 //
 // Draws W3D meshes that fixed-function would light per vertex, with the same result except that
-// the D3D9 lighting equation runs per pixel. EwMeshShader (meshshader.cpp) binds it at draw
+// the D3D9 lighting equation runs per pixel. MeshShader (meshshader.cpp) binds it at draw
 // time and fills the constants from the device and wrapper state:
 //   - the D3D9 lights, material, material colour sources and global ambient;
 //   - texture coordinate generation and texture matrices, expanded as D3D does:
@@ -14,7 +14,7 @@
 // MeshVS_<N|ND|NS|NDS>_T<0|1|2> (N = normal, D = diffuse colour, S = specular colour,
 // T = texcoord sets), and MeshVS_<|D|S|DS>_T<n> without a normal, for unlit draws.
 //
-// Two pixel shaders: MeshPS reproduces fixed-function, MeshMaterialPS (M3.1b, EwNormalMaps) adds
+// Two pixel shaders: MeshPS reproduces fixed-function, MeshMaterialPS (M3.1b, NormalMaps) adds
 // the RA3 material maps that sit beside the diffuse texture (see meshshader.cpp):
 //   - <diffuse>_nrm: tangent-space normal map, DirectX convention (green = +v, down the image).
 //     The tangent frame comes from screen-space derivatives, so meshes need no tangent data.
@@ -58,14 +58,14 @@
 // Vertex shader
 // ---------------------------------------------------------------------------------------------
 
-float4 WorldViewProj[4]       : EW_REG(EW_MESH_VS_WVP);
-float4 World[3]               : EW_REG(EW_MESH_VS_WORLD);
-float4 WorldNormal[3]         : EW_REG(EW_MESH_VS_WORLD_NORMAL);
-float4 WorldView[3]           : EW_REG(EW_MESH_VS_WORLDVIEW);
-float4 WorldViewNormal[3]     : EW_REG(EW_MESH_VS_WORLDVIEW_NORMAL);
-float4 TexGen[2]              : EW_REG(EW_MESH_VS_TEXGEN);
-float4 TexMatrix[8]           : EW_REG(EW_MESH_VS_TEXMATRIX);
-float4 VsOptions              : EW_REG(EW_MESH_VS_OPTIONS);
+float4 WorldViewProj[4]       : SHADER_REG(MESH_VS_WVP);
+float4 World[3]               : SHADER_REG(MESH_VS_WORLD);
+float4 WorldNormal[3]         : SHADER_REG(MESH_VS_WORLD_NORMAL);
+float4 WorldView[3]           : SHADER_REG(MESH_VS_WORLDVIEW);
+float4 WorldViewNormal[3]     : SHADER_REG(MESH_VS_WORLDVIEW_NORMAL);
+float4 TexGen[2]              : SHADER_REG(MESH_VS_TEXGEN);
+float4 TexMatrix[8]           : SHADER_REG(MESH_VS_TEXMATRIX);
+float4 VsOptions              : SHADER_REG(MESH_VS_OPTIONS);
 
 struct VsIn
 {
@@ -120,7 +120,7 @@ VsOut MeshVS(VsIn i, bool hasNormal, bool hasDiffuse, bool hasSpecular, int texS
 		dot(p, WorldViewProj[2]), dot(p, WorldViewProj[3]));
 
 	float3 worldPos = float3(dot(p, World[0]), dot(p, World[1]), dot(p, World[2]));
-	// EwMeshShader gives a draw without a normal no texture coordinates made from one.
+	// MeshShader gives a draw without a normal no texture coordinates made from one.
 	float3 n = hasNormal ? i.normal : float3(0.0, 0.0, 0.0);
 	o.worldNormal = float3(dot(n, WorldNormal[0].xyz), dot(n, WorldNormal[1].xyz), dot(n, WorldNormal[2].xyz));
 
@@ -178,23 +178,23 @@ VsOut MeshVS_DS_T2(VsIn i) { return MeshVS(i, false, true,  true,  2); }
 // Per stage, 4 registers: colour (op, arg1, arg2, arg0), colour modifiers (arg1, arg2, arg0, -),
 // alpha (op, arg1, arg2, arg0), alpha modifiers. Arguments use the D3DTA_ select values;
 // a modifier is complement (1) + alpha replicate (2).
-float4 Stage[8]               : EW_REG(EW_MESH_PS_STAGE);
-float4 TFactor                : EW_REG(EW_MESH_PS_TFACTOR);
-float4 GlobalAmbient          : EW_REG(EW_MESH_PS_AMBIENT);
-float4 Material[4]            : EW_REG(EW_MESH_PS_MATERIAL);	// diffuse, ambient, specular, emissive
-float4 MaterialSource         : EW_REG(EW_MESH_PS_MATSOURCE);	// diffuse, ambient, specular, emissive: 0 material, 1 vertex diffuse, 2 vertex specular
-float4 PsOptions              : EW_REG(EW_MESH_PS_OPTIONS);	// x specular power, y specular enable, z/w stage 0/1 has a texture
-float4 Fog                    : EW_REG(EW_MESH_PS_FOG);		// x enable, y end, z 1 / (end - start)
-float4 FogColor               : EW_REG(EW_MESH_PS_FOGCOLOR);
-float4 Camera                 : EW_REG(EW_MESH_PS_CAMERA);		// xyz camera world position, w local viewer
-float4 ViewDir                : EW_REG(EW_MESH_PS_VIEWDIR);		// xyz direction to the viewer without local viewer
-float4 Lights[EW_MESH_MAX_LIGHTS * 5] : EW_REG(EW_MESH_PS_LIGHTS);
+float4 Stage[8]               : SHADER_REG(MESH_PS_STAGE);
+float4 TFactor                : SHADER_REG(MESH_PS_TFACTOR);
+float4 GlobalAmbient          : SHADER_REG(MESH_PS_AMBIENT);
+float4 Material[4]            : SHADER_REG(MESH_PS_MATERIAL);	// diffuse, ambient, specular, emissive
+float4 MaterialSource         : SHADER_REG(MESH_PS_MATSOURCE);	// diffuse, ambient, specular, emissive: 0 material, 1 vertex diffuse, 2 vertex specular
+float4 PsOptions              : SHADER_REG(MESH_PS_OPTIONS);	// x specular power, y specular enable, z/w stage 0/1 has a texture
+float4 Fog                    : SHADER_REG(MESH_PS_FOG);		// x enable, y end, z 1 / (end - start)
+float4 FogColor               : SHADER_REG(MESH_PS_FOGCOLOR);
+float4 Camera                 : SHADER_REG(MESH_PS_CAMERA);		// xyz camera world position, w local viewer
+float4 ViewDir                : SHADER_REG(MESH_PS_VIEWDIR);		// xyz direction to the viewer without local viewer
+float4 Lights[MESH_MAX_LIGHTS * 5] : SHADER_REG(MESH_PS_LIGHTS);
 // Per light: diffuse (rgb, w type: 0 off, 1 point, 3 directional), specular, ambient,
 // vector (direction to the light, or position), attenuation (a0, a1, a2, range; for a
 // directional light x is 1 when it is the sun the shadow map darkens).
 
-float4 MaterialOptions        : EW_REG(EW_MESH_PS_MATERIAL_OPTIONS);	// x normal map, y SpecMap, z house colour on, w ground ambient scale
-float4 HouseColor             : EW_REG(EW_MESH_PS_HOUSECOLOR);		// rgb house colour, w SpecMap specular power
+float4 MaterialOptions        : SHADER_REG(MESH_PS_MATERIAL_OPTIONS);	// x normal map, y SpecMap, z house colour on, w ground ambient scale
+float4 HouseColor             : SHADER_REG(MESH_PS_HOUSECOLOR);		// rgb house colour, w SpecMap specular power
 
 sampler2D Stage0Texture : register(s0);
 sampler2D Stage1Texture : register(s1);
@@ -222,7 +222,7 @@ float4 SourceColor(float source, float4 material, float4 vertexDiffuse, float4 v
 // mapSpecular collects the SpecMap highlight. It takes the light's specular colour, or its
 // diffuse colour when the light has none (the game's sun lights have none, as in RA3, where the
 // highlight is the light colour scaled by the map).
-// sunShadow darkens the light marked as the sun (Ew_Sun_Shadow, computed once per pixel).
+// sunShadow darkens the light marked as the sun (Sun_Shadow, computed once per pixel).
 void AddLight(int l, float3 P, float3 N, float sunShadow, float3 V, float power, uniform bool material,
 	inout float3 ambient, inout float3 diffuse, inout float3 specular, inout float3 mapSpecular)
 {
@@ -284,7 +284,7 @@ float4 StageArg(float select, float modifier, float4 diffuse, float4 current, fl
 // One texture stage. Ops are per channel: rgb takes the colour op and arguments, a the alpha ones.
 float4 RunStage(int s, float4 diffuse, float4 current, float4 tex, float4 specular)
 {
-	// Short form, set by EwMeshShader when both ops are a plain product, sum or select of the
+	// Short form, set by MeshShader when both ops are a plain product, sum or select of the
 	// texture and one colour input: r = K1 * tex * o + K2 * tex + K3 * o. Most stages are this,
 	// and it skips the general code below (about 130 instructions a pixel).
 	float shortForm = Stage[s * 4 + 0].w;
@@ -368,11 +368,11 @@ float4 ShadeMesh(PsIn i, uniform bool material)
 	// The sun shadow map, against the surface normal before the normal map. Only a directional
 	// light is ever marked as the sun, so the marked direction is the sun's.
 	float3 sunDir = 0.0;
-	[unroll] for (int k = 0; k < EW_MESH_MAX_LIGHTS; ++k)
+	[unroll] for (int k = 0; k < MESH_MAX_LIGHTS; ++k)
 		sunDir += (Lights[k * 5 + 0].w > 2.0 && Lights[k * 5 + 4].x > 0.5) ? Lights[k * 5 + 3].xyz : 0.0;
 	float sunShadow = 1.0;
 	[branch] if (dot(sunDir, sunDir) > 0.25)
-		sunShadow = Ew_Sun_Shadow(P, N, normalize(sunDir));
+		sunShadow = Sun_Shadow(P, N, normalize(sunDir));
 	float3 V = (Camera.w > 0.5) ? normalize(Camera.xyz - P) : ViewDir.xyz;
 	float power = PsOptions.x;
 
@@ -399,10 +399,10 @@ float4 ShadeMesh(PsIn i, uniform bool material)
 	}
 
 	// Light sums run in linear space (shader_linear.h); the stages and fog below stay gamma.
-	// EwMeshShader decodes the light, material and ambient colours once a draw; only the vertex
+	// MeshShader decodes the light, material and ambient colours once a draw; only the vertex
 	// colours are decoded here.
-	float4 vertexDiffuse = float4(Ew_To_Linear(i.diffuse.rgb), i.diffuse.a);
-	float4 vertexSpecular = float4(Ew_To_Linear(i.specular.rgb), i.specular.a);
+	float4 vertexDiffuse = float4(To_Linear(i.diffuse.rgb), i.diffuse.a);
+	float4 vertexSpecular = float4(To_Linear(i.specular.rgb), i.specular.a);
 	float4 matDiffuse = SourceColor(MaterialSource.x, Material[0], vertexDiffuse, vertexSpecular);
 	float4 matAmbient = SourceColor(MaterialSource.y, Material[1], vertexDiffuse, vertexSpecular);
 	float4 matSpecular = SourceColor(MaterialSource.z, Material[2], vertexDiffuse, vertexSpecular);
@@ -422,9 +422,9 @@ float4 ShadeMesh(PsIn i, uniform bool material)
 	if (material)
 		ambient *= lerp(MaterialOptions.w, 1.0, saturate(N.z * 0.5 + 0.5));
 
-	float4 litDiffuse = float4(Ew_To_Gamma(saturate(matAmbient.rgb * ambient + matDiffuse.rgb * diffuse + matEmissive.rgb)), matDiffuse.a);
+	float4 litDiffuse = float4(To_Gamma(saturate(matAmbient.rgb * ambient + matDiffuse.rgb * diffuse + matEmissive.rgb)), matDiffuse.a);
 	float3 specularLinear = matSpecular.rgb * specular * PsOptions.y;
-	float4 litSpecular = float4(Ew_To_Gamma(saturate(specularLinear)), 0.0);
+	float4 litSpecular = float4(To_Gamma(saturate(specularLinear)), 0.0);
 
 	// Stage 0 disabled leaves the lit diffuse colour; stage 1 runs only after an enabled stage 0.
 	float4 current = litDiffuse;
@@ -441,12 +441,12 @@ float4 ShadeMesh(PsIn i, uniform bool material)
 	// The highlights add in linear space too; without any the round trip changes nothing.
 	[branch] if (material || PsOptions.y > 0.5)
 	{
-		float3 lit = Ew_To_Linear(current.rgb) + specularLinear;
+		float3 lit = To_Linear(current.rgb) + specularLinear;
 		if (material)
 			lit += spm.r * mapSpecular;
-		// Not clamped: with EwHdr the float scene keeps highlights above white for the tone curve
+		// Not clamped: with Hdr the float scene keeps highlights above white for the tone curve
 		// and bloom; an 8-bit scene clamps them on write as before.
-		current.rgb = Ew_To_Gamma(lit);
+		current.rgb = To_Gamma(lit);
 	}
 
 	if (material)
@@ -496,12 +496,12 @@ float4 UnlitPS(PsIn i) : COLOR0
 }
 
 // ---------------------------------------------------------------------------------------------
-// Soft particles (EwSoftParticles)
+// Soft particles (SoftParticles)
 // ---------------------------------------------------------------------------------------------
 // Unlit billboard particles (PointGroupClass) with alpha blending. Texture stage 0 runs as in
 // fixed function; the particle then fades out where it comes within the fade distance of the
 // scene behind it, so it no longer shows a hard line where it cuts into the ground or a building.
-// EwPostProcess copies the scene's view depth into an R32F texture before the particles draw.
+// W3DPostProcess copies the scene's view depth into an R32F texture before the particles draw.
 
 struct ParticleVsIn
 {
@@ -530,8 +530,8 @@ ParticleVsOut ParticleVS(ParticleVsIn i)
 	return o;
 }
 
-float4 SoftParams : EW_REG(EW_PARTICLE_PS_SOFT);	// xy 1 / target size, z 1 / fade distance, w fade mode
-sampler2D SceneViewDepth : register(s13);			// EW_PARTICLE_DEPTH_SAMPLER
+float4 SoftParams : SHADER_REG(PARTICLE_PS_SOFT);	// xy 1 / target size, z 1 / fade distance, w fade mode
+sampler2D SceneViewDepth : register(s13);			// PARTICLE_DEPTH_SAMPLER
 
 struct ParticlePsIn
 {

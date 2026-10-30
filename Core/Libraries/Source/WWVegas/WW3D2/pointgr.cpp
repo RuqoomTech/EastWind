@@ -925,7 +925,7 @@ void PointGroupClass::Render(RenderInfoClass &rinfo)
 	DX9Wrapper::Set_Material(PointMaterial);
 	DX9Wrapper::Set_Shader(Shader);
 	DX9Wrapper::Set_Texture(0,Texture);
-	DX9Wrapper::Set_Ew_Soft_Particle(Billboard);	// EastWind: ground-aligned particles keep hard edges
+	DX9Wrapper::Set_Soft_Particle(Billboard);	// EastWind: ground-aligned particles keep hard edges
 
 	// Enable sorting if the primitives are translucent and alpha testing is not enabled.
 	// TheSuperHackers @bugfix stephanmeesters 30/06/2026 However, do not apply sorting to ground-aligned particles.
@@ -996,7 +996,7 @@ void PointGroupClass::Render(RenderInfoClass &rinfo)
 		current+=delta;
 	}
 
-	DX9Wrapper::Set_Ew_Soft_Particle(false);
+	DX9Wrapper::Set_Soft_Particle(false);
 	// restore the matrices
 	DX9Wrapper::Set_Transform(D3DTS_VIEW,view);
 }
@@ -1230,7 +1230,7 @@ void PointGroupClass::Update_Arrays(
 					if (!Billboard) {
 						// If we're not billboarding, then the coordinate we have is in screen space.
 						Matrix4x4 rotMat;
-						EwD3DMatrixRotationZ(&(EwD3DMatrix&) rotMat, ((float)point_orientation[i] / 255.0f * 2 * EW_D3D_PI));
+						D3DMatrixRotationZ(&(D3DMatrix&) rotMat, ((float)point_orientation[i] / 255.0f * 2 * D3D_PI));
 
 						Vector4 orientedVecX = rotMat * GroundMultiplierX;
 						Vector4 orientedVecY = rotMat * GroundMultiplierY;
@@ -1857,7 +1857,7 @@ void PointGroupClass::RenderVolumeParticle(RenderInfoClass &rinfo, unsigned int 
 		DX9Wrapper::Set_Material(PointMaterial);
 		DX9Wrapper::Set_Shader(Shader);
 		DX9Wrapper::Set_Texture(0,Texture);
-		DX9Wrapper::Set_Ew_Soft_Particle(Billboard);
+		DX9Wrapper::Set_Soft_Particle(Billboard);
 
 		// Enable sorting if the primitives are translucent and alpha testing is not enabled.
 		// TheSuperHackers @info Volumetric particles, both billboarded and ground-aligned, must have sorting enabled to
@@ -1934,7 +1934,7 @@ void PointGroupClass::RenderVolumeParticle(RenderInfoClass &rinfo, unsigned int 
 
 
 
-	DX9Wrapper::Set_Ew_Soft_Particle(false);
+	DX9Wrapper::Set_Soft_Particle(false);
 	// restore the matrices
 	DX9Wrapper::Set_Transform(D3DTS_VIEW,view);
 }

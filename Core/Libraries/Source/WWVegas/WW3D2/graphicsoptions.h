@@ -18,27 +18,27 @@
 // EastWind DX9 graphics options: one switch per shader feature.
 //
 // W3DDisplay (DX9) fills them from Options.ini before the device is created; WW3D2 code reads
-// them through EwGraphics(). Every option off gives the classic DX8 look, so a slow PC can turn
+// them through Get_Graphics_Options(). Every option off gives the classic DX8 look, so a slow PC can turn
 // single effects off. Anti-aliasing and anisotropic filtering are not here: the upstream
 // Options.ini keys AntiAliasing, TextureFilter and AnisotropyLevel already drive them.
 
 #pragma once
 
-struct EwGraphicsOptions
+struct GraphicsOptions
 {
-	bool PerPixelLighting;	// EwPerPixelLighting: HLSL lighting for meshes and terrain (M3.1)
-	bool NormalMaps;		// EwNormalMaps: normal maps in the M3.1 material (needs PerPixelLighting)
-	int WaterQuality;		// EwWaterQuality: 0 classic, 1 waves and Fresnel, 2 adds refraction and shore (M3.3)
-	int ShadowMapSize;		// EwShadowMapSize: 0 off (classic shadows), 1024, 2048 or 4096 (M3.4)
-	bool Bloom;				// EwBloom (M3.2)
-	bool ToneMapping;		// EwToneMapping (M3.2)
-	bool ColorGrading;		// EwColorGrading (M3.2)
-	bool FXAA;				// EwFXAA (M3.2)
-	int AmbientOcclusion;	// EwAmbientOcclusion: 0 off, 1 at half resolution, 2 at full resolution (M3.5)
-	bool Hdr;				// EwHdr: the post-processing scene texture is 16-bit float, so light adds up above white
-	bool SoftParticles;		// EwSoftParticles: particles fade where they meet the scene (needs the AO depth texture's conditions)
-	bool LinearLighting;	// EwLinearLighting: the shaders add light up in linear space (shader_linear.h)
-	bool DebugKeys;			// EwDebugKeys: Ctrl+Shift+F1..F12 switch the features above while the game runs
+	bool PerPixelLighting;	// PerPixelLighting: HLSL lighting for meshes and terrain (M3.1)
+	bool NormalMaps;		// NormalMaps: normal maps in the M3.1 material (needs PerPixelLighting)
+	int WaterQuality;		// WaterQuality: 0 classic, 1 waves and Fresnel, 2 adds refraction and shore (M3.3)
+	int ShadowMapSize;		// ShadowMapSize: 0 off (classic shadows), 1024, 2048 or 4096 (M3.4)
+	bool Bloom;				// Bloom (M3.2)
+	bool ToneMapping;		// ToneMapping (M3.2)
+	bool ColorGrading;		// ColorGrading (M3.2)
+	bool FXAA;				// FXAA (M3.2)
+	int AmbientOcclusion;	// AmbientOcclusion: 0 off, 1 at half resolution, 2 at full resolution (M3.5)
+	bool Hdr;				// Hdr: the post-processing scene texture is 16-bit float, so light adds up above white
+	bool SoftParticles;		// SoftParticles: particles fade where they meet the scene (needs the AO depth texture's conditions)
+	bool LinearLighting;	// LinearLighting: the shaders add light up in linear space (shader_linear.h)
+	bool DebugKeys;			// DebugKeys: Ctrl+Shift+F1..F12 switch the features above while the game runs
 
 	// Set by the debug keys (W3DDisplay), never saved. They only turn features off that
 	// Options.ini turned on, so with the keys unused the game looks as Options.ini says.
@@ -61,7 +61,7 @@ struct EwGraphicsOptions
 	bool DebugShaderBatchOff;		// Ctrl+Shift+B: unbind the mesh shaders after every draw, as before
 	bool DebugConstantDiffOff;		// Ctrl+Shift+K: send all mesh shader constants every draw, as before
 
-	EwGraphicsOptions()
+	GraphicsOptions()
 		: PerPixelLighting(false)
 		, NormalMaps(false)
 		, WaterQuality(0)
@@ -115,7 +115,7 @@ struct EwGraphicsOptions
 	// Soft particles read the scene depth, which the post-processing scene texture provides.
 	bool PostSoftParticles() const { return SoftParticles && !DebugSoftParticlesOff; }
 	bool Linear() const { return LinearLighting && !DebugAllOff && !DebugLinearLightingOff; }
-	// Unlit draws follow EwPerPixelLighting, so the classic look and WorldBuilder keep fixed function.
+	// Unlit draws follow PerPixelLighting, so the classic look and WorldBuilder keep fixed function.
 	bool UnlitShader() const { return PerPixelLighting && !DebugAllOff && !DebugUnlitShaderOff; }
 	bool WaterShader() const { return WaterQuality >= 1 && !DebugAllOff && !DebugWaterOff; }
 	// Sun shadow maps (M3.4) need the lit mesh and terrain shaders, which sample them.
@@ -138,8 +138,8 @@ struct EwGraphicsOptions
 	}
 };
 
-inline EwGraphicsOptions &EwGraphics()
+inline GraphicsOptions &Get_Graphics_Options()
 {
-	static EwGraphicsOptions options;
+	static GraphicsOptions options;
 	return options;
 }

@@ -38,7 +38,7 @@
 class BezierMath
 {
 public:
-	static void EwD3DVec4Transform(EwD3DVector4* out, const EwD3DVector4* v, const EwD3DMatrix* m)
+	static void D3DVec4Transform(D3DVector4* out, const D3DVector4* v, const D3DMatrix* m)
 	{
 #if USE_DETERMINISTIC_MATH
 		const float x = v->x, y = v->y, z = v->z, w = v->w;
@@ -47,16 +47,16 @@ public:
 		out->z = ((x * m->m[0][2] + y * m->m[1][2]) + z * m->m[2][2]) + w * m->m[3][2];
 		out->w = ((x * m->m[0][3] + y * m->m[1][3]) + z * m->m[2][3]) + w * m->m[3][3];
 #else
-		::EwD3DVec4Transform(out, v, m);
+		::D3DVec4Transform(out, v, m);
 #endif
 	}
 
-	static float EwD3DVec4Dot(const EwD3DVector4* a, const EwD3DVector4* b)
+	static float D3DVec4Dot(const D3DVector4* a, const D3DVector4* b)
 	{
 #if USE_DETERMINISTIC_MATH
 		return ((a->x * b->x + a->y * b->y) + a->z * b->z) + a->w * b->w;
 #else
-		return ::EwD3DVec4Dot(a, b);
+		return ::D3DVec4Dot(a, b);
 #endif
 	}
 };
@@ -64,7 +64,7 @@ public:
 class BezierSegment
 {
 	protected:
-		static const EwD3DMatrix s_bezBasisMatrix;
+		static const D3DMatrix s_bezBasisMatrix;
 		Coord3D m_controlPoints[4];
 
 	public:	// Constructors

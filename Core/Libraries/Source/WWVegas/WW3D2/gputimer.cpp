@@ -31,8 +31,8 @@ namespace
 	{
 		IDirect3DQuery9 *Disjoint;
 		IDirect3DQuery9 *Freq;
-		IDirect3DQuery9 *Stamp[EwGpuTimer::POINT_COUNT];
-		bool Issued[EwGpuTimer::POINT_COUNT];
+		IDirect3DQuery9 *Stamp[GpuTimer::POINT_COUNT];
+		bool Issued[GpuTimer::POINT_COUNT];
 		bool Open;		// begun, FRAME_END not reached yet
 		bool Pending;	// closed, results not read yet
 	};
@@ -43,11 +43,11 @@ namespace
 
 	// The window being summed, and the last finished one.
 	double SumTotal;
-	double SumPart[EwGpuTimer::POINT_COUNT];
-	int Hits[EwGpuTimer::POINT_COUNT];
+	double SumPart[GpuTimer::POINT_COUNT];
+	int Hits[GpuTimer::POINT_COUNT];
 	int Frames;
 	float LastTotal;
-	float LastPart[EwGpuTimer::POINT_COUNT];
+	float LastPart[GpuTimer::POINT_COUNT];
 	int LastFrames;
 
 	template <class T> void Release_Com(T *&p)
@@ -67,7 +67,7 @@ namespace
 			if (FAILED(device->CreateQuery(D3DQUERYTYPE_TIMESTAMPDISJOINT, &q.Disjoint))
 				|| FAILED(device->CreateQuery(D3DQUERYTYPE_TIMESTAMPFREQ, &q.Freq)))
 				return false;
-			for (int p = 0; p < EwGpuTimer::POINT_COUNT; ++p)
+			for (int p = 0; p < GpuTimer::POINT_COUNT; ++p)
 			{
 				if (FAILED(device->CreateQuery(D3DQUERYTYPE_TIMESTAMP, &q.Stamp[p])))
 					return false;
@@ -77,12 +77,12 @@ namespace
 	}
 
 	// S_OK: read. S_FALSE: not ready yet. Anything else (device lost): the set is lost.
-	HRESULT Read(QuerySet &q, BOOL *disjoint, UINT64 *freq, UINT64 stamp[EwGpuTimer::POINT_COUNT])
+	HRESULT Read(QuerySet &q, BOOL *disjoint, UINT64 *freq, UINT64 stamp[GpuTimer::POINT_COUNT])
 	{
 		HRESULT hr = q.Disjoint->GetData(disjoint, sizeof(*disjoint), 0);
 		if (hr == S_OK)
 			hr = q.Freq->GetData(freq, sizeof(*freq), 0);
-		for (int p = 0; p < EwGpuTimer::POINT_COUNT && hr == S_OK; ++p)
+		for (int p = 0; p < GpuTimer::POINT_COUNT && hr == S_OK; ++p)
 		{
 			if (q.Issued[p])
 				hr = q.Stamp[p]->GetData(&stamp[p], sizeof(stamp[p]), 0);
@@ -90,11 +90,11 @@ namespace
 		return hr;
 	}
 
-	void Add_Frame(const QuerySet &q, UINT64 freq, const UINT64 stamp[EwGpuTimer::POINT_COUNT])
+	void Add_Frame(const QuerySet &q, UINT64 freq, const UINT64 stamp[GpuTimer::POINT_COUNT])
 	{
 		const double ms = 1000.0 / (double)freq;
-		UINT64 previous = stamp[EwGpuTimer::FRAME_BEGIN];
-		for (int p = EwGpuTimer::FRAME_BEGIN + 1; p < EwGpuTimer::POINT_COUNT; ++p)
+		UINT64 previous = stamp[GpuTimer::FRAME_BEGIN];
+		for (int p = GpuTimer::FRAME_BEGIN + 1; p < GpuTimer::POINT_COUNT; ++p)
 		{
 			if (!q.Issued[p])
 				continue;
@@ -102,12 +102,12 @@ namespace
 			++Hits[p];
 			previous = stamp[p];
 		}
-		SumTotal += (double)(stamp[EwGpuTimer::FRAME_END] - stamp[EwGpuTimer::FRAME_BEGIN]) * ms;
+		SumTotal += (double)(stamp[GpuTimer::FRAME_END] - stamp[GpuTimer::FRAME_BEGIN]) * ms;
 		if (++Frames < WINDOW)
 			return;
 
 		LastTotal = (float)(SumTotal / Frames);
-		for (int p = 0; p < EwGpuTimer::POINT_COUNT; ++p)
+		for (int p = 0; p < GpuTimer::POINT_COUNT; ++p)
 			LastPart[p] = Hits[p] > 0 ? (float)(SumPart[p] / Hits[p]) : -1.0f;
 		LastFrames = Frames;
 		SumTotal = 0;
@@ -125,7 +125,7 @@ namespace
 				continue;
 			BOOL disjoint = TRUE;
 			UINT64 freq = 0;
-			UINT64 stamp[EwGpuTimer::POINT_COUNT];
+			UINT64 stamp[GpuTimer::POINT_COUNT];
 			const HRESULT hr = Read(q, &disjoint, &freq, stamp);
 			if (hr == S_FALSE)
 				continue;
@@ -136,9 +136,9 @@ namespace
 	}
 }
 
-void EwGpuTimer::Mark(Point point)
+void GpuTimer::Mark(Point point)
 {
-	if (!EwGraphics().DebugKeys || Unsupported)
+	if (!Get_Graphics_Options().DebugKeys || Unsupported)
 		return;
 	IDirect3DDevice9 *device = DX9Wrapper::_Get_D3D_Device9();
 	if (device == nullptr)
@@ -183,7 +183,7 @@ void EwGpuTimer::Mark(Point point)
 	}
 }
 
-int EwGpuTimer::Average(float *total_ms, float part_ms[POINT_COUNT])
+int GpuTimer::Average(float *total_ms, float part_ms[POINT_COUNT])
 {
 	if (Unsupported)
 		return -1;
@@ -192,7 +192,7 @@ int EwGpuTimer::Average(float *total_ms, float part_ms[POINT_COUNT])
 	return LastFrames;
 }
 
-void EwGpuTimer::Release()
+void GpuTimer::Release()
 {
 	for (int s = 0; s < RING; ++s)
 	{

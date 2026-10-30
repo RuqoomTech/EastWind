@@ -756,32 +756,32 @@ void W3DDisplay::init2DScene()
 //=============================================================================
 // EastWind: reads the DX9 shader feature switches from Options.ini. Every key is optional;
 // a missing key keeps the classic DX8 look.
-static void ewLoadGraphicsOptions()
+static void loadGraphicsOptions()
 {
 	OptionPreferences prefs;
-	EwGraphicsOptions &options = EwGraphics();
-	options.PerPixelLighting = prefs.getBool("EwPerPixelLighting", options.PerPixelLighting);
-	options.NormalMaps = prefs.getBool("EwNormalMaps", options.NormalMaps);
-	options.WaterQuality = prefs.getInt("EwWaterQuality", options.WaterQuality);
-	options.ShadowMapSize = prefs.getInt("EwShadowMapSize", options.ShadowMapSize);
-	options.Bloom = prefs.getBool("EwBloom", options.Bloom);
-	options.ToneMapping = prefs.getBool("EwToneMapping", options.ToneMapping);
-	options.ColorGrading = prefs.getBool("EwColorGrading", options.ColorGrading);
-	options.FXAA = prefs.getBool("EwFXAA", options.FXAA);
-	options.AmbientOcclusion = prefs.getInt("EwAmbientOcclusion", options.AmbientOcclusion);
-	options.Hdr = prefs.getBool("EwHdr", options.Hdr);
-	options.SoftParticles = prefs.getBool("EwSoftParticles", options.SoftParticles);
-	options.LinearLighting = prefs.getBool("EwLinearLighting", options.LinearLighting);
-	options.DebugKeys = prefs.getBool("EwDebugKeys", options.DebugKeys);
+	GraphicsOptions &options = Get_Graphics_Options();
+	options.PerPixelLighting = prefs.getBool("PerPixelLighting", options.PerPixelLighting);
+	options.NormalMaps = prefs.getBool("NormalMaps", options.NormalMaps);
+	options.WaterQuality = prefs.getInt("WaterQuality", options.WaterQuality);
+	options.ShadowMapSize = prefs.getInt("ShadowMapSize", options.ShadowMapSize);
+	options.Bloom = prefs.getBool("Bloom", options.Bloom);
+	options.ToneMapping = prefs.getBool("ToneMapping", options.ToneMapping);
+	options.ColorGrading = prefs.getBool("ColorGrading", options.ColorGrading);
+	options.FXAA = prefs.getBool("FXAA", options.FXAA);
+	options.AmbientOcclusion = prefs.getInt("AmbientOcclusion", options.AmbientOcclusion);
+	options.Hdr = prefs.getBool("Hdr", options.Hdr);
+	options.SoftParticles = prefs.getBool("SoftParticles", options.SoftParticles);
+	options.LinearLighting = prefs.getBool("LinearLighting", options.LinearLighting);
+	options.DebugKeys = prefs.getBool("DebugKeys", options.DebugKeys);
 	options.Validate();
 }
 
-// EastWind (EwDebugKeys = yes): Ctrl+Shift+F1..F12, B, H, K, L, P and U switch the DX9 features while the game
+// EastWind (DebugKeys = yes): Ctrl+Shift+F1..F12, B, H, K, L, P and U switch the DX9 features while the game
 // runs, so the new and the classic look can be compared at the same spot, and Ctrl+Shift+T shows
 // the GPU time of each part of the frame. The keys are read straight from the keyboard, and the
 // game still sees them.
 // One status line: how many passes of the last frame used a shader, or why it did not run.
-static void ewShowShaderStatus(const WideChar *name, unsigned passes, const char *reason)
+static void showShaderStatus(const WideChar *name, unsigned passes, const char *reason)
 {
 	if (passes > 0)
 	{
@@ -793,11 +793,11 @@ static void ewShowShaderStatus(const WideChar *name, unsigned passes, const char
 	TheInGameUI->message(L"%s: not running - %s", name, text.str());
 }
 
-static void ewShowGraphicsStatus()
+static void showGraphicsStatus()
 {
 	if (TheInGameUI == nullptr)
 		return;
-	const EwGraphicsOptions &o = EwGraphics();
+	const GraphicsOptions &o = Get_Graphics_Options();
 	const WideChar *terrain = !o.PerPixelLighting ? L"off in Options.ini"
 		: o.DebugAllOff ? L"classic" : o.DebugTerrainLightingOff ? L"per vertex (classic)" : L"per pixel (new)";
 	const WideChar *meshes = !o.PerPixelLighting ? L"off in Options.ini" : o.MeshLighting() ? L"per pixel (new)" : L"classic";
@@ -835,31 +835,31 @@ static void ewShowGraphicsStatus()
 	TheInGameUI->message(L"Send changed constants only: %s   [Ctrl+Shift+K]", o.DebugConstantDiffOff ? L"off (classic)" : L"on");
 	TheInGameUI->message(L"GPU time of each pass: [Ctrl+Shift+T]");
 
-	ewShowShaderStatus(L"Terrain shader", EwTerrainLighting::Last_Frame_Passes(), EwTerrainLighting::Last_Reason());
-	ewShowShaderStatus(L"Road and blend tile shader", EwTerrainLighting::Last_Frame_Road_Passes(), EwTerrainLighting::Last_Road_Reason());
-	ewShowShaderStatus(L"Tree shader", EwTerrainLighting::Last_Frame_Tree_Passes(), EwTerrainLighting::Last_Tree_Reason());
-	ewShowShaderStatus(L"Post-processing scene texture", EwPostProcess::Last_Frame_Passes(EwPostProcess::SCENE),
-		EwPostProcess::Last_Reason(EwPostProcess::SCENE));
-	ewShowShaderStatus(L"HDR scene (16-bit float)", EwPostProcess::Last_Frame_Passes(EwPostProcess::HDR),
-		EwPostProcess::Last_Reason(EwPostProcess::HDR));
-	ewShowShaderStatus(L"Ambient occlusion", EwPostProcess::Last_Frame_Passes(EwPostProcess::AMBIENT_OCCLUSION),
-		EwPostProcess::Last_Reason(EwPostProcess::AMBIENT_OCCLUSION));
-	ewShowShaderStatus(L"Soft particles (depth copy)", EwPostProcess::Last_Frame_Passes(EwPostProcess::SOFT_PARTICLES),
-		EwPostProcess::Last_Reason(EwPostProcess::SOFT_PARTICLES));
-	ewShowShaderStatus(L"Bloom", EwPostProcess::Last_Frame_Passes(EwPostProcess::BLOOM),
-		EwPostProcess::Last_Reason(EwPostProcess::BLOOM));
-	ewShowShaderStatus(L"Tone mapping", EwPostProcess::Last_Frame_Passes(EwPostProcess::TONE_MAPPING),
-		EwPostProcess::Last_Reason(EwPostProcess::TONE_MAPPING));
-	ewShowShaderStatus(L"Colour grading", EwPostProcess::Last_Frame_Passes(EwPostProcess::COLOR_GRADING),
-		EwPostProcess::Last_Reason(EwPostProcess::COLOR_GRADING));
-	ewShowShaderStatus(L"FXAA", EwPostProcess::Last_Frame_Passes(EwPostProcess::FXAA),
-		EwPostProcess::Last_Reason(EwPostProcess::FXAA));
-	ewShowShaderStatus(L"Water shader", EwWater::Last_Frame_Passes(), EwWater::Last_Reason());
+	showShaderStatus(L"Terrain shader", W3DTerrainLighting::Last_Frame_Passes(), W3DTerrainLighting::Last_Reason());
+	showShaderStatus(L"Road and blend tile shader", W3DTerrainLighting::Last_Frame_Road_Passes(), W3DTerrainLighting::Last_Road_Reason());
+	showShaderStatus(L"Tree shader", W3DTerrainLighting::Last_Frame_Tree_Passes(), W3DTerrainLighting::Last_Tree_Reason());
+	showShaderStatus(L"Post-processing scene texture", W3DPostProcess::Last_Frame_Passes(W3DPostProcess::SCENE),
+		W3DPostProcess::Last_Reason(W3DPostProcess::SCENE));
+	showShaderStatus(L"HDR scene (16-bit float)", W3DPostProcess::Last_Frame_Passes(W3DPostProcess::HDR),
+		W3DPostProcess::Last_Reason(W3DPostProcess::HDR));
+	showShaderStatus(L"Ambient occlusion", W3DPostProcess::Last_Frame_Passes(W3DPostProcess::AMBIENT_OCCLUSION),
+		W3DPostProcess::Last_Reason(W3DPostProcess::AMBIENT_OCCLUSION));
+	showShaderStatus(L"Soft particles (depth copy)", W3DPostProcess::Last_Frame_Passes(W3DPostProcess::SOFT_PARTICLES),
+		W3DPostProcess::Last_Reason(W3DPostProcess::SOFT_PARTICLES));
+	showShaderStatus(L"Bloom", W3DPostProcess::Last_Frame_Passes(W3DPostProcess::BLOOM),
+		W3DPostProcess::Last_Reason(W3DPostProcess::BLOOM));
+	showShaderStatus(L"Tone mapping", W3DPostProcess::Last_Frame_Passes(W3DPostProcess::TONE_MAPPING),
+		W3DPostProcess::Last_Reason(W3DPostProcess::TONE_MAPPING));
+	showShaderStatus(L"Colour grading", W3DPostProcess::Last_Frame_Passes(W3DPostProcess::COLOR_GRADING),
+		W3DPostProcess::Last_Reason(W3DPostProcess::COLOR_GRADING));
+	showShaderStatus(L"FXAA", W3DPostProcess::Last_Frame_Passes(W3DPostProcess::FXAA),
+		W3DPostProcess::Last_Reason(W3DPostProcess::FXAA));
+	showShaderStatus(L"Water shader", W3DWaterShader::Last_Frame_Passes(), W3DWaterShader::Last_Reason());
 	{
 		float level = 0;
 		int width = 0, height = 0;
 		const char *why_not = nullptr;
-		if (EwWater::Last_Reflection(&level, &width, &height, &why_not))
+		if (W3DWaterShader::Last_Reflection(&level, &width, &height, &why_not))
 			TheInGameUI->message(L"Water reflection: %dx%d, mirrored at height %.1f", width, height, level);
 		else
 		{
@@ -867,7 +867,7 @@ static void ewShowGraphicsStatus()
 			text.translate(AsciiString(why_not ? why_not : "not drawn"));
 			TheInGameUI->message(L"Water reflection: none - %s", text.str());
 		}
-		const char *not_seen_into = EwWater::Last_Seen_Into();
+		const char *not_seen_into = W3DWaterShader::Last_Seen_Into();
 		if (not_seen_into == nullptr)
 			TheInGameUI->message(L"Water depth, refraction and foam: on");
 		else
@@ -883,7 +883,7 @@ static void ewShowGraphicsStatus()
 		float box = 0;
 		const char *format = nullptr;
 		const char *why_not = nullptr;
-		if (EwShadowMap::Last_Frame(&size, &format, &casters, &box, &why_not))
+		if (ShadowMap::Last_Frame(&size, &format, &casters, &box, &why_not))
 		{
 			UnicodeString text;
 			text.translate(AsciiString(format));
@@ -896,9 +896,9 @@ static void ewShowGraphicsStatus()
 			TheInGameUI->message(L"Sun shadow map: none - %s", text.str());
 		}
 	}
-	if (EwPostProcess::Last_Frame_Passes(EwPostProcess::COLOR_GRADING) > 0)
+	if (W3DPostProcess::Last_Frame_Passes(W3DPostProcess::COLOR_GRADING) > 0)
 	{
-		const char *lut = EwPostProcess::Color_Lut_File();
+		const char *lut = W3DPostProcess::Color_Lut_File();
 		UnicodeString text;
 		text.translate(AsciiString(lut ? lut : "built-in neutral LUT (no change)"));
 		TheInGameUI->message(L"Colour LUT: %s", text.str());
@@ -906,7 +906,7 @@ static void ewShowGraphicsStatus()
 }
 
 // The GPU time of each part of the frame, averaged over the last 60 measured frames.
-static void ewShowGpuTimes()
+static void showGpuTimes()
 {
 	if (TheInGameUI == nullptr)
 		return;
@@ -927,11 +927,11 @@ static void ewShowGpuTimes()
 		L"FXAA",
 		L"UI and the rest (and the 3D scene when post-processing is off)",
 	};
-	static_assert(sizeof(names) / sizeof(names[0]) == EwGpuTimer::POINT_COUNT, "one name per EwGpuTimer point");
+	static_assert(sizeof(names) / sizeof(names[0]) == GpuTimer::POINT_COUNT, "one name per GpuTimer point");
 
 	float total = 0;
-	float part[EwGpuTimer::POINT_COUNT];
-	const int frames = EwGpuTimer::Average(&total, part);
+	float part[GpuTimer::POINT_COUNT];
+	const int frames = GpuTimer::Average(&total, part);
 	if (frames < 0)
 	{
 		TheInGameUI->message(L"GPU time: not available - the device has no timestamp queries");
@@ -942,20 +942,20 @@ static void ewShowGpuTimes()
 		TheInGameUI->message(L"GPU time: still measuring, press Ctrl+Shift+T again in a moment");
 		return;
 	}
-	const EwMeshShader::StatsStruct mesh = EwMeshShader::Take_Stats();
+	const MeshShader::StatsStruct mesh = MeshShader::Take_Stats();
 	TheInGameUI->message(L"Mesh draws a frame: %.0f, by shader: %.0f lit, %.0f unlit; CPU: %.2f ms setup, %.2f ms setup and draw of the shader draws",
 		mesh.Calls, mesh.LitDraws, mesh.UnlitDraws, mesh.SetupMs, mesh.ShaderDrawMs);
 	TheInGameUI->message(L"GPU time (average of %d frames): %.2f ms a frame", frames, total);
-	for (int p = EwGpuTimer::FRAME_BEGIN + 1; p < EwGpuTimer::POINT_COUNT; ++p)
+	for (int p = GpuTimer::FRAME_BEGIN + 1; p < GpuTimer::POINT_COUNT; ++p)
 	{
 		if (part[p] >= 0)
 			TheInGameUI->message(L"   %s: %.2f ms", names[p], part[p]);
 	}
 }
 
-static void ewPollGraphicsDebugKeys()
+static void pollGraphicsDebugKeys()
 {
-	EwGraphicsOptions &o = EwGraphics();
+	GraphicsOptions &o = Get_Graphics_Options();
 	if (!o.DebugKeys)
 		return;
 
@@ -963,7 +963,7 @@ static void ewPollGraphicsDebugKeys()
 	static int status_in_frames = -1;
 	if (status_in_frames > 0 && --status_in_frames == 0)
 	{
-		ewShowGraphicsStatus();
+		showGraphicsStatus();
 		status_in_frames = -1;
 	}
 
@@ -1022,7 +1022,7 @@ static void ewPollGraphicsDebugKeys()
 	static bool t_was_down = false;
 	const bool t_down = active && (::GetAsyncKeyState('T') & 0x8000) != 0;
 	if (t_down && !t_was_down)
-		ewShowGpuTimes();
+		showGpuTimes();
 	t_was_down = t_down;
 }
 
@@ -1126,7 +1126,7 @@ void W3DDisplay::init()
 		m_2DRender = NEW Render2DClass;
 		DEBUG_ASSERTCRASH( m_2DRender, ("Cannot create Render2DClass") );
 
-		ewLoadGraphicsOptions();
+		loadGraphicsOptions();
 
 		WW3DErrorType renderDeviceError;
 		Int attempt = 0;
@@ -2163,12 +2163,12 @@ void W3DDisplay::draw()
 	// TheSuperHackers @feature bobtista 10/07/2026 Show messages for screenshots finished by the screenshot thread.
 	W3D_UpdateScreenshotMessages();
 
-	// EastWind: debug keys for the DX9 features (EwDebugKeys).
-	EwTerrainLighting::New_Frame();
-	EwPostProcess::New_Frame();
-	EwWater::New_Frame();
-	EwShadowMap::New_Frame();
-	ewPollGraphicsDebugKeys();
+	// EastWind: debug keys for the DX9 features (DebugKeys).
+	W3DTerrainLighting::New_Frame();
+	W3DPostProcess::New_Frame();
+	W3DWaterShader::New_Frame();
+	ShadowMap::New_Frame();
+	pollGraphicsDebugKeys();
 
 	updateAverageFPS();
 	if (TheGlobalData->m_enableDynamicLOD && TheGameLogic->getShowDynamicLOD())
@@ -2300,32 +2300,32 @@ AGAIN:
 
 			TheParticleSystemManager->DRAW();
 
-			EwGpuTimer::Mark(EwGpuTimer::FRAME_BEGIN);
+			GpuTimer::Mark(GpuTimer::FRAME_BEGIN);
 
 			// EastWind DX9: the frame-wide pixel constant of shader_linear.h, read by the lit, water and post shaders.
 			{
-				const float frame_options[4] = { EwGraphics().Linear() ? 1.0f : 0.0f, 0.0f, 0.0f, 0.0f };
-				DX9Wrapper::_Get_D3D_Device9()->SetPixelShaderConstantF(EW_FRAME_PS_OPTIONS, frame_options, 1);
+				const float frame_options[4] = { Get_Graphics_Options().Linear() ? 1.0f : 0.0f, 0.0f, 0.0f, 0.0f };
+				DX9Wrapper::_Get_D3D_Device9()->SetPixelShaderConstantF(FRAME_PS_OPTIONS, frame_options, 1);
 			}
 
 			// EastWind DX9 (M3.4): the sun shadow map, before the water reflection so it has shadows too.
 			if (m_3DScene && primaryW3DView && TheTerrainRenderObject)
 			{
 				const Coord3D &sun = TheGlobalData->m_terrainObjectsLighting[TheGlobalData->m_timeOfDay][0].lightPos;
-				EwShadowMap::Render(m_3DScene, primaryW3DView->get3DCamera(), Vector3(sun.x, sun.y, sun.z),
+				ShadowMap::Render(m_3DScene, primaryW3DView->get3DCamera(), Vector3(sun.x, sun.y, sun.z),
 					TheTerrainRenderObject->getMinHeight(), TheTerrainRenderObject->getMaxHeight());
 			}
-			EwGpuTimer::Mark(EwGpuTimer::SHADOW_MAP);
+			GpuTimer::Mark(GpuTimer::SHADOW_MAP);
 
 			// EastWind DX9 (M3.3a): also for the reflection of the water shader.
-			if (TheWaterRenderObj && (TheGlobalData->m_waterType == 2 || EwWater::Wants_Reflection()))
+			if (TheWaterRenderObj && (TheGlobalData->m_waterType == 2 || W3DWaterShader::Wants_Reflection()))
 				TheWaterRenderObj->updateRenderTargetTextures(primaryW3DView->get3DCamera());	//do a render into each texture
 
 			//Can't render into textures while rendering to screen so these textures need to be updated
 			//before we enter main rendering loop.
 			if (TheW3DProjectedShadowManager)
 				TheW3DProjectedShadowManager->updateRenderTargetTextures();
-			EwGpuTimer::Mark(EwGpuTimer::RENDER_TARGETS);
+			GpuTimer::Mark(GpuTimer::RENDER_TARGETS);
 		}
 
 		viewsUpdated = FALSE;
@@ -2444,7 +2444,7 @@ AGAIN:
 					m_profilerFrameCapture->Capture(getWidth(), getHeight());
 				}
 #endif
-				EwGpuTimer::Mark(EwGpuTimer::FRAME_END);
+				GpuTimer::Mark(GpuTimer::FRAME_END);
 				// render is all done!
 				WW3D::End_Render();
 			}

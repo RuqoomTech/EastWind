@@ -1,4 +1,4 @@
-// EastWind DX9: linear lighting (EwLinearLighting), shared by the lit pixel shaders.
+// EastWind DX9: linear lighting (LinearLighting), shared by the lit pixel shaders.
 //
 // The game's textures, vertex colours and light colours are gamma encoded (sRGB-like). Adding
 // light in that space makes sums too dark in the mid-tones and shading falls off too sharply.
@@ -16,17 +16,17 @@
 //
 // W3DDisplay sets FrameOptions once a frame; registers this high are used by nothing else.
 
-#ifndef EW_LINEAR_H
-#define EW_LINEAR_H
+#ifndef SHADER_LINEAR_H
+#define SHADER_LINEAR_H
 
 #include "shader_constants.h"
 
-float4 FrameOptions : EW_REG(EW_FRAME_PS_OPTIONS);	// x linear lighting on
+float4 FrameOptions : SHADER_REG(FRAME_PS_OPTIONS);	// x linear lighting on
 
-bool Ew_Linear() { return FrameOptions.x > 0.5; }
+bool Linear_Lighting() { return FrameOptions.x > 0.5; }
 
 // Signed, so a negative light correction (terrain "extra" light) keeps its sign.
-float3 Ew_To_Linear(float3 c) { return Ew_Linear() ? sign(c) * pow(abs(c), 2.2) : c; }
-float3 Ew_To_Gamma(float3 c)  { return Ew_Linear() ? pow(max(c, 0.0), 1.0 / 2.2) : c; }
+float3 To_Linear(float3 c) { return Linear_Lighting() ? sign(c) * pow(abs(c), 2.2) : c; }
+float3 To_Gamma(float3 c)  { return Linear_Lighting() ? pow(max(c, 0.0), 1.0 / 2.2) : c; }
 
-#endif // EW_LINEAR_H
+#endif // SHADER_LINEAR_H

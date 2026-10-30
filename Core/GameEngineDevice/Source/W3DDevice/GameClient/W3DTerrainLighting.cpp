@@ -29,7 +29,7 @@
 #include <math.h>
 #include <string.h>
 
-// Like EwMeshShader, all state is read from the (non-pure) device: TerrainShaderPixelShader::set
+// Like MeshShader, all state is read from the (non-pure) device: TerrainShaderPixelShader::set
 // sets the textures, texture matrices and pixel shader on the device directly.
 
 namespace
@@ -86,7 +86,7 @@ namespace
 		if (!Logged[reason])
 		{
 			Logged[reason] = true;
-			WWDEBUG_SAY(("EwTerrainLighting: per-vertex fallback for %s, value 0x%x (logged once)", ReasonText[reason], value));
+			WWDEBUG_SAY(("W3DTerrainLighting: per-vertex fallback for %s, value 0x%x (logged once)", ReasonText[reason], value));
 		}
 		return false;
 	}
@@ -291,9 +291,9 @@ namespace
 	// The checks every pass makes before looking at what the pass set up.
 	bool Enabled(WorldHeightMap *map)
 	{
-		if (!EwGraphics().PerPixelLighting)
-			return Skip("EwPerPixelLighting is off in Options.ini");
-		if (!EwGraphics().TerrainShader())
+		if (!Get_Graphics_Options().PerPixelLighting)
+			return Skip("PerPixelLighting is off in Options.ini");
+		if (!Get_Graphics_Options().TerrainShader())
 			return Skip("switched off by a debug key");
 		if (map == nullptr || TheGlobalData == nullptr)
 			return Skip("no height map");
@@ -304,11 +304,11 @@ namespace
 		return true;
 	}
 
-	bool Bind(WorldHeightMap *map, EwShaders::VertexShaderId vertex_id, EwShaders::PixelShaderId pixel_id,
+	bool Bind(WorldHeightMap *map, ShaderLibrary::VertexShaderId vertex_id, ShaderLibrary::PixelShaderId pixel_id,
 		D3DTRANSFORMSTATETYPE texture_a, D3DTRANSFORMSTATETYPE texture_b);
 }
 
-bool EwTerrainLighting::Begin(WorldHeightMap *map)
+bool W3DTerrainLighting::Begin(WorldHeightMap *map)
 {
 	Reason_Slot = &LastReason;
 	if (!Enabled(map))
@@ -321,23 +321,23 @@ bool EwTerrainLighting::Begin(WorldHeightMap *map)
 	if (bound_ps == nullptr)
 		return Skip("the terrain pass uses no pixel shader (fixed-function terrain)");
 	bound_ps->Release();
-	EwShaders::PixelShaderId lit_id;
-	if (bound_ps == EwShaders::Peek_Pixel(EwShaders::PS_TERRAIN))
-		lit_id = EwShaders::PS_TERRAIN_LIT;
-	else if (bound_ps == EwShaders::Peek_Pixel(EwShaders::PS_TERRAIN_NOISE1))
-		lit_id = EwShaders::PS_TERRAIN_LIT_NOISE1;
-	else if (bound_ps == EwShaders::Peek_Pixel(EwShaders::PS_TERRAIN_NOISE2))
-		lit_id = EwShaders::PS_TERRAIN_LIT_NOISE2;
+	ShaderLibrary::PixelShaderId lit_id;
+	if (bound_ps == ShaderLibrary::Peek_Pixel(ShaderLibrary::PS_TERRAIN))
+		lit_id = ShaderLibrary::PS_TERRAIN_LIT;
+	else if (bound_ps == ShaderLibrary::Peek_Pixel(ShaderLibrary::PS_TERRAIN_NOISE1))
+		lit_id = ShaderLibrary::PS_TERRAIN_LIT_NOISE1;
+	else if (bound_ps == ShaderLibrary::Peek_Pixel(ShaderLibrary::PS_TERRAIN_NOISE2))
+		lit_id = ShaderLibrary::PS_TERRAIN_LIT_NOISE2;
 	else
 		return Skip("the terrain pass uses another pixel shader (.pso fallback)");
 
-	if (!Bind(map, EwShaders::VS_TERRAIN_LIT, lit_id, D3DTS_TEXTURE2, D3DTS_TEXTURE3))
+	if (!Bind(map, ShaderLibrary::VS_TERRAIN_LIT, lit_id, D3DTS_TEXTURE2, D3DTS_TEXTURE3))
 		return false;
 	++FramePasses;
 	return true;
 }
 
-bool EwTerrainLighting::Begin_Road(WorldHeightMap *map, int noise_textures, int passes)
+bool W3DTerrainLighting::Begin_Road(WorldHeightMap *map, int noise_textures, int passes)
 {
 	Reason_Slot = &LastRoadReason;
 	if (!Enabled(map))
@@ -348,15 +348,15 @@ bool EwTerrainLighting::Begin_Road(WorldHeightMap *map, int noise_textures, int 
 	if (passes != 1)
 		return Skip("the road shader uses two passes (no pixel shader road path)");
 
-	EwShaders::PixelShaderId lit_id = EwShaders::PS_ROAD_LIT;
+	ShaderLibrary::PixelShaderId lit_id = ShaderLibrary::PS_ROAD_LIT;
 	if (noise_textures == 1)
-		lit_id = EwShaders::PS_ROAD_LIT_NOISE1;
+		lit_id = ShaderLibrary::PS_ROAD_LIT_NOISE1;
 	else if (noise_textures >= 2)
-		lit_id = EwShaders::PS_ROAD_LIT_NOISE2;
+		lit_id = ShaderLibrary::PS_ROAD_LIT_NOISE2;
 
 	// RoadShader2Stage maps stage 1 through D3DTS_TEXTURE1; RoadShaderPixelShader maps stages 1
 	// and 2 through D3DTS_TEXTURE1 and D3DTS_TEXTURE2.
-	if (!Bind(map, EwShaders::VS_ROAD_LIT, lit_id, D3DTS_TEXTURE1, D3DTS_TEXTURE2))
+	if (!Bind(map, ShaderLibrary::VS_ROAD_LIT, lit_id, D3DTS_TEXTURE1, D3DTS_TEXTURE2))
 		return false;
 	++RoadFramePasses;
 	return true;
@@ -366,7 +366,7 @@ bool EwTerrainLighting::Begin_Road(WorldHeightMap *map, int noise_textures, int 
 // coordinates from camera-space position go through texture_a and texture_b.
 namespace
 {
-bool Bind(WorldHeightMap *map, EwShaders::VertexShaderId vertex_id, EwShaders::PixelShaderId pixel_id,
+bool Bind(WorldHeightMap *map, ShaderLibrary::VertexShaderId vertex_id, ShaderLibrary::PixelShaderId pixel_id,
 	D3DTRANSFORMSTATETYPE texture_a, D3DTRANSFORMSTATETYPE texture_b)
 {
 	IDirect3DVertexShader9 *bound_vs = nullptr;
@@ -381,8 +381,8 @@ bool Bind(WorldHeightMap *map, EwShaders::VertexShaderId vertex_id, EwShaders::P
 	if (caps->Get_Vertex_Shader_Major_Version() < 3 || caps->Get_Pixel_Shader_Major_Version() < 3)
 		return Fallback(REASON_NO_SM3, (caps->Get_Vertex_Shader_Major_Version() << 8) | caps->Get_Pixel_Shader_Major_Version());
 
-	IDirect3DVertexShader9 *vertex_shader = EwShaders::Peek_Vertex(vertex_id);
-	IDirect3DPixelShader9 *pixel_shader = EwShaders::Peek_Pixel(pixel_id);
+	IDirect3DVertexShader9 *vertex_shader = ShaderLibrary::Peek_Vertex(vertex_id);
+	IDirect3DPixelShader9 *pixel_shader = ShaderLibrary::Peek_Pixel(pixel_id);
 	if (vertex_shader == nullptr || pixel_shader == nullptr)
 		return Fallback(REASON_NO_SHADER, (unsigned(vertex_id) << 8) | unsigned(pixel_id));
 
@@ -426,7 +426,7 @@ bool Bind(WorldHeightMap *map, EwShaders::VertexShaderId vertex_id, EwShaders::P
 
 	// The sun lights as BaseHeightMapRenderObjClass::doTheLight adds them: the ambient of the
 	// first light, and each light's diffuse against the direction updateVB passes (-position).
-	Float4 sun[EW_TERRAIN_SUN_COUNT];
+	Float4 sun[TERRAIN_SUN_COUNT];
 	memset(sun, 0, sizeof(sun));
 	sun[0].x = TheGlobalData->m_terrainAmbient[0].red;
 	sun[0].y = TheGlobalData->m_terrainAmbient[0].green;
@@ -450,27 +450,27 @@ bool Bind(WorldHeightMap *map, EwShaders::VertexShaderId vertex_id, EwShaders::P
 	const float h = float(TextureHeight);
 	Float4 grid_map = { 1.0f / (MAP_XY_FACTOR * w), 1.0f / (MAP_XY_FACTOR * h), (border + 0.5f) / w, (border + 0.5f) / h };
 
-	Float4 vs[EW_TERRAIN_VS_COUNT];
+	Float4 vs[TERRAIN_VS_COUNT];
 	memset(vs, 0, sizeof(vs));
-	Columns(&vs[EW_TERRAIN_VS_WVP], world_view_projection, 4);
-	Columns(&vs[EW_TERRAIN_VS_WORLD], world, 3);
-	Columns(&vs[EW_TERRAIN_VS_WORLDVIEW], world_view, 3);
-	Columns(&vs[EW_TERRAIN_VS_TEXMATRIX + 0], matrix_a, 4);
-	Columns(&vs[EW_TERRAIN_VS_TEXMATRIX + 4], matrix_b, 4);
-	vs[EW_TERRAIN_VS_GRIDMAP] = grid_map;
-	vs[EW_TERRAIN_VS_OPTIONS].x = range_fog;
-	memcpy(&vs[EW_TERRAIN_SUN], sun, sizeof(sun));
+	Columns(&vs[TERRAIN_VS_WVP], world_view_projection, 4);
+	Columns(&vs[TERRAIN_VS_WORLD], world, 3);
+	Columns(&vs[TERRAIN_VS_WORLDVIEW], world_view, 3);
+	Columns(&vs[TERRAIN_VS_TEXMATRIX + 0], matrix_a, 4);
+	Columns(&vs[TERRAIN_VS_TEXMATRIX + 4], matrix_b, 4);
+	vs[TERRAIN_VS_GRIDMAP] = grid_map;
+	vs[TERRAIN_VS_OPTIONS].x = range_fog;
+	memcpy(&vs[TERRAIN_SUN], sun, sizeof(sun));
 
-	Float4 ps[EW_TERRAIN_PS_COUNT - EW_TERRAIN_SUN];
+	Float4 ps[TERRAIN_PS_COUNT - TERRAIN_SUN];
 	memset(ps, 0, sizeof(ps));
 	memcpy(&ps[0], sun, sizeof(sun));
-	ps[EW_TERRAIN_PS_FOG - EW_TERRAIN_SUN] = fog;
-	ps[EW_TERRAIN_PS_FOGCOLOR - EW_TERRAIN_SUN] = Color_Value(D3DCOLOR(Render_State(D3DRS_FOGCOLOR)));
-	ps[EW_TERRAIN_PS_DEBUG - EW_TERRAIN_SUN].x = EwGraphics().TerrainPixelLight() ? 0.0f : 1.0f;
-	ps[EW_TERRAIN_PS_DEBUG - EW_TERRAIN_SUN].y = EwGraphics().DebugTerrainLightOnly ? 1.0f : 0.0f;
+	ps[TERRAIN_PS_FOG - TERRAIN_SUN] = fog;
+	ps[TERRAIN_PS_FOGCOLOR - TERRAIN_SUN] = Color_Value(D3DCOLOR(Render_State(D3DRS_FOGCOLOR)));
+	ps[TERRAIN_PS_DEBUG - TERRAIN_SUN].x = Get_Graphics_Options().TerrainPixelLight() ? 0.0f : 1.0f;
+	ps[TERRAIN_PS_DEBUG - TERRAIN_SUN].y = Get_Graphics_Options().DebugTerrainLightOnly ? 1.0f : 0.0f;
 
-	Device->SetVertexShaderConstantF(0, &vs[0].x, EW_TERRAIN_VS_COUNT);
-	Device->SetPixelShaderConstantF(EW_TERRAIN_SUN, &ps[0].x, EW_TERRAIN_PS_COUNT - EW_TERRAIN_SUN);
+	Device->SetVertexShaderConstantF(0, &vs[0].x, TERRAIN_VS_COUNT);
+	Device->SetPixelShaderConstantF(TERRAIN_SUN, &ps[0].x, TERRAIN_PS_COUNT - TERRAIN_SUN);
 
 	// The pass's own pixel shader (or none) goes back in End(), so the pass ends the way the
 	// shader manager set it. GetPixelShader adds the reference End() releases.
@@ -501,7 +501,7 @@ bool Bind(WorldHeightMap *map, EwShaders::VertexShaderId vertex_id, EwShaders::P
 }
 }
 
-void EwTerrainLighting::New_Frame()
+void W3DTerrainLighting::New_Frame()
 {
 	LastFramePasses = FramePasses;
 	FramePasses = 0;
@@ -511,27 +511,27 @@ void EwTerrainLighting::New_Frame()
 	TreeFramePasses = 0;
 }
 
-unsigned EwTerrainLighting::Last_Frame_Passes()
+unsigned W3DTerrainLighting::Last_Frame_Passes()
 {
 	return LastFramePasses;
 }
 
-const char *EwTerrainLighting::Last_Reason()
+const char *W3DTerrainLighting::Last_Reason()
 {
 	return LastReason;
 }
 
-unsigned EwTerrainLighting::Last_Frame_Road_Passes()
+unsigned W3DTerrainLighting::Last_Frame_Road_Passes()
 {
 	return LastRoadFramePasses;
 }
 
-const char *EwTerrainLighting::Last_Road_Reason()
+const char *W3DTerrainLighting::Last_Road_Reason()
 {
 	return LastRoadReason;
 }
 
-void EwTerrainLighting::Tree_Pass(const char *fallback_reason)
+void W3DTerrainLighting::Tree_Pass(const char *fallback_reason)
 {
 	if (fallback_reason == nullptr)
 		++TreeFramePasses;
@@ -539,17 +539,17 @@ void EwTerrainLighting::Tree_Pass(const char *fallback_reason)
 		LastTreeReason = fallback_reason;
 }
 
-unsigned EwTerrainLighting::Last_Frame_Tree_Passes()
+unsigned W3DTerrainLighting::Last_Frame_Tree_Passes()
 {
 	return LastTreeFramePasses;
 }
 
-const char *EwTerrainLighting::Last_Tree_Reason()
+const char *W3DTerrainLighting::Last_Tree_Reason()
 {
 	return LastTreeReason;
 }
 
-void EwTerrainLighting::End()
+void W3DTerrainLighting::End()
 {
 	Device->SetVertexShader(nullptr);
 	Device->SetPixelShader(SavedPixelShader);
@@ -576,12 +576,12 @@ void EwTerrainLighting::End()
 	}
 }
 
-void EwTerrainLighting::Release()
+void W3DTerrainLighting::Release()
 {
 	Release_Texture();
 	FormatSupport = 0;
 }
 
-static_assert(EW_TERRAIN_VS_WVP == 0 && EW_TERRAIN_SUN + EW_TERRAIN_SUN_COUNT == EW_TERRAIN_VS_COUNT, "terrain vertex constants are uploaded as one block from c0");
-static_assert(EW_TERRAIN_VS_OPTIONS < EW_TERRAIN_SUN, "terrain vertex constants must not overlap the sun block");
-static_assert(EW_TERRAIN_PS_FOG == EW_TERRAIN_VS_COUNT && EW_TERRAIN_PS_DEBUG + 1 == EW_TERRAIN_PS_COUNT, "terrain pixel constants are uploaded as one block from the sun block");
+static_assert(TERRAIN_VS_WVP == 0 && TERRAIN_SUN + TERRAIN_SUN_COUNT == TERRAIN_VS_COUNT, "terrain vertex constants are uploaded as one block from c0");
+static_assert(TERRAIN_VS_OPTIONS < TERRAIN_SUN, "terrain vertex constants must not overlap the sun block");
+static_assert(TERRAIN_PS_FOG == TERRAIN_VS_COUNT && TERRAIN_PS_DEBUG + 1 == TERRAIN_PS_COUNT, "terrain pixel constants are uploaded as one block from the sun block");

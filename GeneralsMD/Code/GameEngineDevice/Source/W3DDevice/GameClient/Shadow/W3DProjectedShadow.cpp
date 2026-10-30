@@ -1334,7 +1334,7 @@ Int W3DProjectedShadowManager::renderShadows(RenderInfoClass & rinfo)
 
 	// EastWind M3.4: the object shadows (decals and projections) give way to the sun shadow map.
 	// The art decals below (m_decalList) stay.
-	if (TheGlobalData->m_useShadowDecals && !EwShadowMap::Active())
+	if (TheGlobalData->m_useShadowDecals && !ShadowMap::Active())
 	{
 		// Render the object
 		TheDX9MeshRenderer.Set_Camera(&rinfo.Camera);

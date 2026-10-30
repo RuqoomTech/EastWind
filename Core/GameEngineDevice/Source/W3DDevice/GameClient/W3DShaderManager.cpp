@@ -83,9 +83,9 @@
 
 /// EastWind: takes the embedded HLSL port of a game shader (EastWind/Shaders). The game's ps.1.x
 /// file still loads when the card refuses ps_2_0, so such cards keep the DX8 look.
-static HRESULT ewCreatePixelShader(EwShaders::PixelShaderId id, const char *gameShaderFile, IDirect3DPixelShader9 **pHandle)
+static HRESULT createPixelShader(ShaderLibrary::PixelShaderId id, const char *gameShaderFile, IDirect3DPixelShader9 **pHandle)
 {
-	*pHandle = EwShaders::Pixel(id);
+	*pHandle = ShaderLibrary::Pixel(id);
 	if (*pHandle)
 		return S_OK;
 	return W3DShaderManager::LoadAndCreateD3DShader(gameShaderFile, pHandle);
@@ -208,7 +208,7 @@ Bool ScreenDefaultFilter::postRender(FilterModes mode, Coord2D &scrollDelta,Bool
 	LPDIRECT3DDEVICE9EX pDev=DX9Wrapper::_Get_D3D_Device9();
 
 	struct _TRANS_LIT_TEX_VERTEX {
-		EwD3DVector4 p;
+		D3DVector4 p;
 		DWORD color;   // diffuse color
 		float	u;
 		float	v;
@@ -222,16 +222,16 @@ Bool ScreenDefaultFilter::postRender(FilterModes mode, Coord2D &scrollDelta,Bool
 	height=TheTacticalView->getHeight();
 
 	//bottom right
-	v[0].p = EwD3DVector4( xpos+width-0.5f, ypos+height-0.5f, 0.0f, 1.0f );
+	v[0].p = D3DVector4( xpos+width-0.5f, ypos+height-0.5f, 0.0f, 1.0f );
 	v[0].u = (Real)(xpos+width)/(Real)TheDisplay->getWidth();	v[0].v = (Real)(ypos+height)/(Real)TheDisplay->getHeight();
 	//top right
-	v[1].p = EwD3DVector4( xpos+width-0.5f, ypos-0.5f, 0.0f, 1.0f );
+	v[1].p = D3DVector4( xpos+width-0.5f, ypos-0.5f, 0.0f, 1.0f );
 	v[1].u = (Real)(xpos+width)/(Real)TheDisplay->getWidth();	v[1].v = (Real)(ypos)/(Real)TheDisplay->getHeight();
 	//bottom left
-	v[2].p = EwD3DVector4(  xpos-0.5f, ypos+height-0.5f, 0.0f, 1.0f );
+	v[2].p = D3DVector4(  xpos-0.5f, ypos+height-0.5f, 0.0f, 1.0f );
 	v[2].u = (Real)(xpos)/(Real)TheDisplay->getWidth();	v[2].v = (Real)(ypos+height)/(Real)TheDisplay->getHeight();
 	//top left
-	v[3].p = EwD3DVector4(  xpos-0.5f,  ypos-0.5f, 0.0f, 1.0f );
+	v[3].p = D3DVector4(  xpos-0.5f,  ypos-0.5f, 0.0f, 1.0f );
 	v[3].u = (Real)(xpos)/(Real)TheDisplay->getWidth();	v[3].v = (Real)(ypos)/(Real)TheDisplay->getHeight();
 	v[0].color = 0xffffffff;
 	v[1].color = 0xffffffff;
@@ -309,7 +309,7 @@ Int ScreenBWFilter::init()
 			//this shader needs some assets that need to be loaded
 
 			//Monochrome pixel shader.
-			hr = ewCreatePixelShader(EwShaders::PS_MONOCHROME, "shaders\\monochrome.pso", &m_dwBWPixelShader);
+			hr = createPixelShader(ShaderLibrary::PS_MONOCHROME, "shaders\\monochrome.pso", &m_dwBWPixelShader);
 			if (FAILED(hr))
 				return FALSE;
 
@@ -338,7 +338,7 @@ Bool ScreenBWFilter::postRender(FilterModes mode, Coord2D &scrollDelta,Bool &doE
 	LPDIRECT3DDEVICE9EX pDev=DX9Wrapper::_Get_D3D_Device9();
 
 	struct _TRANS_LIT_TEX_VERTEX {
-		EwD3DVector4 p;
+		D3DVector4 p;
 		DWORD color;   // diffuse color
 		float	u;
 		float	v;
@@ -352,16 +352,16 @@ Bool ScreenBWFilter::postRender(FilterModes mode, Coord2D &scrollDelta,Bool &doE
 	height=TheTacticalView->getHeight();
 
 	//bottom right
-	v[0].p = EwD3DVector4( xpos+width-0.5f, ypos+height-0.5f, 0.0f, 1.0f );
+	v[0].p = D3DVector4( xpos+width-0.5f, ypos+height-0.5f, 0.0f, 1.0f );
 	v[0].u = (Real)(xpos+width)/(Real)TheDisplay->getWidth();	v[0].v = (Real)(ypos+height)/(Real)TheDisplay->getHeight();
 	//top right
-	v[1].p = EwD3DVector4( xpos+width-0.5f, ypos-0.5f, 0.0f, 1.0f );
+	v[1].p = D3DVector4( xpos+width-0.5f, ypos-0.5f, 0.0f, 1.0f );
 	v[1].u = (Real)(xpos+width)/(Real)TheDisplay->getWidth();	v[1].v = (Real)(ypos)/(Real)TheDisplay->getHeight();
 	//bottom left
-	v[2].p = EwD3DVector4(  xpos-0.5f, ypos+height-0.5f, 0.0f, 1.0f );
+	v[2].p = D3DVector4(  xpos-0.5f, ypos+height-0.5f, 0.0f, 1.0f );
 	v[2].u = (Real)(xpos)/(Real)TheDisplay->getWidth();	v[2].v = (Real)(ypos+height)/(Real)TheDisplay->getHeight();
 	//top left
-	v[3].p = EwD3DVector4(  xpos-0.5f,  ypos-0.5f, 0.0f, 1.0f );
+	v[3].p = D3DVector4(  xpos-0.5f,  ypos-0.5f, 0.0f, 1.0f );
 	v[3].u = (Real)(xpos)/(Real)TheDisplay->getWidth();	v[3].v = (Real)(ypos)/(Real)TheDisplay->getHeight();
 	v[0].color = 0xffffffff;
 	v[1].color = 0xffffffff;
@@ -434,9 +434,9 @@ Int ScreenBWFilter::set(FilterModes mode)
 		DX9Wrapper::Apply_Render_State_Changes();	//force update of view and projection matrices
 
 		hr=DX9Wrapper::_Get_D3D_Device9()->SetPixelShader(m_dwBWPixelShader);
-		DX9Wrapper::_Get_D3D_Device9()->SetPixelShaderConstantF(EW_MONO_PS_LUMINANCE,   EwD3DVector4(0.3f, 0.59f, 0.11f, 1.0f), 1);
+		DX9Wrapper::_Get_D3D_Device9()->SetPixelShaderConstantF(MONO_PS_LUMINANCE,   D3DVector4(0.3f, 0.59f, 0.11f, 1.0f), 1);
 
-		EwD3DVector4	color(1.0f,1.0f,1.0f,1.0f);	//multiply color
+		D3DVector4	color(1.0f,1.0f,1.0f,1.0f);	//multiply color
 
 		if (mode == FM_VIEW_BW_BLACK_AND_WHITE)
 		{
@@ -464,14 +464,14 @@ Int ScreenBWFilter::set(FilterModes mode)
 			color.z = 0.0f;
 		}
 
-		DX9Wrapper::_Get_D3D_Device9()->SetPixelShaderConstantF(EW_MONO_PS_COLOR,   color, 1);
-		DX9Wrapper::_Get_D3D_Device9()->SetPixelShaderConstantF(EW_MONO_PS_FADE,	EwD3DVector4(m_curFadeValue, m_curFadeValue, m_curFadeValue, 1.0f), 1);
-/*		DX9Wrapper::_Get_D3D_Device9()->SetPixelShaderConstantF(2,   EwD3DVector4(150.0f/255.0f, 150.0f/255.0f, 150.0f/255.0f, 0.0f), 1);
-		DX9Wrapper::_Get_D3D_Device9()->SetPixelShaderConstantF(3,   EwD3DVector4((765.0f/450.0f)/3, (765.0f/450.0f)/3, (765.0f/450.0f)/3, 1.0f), 1);
-		DX9Wrapper::_Get_D3D_Device9()->SetPixelShaderConstantF(4,   EwD3DVector4(0.5f, 0.5f, 0.5f, 0), 1);
-		DX9Wrapper::_Get_D3D_Device9()->SetPixelShaderConstantF(5,   EwD3DVector4((60.0f)/255.0f, (60.0f)/255.0f, (60.0f)/255.0f, 0), 1);
-		DX9Wrapper::_Get_D3D_Device9()->SetPixelShaderConstantF(6,   EwD3DVector4((157.0f)/255.0f, (157.0f)/255.0f, (157.0f)/255.0f, 0), 1);
-		DX9Wrapper::_Get_D3D_Device9()->SetPixelShaderConstantF(7,   EwD3DVector4((30.0f)/255.0f, (30.0f)/255.0f, (30.0f)/255.0f, 0), 1);
+		DX9Wrapper::_Get_D3D_Device9()->SetPixelShaderConstantF(MONO_PS_COLOR,   color, 1);
+		DX9Wrapper::_Get_D3D_Device9()->SetPixelShaderConstantF(MONO_PS_FADE,	D3DVector4(m_curFadeValue, m_curFadeValue, m_curFadeValue, 1.0f), 1);
+/*		DX9Wrapper::_Get_D3D_Device9()->SetPixelShaderConstantF(2,   D3DVector4(150.0f/255.0f, 150.0f/255.0f, 150.0f/255.0f, 0.0f), 1);
+		DX9Wrapper::_Get_D3D_Device9()->SetPixelShaderConstantF(3,   D3DVector4((765.0f/450.0f)/3, (765.0f/450.0f)/3, (765.0f/450.0f)/3, 1.0f), 1);
+		DX9Wrapper::_Get_D3D_Device9()->SetPixelShaderConstantF(4,   D3DVector4(0.5f, 0.5f, 0.5f, 0), 1);
+		DX9Wrapper::_Get_D3D_Device9()->SetPixelShaderConstantF(5,   D3DVector4((60.0f)/255.0f, (60.0f)/255.0f, (60.0f)/255.0f, 0), 1);
+		DX9Wrapper::_Get_D3D_Device9()->SetPixelShaderConstantF(6,   D3DVector4((157.0f)/255.0f, (157.0f)/255.0f, (157.0f)/255.0f, 0), 1);
+		DX9Wrapper::_Get_D3D_Device9()->SetPixelShaderConstantF(7,   D3DVector4((30.0f)/255.0f, (30.0f)/255.0f, (30.0f)/255.0f, 0), 1);
 */
 		return true;
 	}
@@ -532,7 +532,7 @@ Bool ScreenBWFilterDOT3::postRender(FilterModes mode, Coord2D &scrollDelta,Bool 
 	LPDIRECT3DDEVICE9EX pDev=DX9Wrapper::_Get_D3D_Device9();
 
 	struct _TRANS_LIT_TEX_VERTEX {
-		EwD3DVector4 p;
+		D3DVector4 p;
 		DWORD color;   // diffuse color
 		float	u;
 		float	v;
@@ -545,16 +545,16 @@ Bool ScreenBWFilterDOT3::postRender(FilterModes mode, Coord2D &scrollDelta,Bool 
 	height=TheTacticalView->getHeight();
 
 	//bottom right
-	v[0].p = EwD3DVector4( xpos+width-0.5f, ypos+height-0.5f, 0.0f, 1.0f );
+	v[0].p = D3DVector4( xpos+width-0.5f, ypos+height-0.5f, 0.0f, 1.0f );
 	v[0].u = (Real)(xpos+width)/(Real)TheDisplay->getWidth();	v[0].v = (Real)(ypos+height)/(Real)TheDisplay->getHeight();
 	//top right
-	v[1].p = EwD3DVector4( xpos+width-0.5f, ypos-0.5f, 0.0f, 1.0f );
+	v[1].p = D3DVector4( xpos+width-0.5f, ypos-0.5f, 0.0f, 1.0f );
 	v[1].u = (Real)(xpos+width)/(Real)TheDisplay->getWidth();	v[1].v = (Real)(ypos)/(Real)TheDisplay->getHeight();
 	//bottom left
-	v[2].p = EwD3DVector4(  xpos-0.5f, ypos+height-0.5f, 0.0f, 1.0f );
+	v[2].p = D3DVector4(  xpos-0.5f, ypos+height-0.5f, 0.0f, 1.0f );
 	v[2].u = (Real)(xpos)/(Real)TheDisplay->getWidth();	v[2].v = (Real)(ypos+height)/(Real)TheDisplay->getHeight();
 	//top left
-	v[3].p = EwD3DVector4(  xpos-0.5f,  ypos-0.5f, 0.0f, 1.0f );
+	v[3].p = D3DVector4(  xpos-0.5f,  ypos-0.5f, 0.0f, 1.0f );
 	v[3].u = (Real)(xpos)/(Real)TheDisplay->getWidth();	v[3].v = (Real)(ypos)/(Real)TheDisplay->getHeight();
 
 	DWORD currentFade=(((Int)((1.0f-m_curFadeValue) * 255.0f))<<24) | 0x00ffffff;	//store alpha value
@@ -802,7 +802,7 @@ Bool ScreenCrossFadeFilter::postRender(FilterModes mode, Coord2D &scrollDelta,Bo
 	LPDIRECT3DDEVICE9EX pDev=DX9Wrapper::_Get_D3D_Device9();
 
 	struct _TRANS_LIT_TEX_VERTEX {
-		EwD3DVector4 p;
+		D3DVector4 p;
 		DWORD color;   // diffuse color
 		float	u;
 		float	v;
@@ -834,19 +834,19 @@ Bool ScreenCrossFadeFilter::postRender(FilterModes mode, Coord2D &scrollDelta,Bo
 	radius = 25.0f-radius*24.75f;
 */
 	//bottom right
-	v[0].p = EwD3DVector4( xpos+width-0.5f, ypos+height-0.5f, 0.0f, 1.0f );
+	v[0].p = D3DVector4( xpos+width-0.5f, ypos+height-0.5f, 0.0f, 1.0f );
 	v[0].u = (Real)(xpos+width)/(Real)TheDisplay->getWidth();	v[0].v = (Real)(ypos+height)/(Real)TheDisplay->getHeight();
 	v[0].u1 = 0.5f+radius;	v[0].v1 = 0.5f+radius;
 	//top right
-	v[1].p = EwD3DVector4( xpos+width-0.5f, ypos-0.5f, 0.0f, 1.0f );
+	v[1].p = D3DVector4( xpos+width-0.5f, ypos-0.5f, 0.0f, 1.0f );
 	v[1].u = (Real)(xpos+width)/(Real)TheDisplay->getWidth();	v[1].v = (Real)(ypos)/(Real)TheDisplay->getHeight();
 	v[1].u1 = 0.5f+radius;	v[1].v1 = 0.5f-radius;
 	//bottom left
-	v[2].p = EwD3DVector4(  xpos-0.5f, ypos+height-0.5f, 0.0f, 1.0f );
+	v[2].p = D3DVector4(  xpos-0.5f, ypos+height-0.5f, 0.0f, 1.0f );
 	v[2].u = (Real)(xpos)/(Real)TheDisplay->getWidth();	v[2].v = (Real)(ypos+height)/(Real)TheDisplay->getHeight();
 	v[2].u1 = 0.5f-radius;	v[2].v1 = 0.5f+radius;
 	//top left
-	v[3].p = EwD3DVector4(  xpos-0.5f,  ypos-0.5f, 0.0f, 1.0f );
+	v[3].p = D3DVector4(  xpos-0.5f,  ypos-0.5f, 0.0f, 1.0f );
 	v[3].u = (Real)(xpos)/(Real)TheDisplay->getWidth();	v[3].v = (Real)(ypos)/(Real)TheDisplay->getHeight();
 	v[3].u1 = 0.5f-radius;	v[3].v1 = 0.5f-radius;
 
@@ -974,7 +974,7 @@ Bool ScreenMotionBlurFilter::postRender(FilterModes mode, Coord2D &scrollDelta,B
 
 	Bool continueEffect = true;
 	struct _TRANS_LIT_TEX_VERTEX {
-		EwD3DVector4 p;
+		D3DVector4 p;
 		DWORD color;   // diffuse color
 		float	u;
 		float	v;
@@ -988,16 +988,16 @@ Bool ScreenMotionBlurFilter::postRender(FilterModes mode, Coord2D &scrollDelta,B
 	height=TheTacticalView->getHeight();
 
 	//bottom right
-	v[0].p = EwD3DVector4( xpos+width-0.5f, ypos+height-0.5f, 0.0f, 1.0f );
+	v[0].p = D3DVector4( xpos+width-0.5f, ypos+height-0.5f, 0.0f, 1.0f );
 	v[0].u = (Real)(xpos+width)/(Real)TheDisplay->getWidth();	v[0].v = (Real)(ypos+height)/(Real)TheDisplay->getHeight();
 	//top right
-	v[1].p = EwD3DVector4( xpos+width-0.5f, ypos-0.5f, 0.0f, 1.0f );
+	v[1].p = D3DVector4( xpos+width-0.5f, ypos-0.5f, 0.0f, 1.0f );
 	v[1].u = (Real)(xpos+width)/(Real)TheDisplay->getWidth();	v[1].v = (Real)(ypos)/(Real)TheDisplay->getHeight();
 	//bottom left
-	v[2].p = EwD3DVector4(  xpos-0.5f, ypos+height-0.5f, 0.0f, 1.0f );
+	v[2].p = D3DVector4(  xpos-0.5f, ypos+height-0.5f, 0.0f, 1.0f );
 	v[2].u = (Real)(xpos)/(Real)TheDisplay->getWidth();	v[2].v = (Real)(ypos+height)/(Real)TheDisplay->getHeight();
 	//top left
-	v[3].p = EwD3DVector4(  xpos-0.5f,  ypos-0.5f, 0.0f, 1.0f );
+	v[3].p = D3DVector4(  xpos-0.5f,  ypos-0.5f, 0.0f, 1.0f );
 	v[3].u = (Real)(xpos)/(Real)TheDisplay->getWidth();	v[3].v = (Real)(ypos)/(Real)TheDisplay->getHeight();
 	v[0].color = 0xffffffff;
 	v[1].color = 0xffffffff;
@@ -1255,14 +1255,14 @@ Int ShroudTextureShader::set(Int stage)
 	if ((shroud=TheTerrainRenderObject->getShroud()) != nullptr)
 	{
 		///@todo: All this code really only need to be done once per camera/view.  Find a way to optimize it out.
-		EwD3DMatrix curView;
+		D3DMatrix curView;
 		DX9Wrapper::_Get_DX9_Transform(D3DTS_VIEW, curView);
 
-		EwD3DMatrix inv;
+		D3DMatrix inv;
 		float det;
-		EwD3DMatrixInverse(&inv, &det, &curView);
+		D3DMatrixInverse(&inv, &det, &curView);
 
-		EwD3DMatrix scale,offset;
+		D3DMatrix scale,offset;
 
 		//We need to make all world coordinates be relative to the heightmap data origin since that
 		//is where the shroud begins.
@@ -1279,11 +1279,11 @@ Int ShroudTextureShader::set(Int stage)
 			yoffset = -(float)shroud->getDrawOriginY() + height;
 		}
 
-		EwD3DMatrixTranslation(&offset, xoffset, yoffset,0);
+		D3DMatrixTranslation(&offset, xoffset, yoffset,0);
 
 		width = 1.0f/(width*shroud->getTextureWidth());
 		height = 1.0f/(height*shroud->getTextureHeight());
-		EwD3DMatrixScaling(&scale, width, height, 1);
+		D3DMatrixScaling(&scale, width, height, 1);
 		curView = (inv * offset) * scale;
 		DX9Wrapper::_Set_DX9_Transform((D3DTRANSFORMSTATETYPE )(D3DTS_TEXTURE0+stage), curView);
 	}
@@ -1349,14 +1349,14 @@ Int FlatShroudTextureShader::set(Int stage)
 	if ((shroud=TheTerrainRenderObject->getShroud()) != nullptr)
 	{
 		///@todo: All this code really only need to be done once per camera/view.  Find a way to optimize it out.
-		EwD3DMatrix curView;
+		D3DMatrix curView;
 		DX9Wrapper::_Get_DX9_Transform(D3DTS_VIEW, curView);
 
-		EwD3DMatrix inv;
+		D3DMatrix inv;
 		float det;
-		EwD3DMatrixInverse(&inv, &det, &curView);
+		D3DMatrixInverse(&inv, &det, &curView);
 
-		EwD3DMatrix scale,offset;
+		D3DMatrix scale,offset;
 
 		//We need to make all world coordinates be relative to the heightmap data origin since that
 		//is where the shroud begins.
@@ -1373,11 +1373,11 @@ Int FlatShroudTextureShader::set(Int stage)
 			yoffset = -(float)shroud->getDrawOriginY() + height;
 		}
 
-		EwD3DMatrixTranslation(&offset, xoffset, yoffset,0);
+		D3DMatrixTranslation(&offset, xoffset, yoffset,0);
 
 		width = 1.0f/(width*shroud->getTextureWidth());
 		height = 1.0f/(height*shroud->getTextureHeight());
-		EwD3DMatrixScaling(&scale, width, height, 1);
+		D3DMatrixScaling(&scale, width, height, 1);
 		curView = (inv * offset) * scale;
 		DX9Wrapper::_Set_DX9_Transform((D3DTRANSFORMSTATETYPE )(D3DTS_TEXTURE0+stage), curView);
 	}
@@ -1439,19 +1439,19 @@ Int MaskTextureShader::set(Int pass)
 	DX9Wrapper::Set_Shader(shader);
 	DX9Wrapper::Apply_Render_State_Changes();
 
-	EwD3DMatrix curView;
+	D3DMatrix curView;
 	DX9Wrapper::_Get_DX9_Transform(D3DTS_VIEW, curView);
 
 	DX9Wrapper::Set_DX9_Texture_Stage_State(0,  D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_CAMERASPACEPOSITION);
 	DX9Wrapper::Set_DX9_Texture_Stage_State(0,  D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_COUNT2);
 
-	EwD3DMatrix inv;
+	D3DMatrix inv;
 	float det;
 
 	//Get inverse view matrix so we can transform camera space points back to world space
-	EwD3DMatrixInverse(&inv, &det, &curView);
+	D3DMatrixInverse(&inv, &det, &curView);
 
-	EwD3DMatrix scale,offset,offsetTextureCenter;
+	D3DMatrix scale,offset,offsetTextureCenter;
 	Coord3D centerPos;
 	centerPos.zero();
 
@@ -1468,9 +1468,9 @@ Int MaskTextureShader::set(Int pass)
 		TheTacticalView->screenToTerrain(&screenPos,&centerPos);
 	}
 
-	EwD3DMatrixTranslation(&offset, -centerPos.x, -centerPos.y,0);
+	D3DMatrixTranslation(&offset, -centerPos.x, -centerPos.y,0);
 
-	EwD3DMatrixTranslation(&offsetTextureCenter, 0.5f, 0.5f, 0);	//shift coordinates so center of projection falls at uv 0.5,0.5
+	D3DMatrixTranslation(&offsetTextureCenter, 0.5f, 0.5f, 0);	//shift coordinates so center of projection falls at uv 0.5,0.5
 
 	Real worldTexelWidth=(1.0f-fadeLevel)*25.0f;	//9 worked well for circle but weird shape requires more stretch to cover.
 	Real worldTexelHeight=(1.0f-fadeLevel)*25.0f;
@@ -1480,12 +1480,12 @@ Int MaskTextureShader::set(Int pass)
 	{
 		Real widthScale = 1.0f/(worldTexelWidth*128.0f);
 		Real heightScale = 1.0f/(worldTexelHeight*128.0f);
-		EwD3DMatrixScaling(&scale, widthScale, heightScale, 1);
+		D3DMatrixScaling(&scale, widthScale, heightScale, 1);
 		curView = ((inv * offset) * scale)*offsetTextureCenter;
 	}
 	else
 	{
-		EwD3DMatrixScaling(&scale, 0, 0, 1);	//scaling by 0 will set uv coordinates to 0,0
+		D3DMatrixScaling(&scale, 0, 0, 1);	//scaling by 0 will set uv coordinates to 0,0
 		curView = ((inv * offset) * scale);
 	}
 
@@ -1519,8 +1519,8 @@ public:
 	virtual void reset() override;		///<do any custom resetting necessary to bring W3D in sync.
 
 	void updateCloud();
-	void updateNoise1 (EwD3DMatrix *destMatrix,EwD3DMatrix *curViewInverse, Bool doUpdate=true);	///<generate the uv coordinates for Noise1 (i.e clouds)
-	void updateNoise2 (EwD3DMatrix *destMatrix,EwD3DMatrix *curViewInverse, Bool doUpdate=true);	///<generate the uv coordinates for Noise2 (i.e lightmap)
+	void updateNoise1 (D3DMatrix *destMatrix,D3DMatrix *curViewInverse, Bool doUpdate=true);	///<generate the uv coordinates for Noise1 (i.e clouds)
+	void updateNoise2 (D3DMatrix *destMatrix,D3DMatrix *curViewInverse, Bool doUpdate=true);	///<generate the uv coordinates for Noise2 (i.e lightmap)
 } terrainShader2Stage;
 
 ///regular terrain shader that should work on all multi-texture video cards (slowest version)
@@ -1635,26 +1635,26 @@ void TerrainShader2Stage::updateCloud()
 	m_yOffset -= (Int)m_yOffset;
 }
 
-void TerrainShader2Stage::updateNoise1(EwD3DMatrix *destMatrix,EwD3DMatrix *curViewInverse, Bool doUpdate)
+void TerrainShader2Stage::updateNoise1(D3DMatrix *destMatrix,D3DMatrix *curViewInverse, Bool doUpdate)
 {
 	#define STRETCH_FACTOR ((float)(1/(63.0*MAP_XY_FACTOR/2))) /* covers 63/2 tiles */
 
-	EwD3DMatrix scale;
+	D3DMatrix scale;
 
-	EwD3DMatrixScaling(&scale, STRETCH_FACTOR, STRETCH_FACTOR,1);
+	D3DMatrixScaling(&scale, STRETCH_FACTOR, STRETCH_FACTOR,1);
 	*destMatrix = *curViewInverse * scale;
 
-	EwD3DMatrix offset;
-	EwD3DMatrixTranslation(&offset, m_xOffset, m_yOffset,0);
+	D3DMatrix offset;
+	D3DMatrixTranslation(&offset, m_xOffset, m_yOffset,0);
 	*destMatrix *= offset;
 }
 
-void TerrainShader2Stage::updateNoise2(EwD3DMatrix *destMatrix,EwD3DMatrix *curViewInverse, Bool doUpdate)
+void TerrainShader2Stage::updateNoise2(D3DMatrix *destMatrix,D3DMatrix *curViewInverse, Bool doUpdate)
 {
 
-	EwD3DMatrix scale;
+	D3DMatrix scale;
 
-	EwD3DMatrixScaling(&scale, STRETCH_FACTOR, STRETCH_FACTOR,1);
+	D3DMatrixScaling(&scale, STRETCH_FACTOR, STRETCH_FACTOR,1);
 	*destMatrix = *curViewInverse * scale;
 }
 
@@ -1720,7 +1720,7 @@ Int TerrainShader2Stage::set(Int pass)
 			break;
 		case 2:
 			// Noise/cloud pass
-			EwD3DMatrix curView;
+			D3DMatrix curView;
 			DX9Wrapper::_Get_DX9_Transform(D3DTS_VIEW, curView);
 
 			//these states apply to all noise/cloud combination passes
@@ -1740,9 +1740,9 @@ Int TerrainShader2Stage::set(Int pass)
 			DX9Wrapper::Set_DX9_Render_State(D3DRS_SRCBLEND,D3DBLEND_DESTCOLOR);
 			DX9Wrapper::Set_DX9_Render_State(D3DRS_DESTBLEND,D3DBLEND_ZERO);
 
-			EwD3DMatrix inv;
+			D3DMatrix inv;
 			float det;
-			EwD3DMatrixInverse(&inv, &det, &curView);
+			D3DMatrixInverse(&inv, &det, &curView);
 
 			if (W3DShaderManager::getCurrentShader() == W3DShaderManager::ST_TERRAIN_BASE_NOISE12)
 			{
@@ -1991,17 +1991,17 @@ Int TerrainShaderPixelShader::init()
 			//this shader needs some assets that need to be loaded
 
 			//base version which doesn't apply any noise textures.
-			HRESULT hr = ewCreatePixelShader(EwShaders::PS_TERRAIN, "shaders\\terrain.pso", &m_dwBasePixelShader);
+			HRESULT hr = createPixelShader(ShaderLibrary::PS_TERRAIN, "shaders\\terrain.pso", &m_dwBasePixelShader);
 			if (FAILED(hr))
 				return FALSE;
 
 			//version which blends 1 noise texture.
-			hr = ewCreatePixelShader(EwShaders::PS_TERRAIN_NOISE1, "shaders\\terrainnoise.pso", &m_dwBaseNoise1PixelShader);
+			hr = createPixelShader(ShaderLibrary::PS_TERRAIN_NOISE1, "shaders\\terrainnoise.pso", &m_dwBaseNoise1PixelShader);
 			if (FAILED(hr))
 				return FALSE;
 
 			//version which blends 2 noise textures.
-			hr = ewCreatePixelShader(EwShaders::PS_TERRAIN_NOISE2, "shaders\\terrainnoise2.pso", &m_dwBaseNoise2PixelShader);
+			hr = createPixelShader(ShaderLibrary::PS_TERRAIN_NOISE2, "shaders\\terrainnoise2.pso", &m_dwBaseNoise2PixelShader);
 			if (FAILED(hr))
 				return FALSE;
 
@@ -2058,12 +2058,12 @@ Int TerrainShaderPixelShader::set(Int pass)
 
 	if (W3DShaderManager::getCurrentShader() >= W3DShaderManager::ST_TERRAIN_BASE_NOISE1)
 	{
-		EwD3DMatrix curView;
+		D3DMatrix curView;
 		DX9Wrapper::_Get_DX9_Transform(D3DTS_VIEW, curView);
 
-		EwD3DMatrix inv;
+		D3DMatrix inv;
 		float det;
-		EwD3DMatrixInverse(&inv, &det, &curView);
+		D3DMatrixInverse(&inv, &det, &curView);
 
 		DX9Wrapper::Set_DX9_Texture_Stage_State(2,  D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_CAMERASPACEPOSITION);
 		// Two output coordinates are used.
@@ -2183,13 +2183,13 @@ Int CloudTextureShader::init()
 /**Setup a certain texture stage to project our cloud texture*/
 Int CloudTextureShader::set(Int stage)
 {
-	EwD3DMatrix curView;
+	D3DMatrix curView;
 	DX9Wrapper::_Get_DX9_Transform(D3DTS_VIEW, curView);
 
-	EwD3DMatrix inv;
+	D3DMatrix inv;
 	float det;
 
-	EwD3DMatrixInverse(&inv, &det, &curView);
+	D3DMatrixInverse(&inv, &det, &curView);
 
 	//Get a texture matrix that applies the current cloud position
 	terrainShader2Stage.updateNoise1(&curView,&inv,false);	//update curView with texture matrix
@@ -2278,7 +2278,7 @@ Int RoadShaderPixelShader::init()
 			//this shader needs some assets that need to be loaded
 
 			//version which blends 2 noise textures.
-			HRESULT hr = ewCreatePixelShader(EwShaders::PS_ROAD_NOISE2, "shaders\\roadnoise2.pso", &m_dwBaseNoise2PixelShader);
+			HRESULT hr = createPixelShader(ShaderLibrary::PS_ROAD_NOISE2, "shaders\\roadnoise2.pso", &m_dwBaseNoise2PixelShader);
 			if (FAILED(hr))
 				return FALSE;
 
@@ -2309,12 +2309,12 @@ Int RoadShaderPixelShader::set(Int pass)
 	DX9Wrapper::Set_DX9_Render_State(D3DRS_SRCBLEND,D3DBLEND_SRCALPHA);
 	DX9Wrapper::Set_DX9_Render_State(D3DRS_DESTBLEND,D3DBLEND_INVSRCALPHA);
 
-	EwD3DMatrix curView;
+	D3DMatrix curView;
 	DX9Wrapper::_Get_DX9_Transform(D3DTS_VIEW, curView);
 
-	EwD3DMatrix inv;
+	D3DMatrix inv;
 	float det;
-	EwD3DMatrixInverse(&inv, &det, &curView);
+	D3DMatrixInverse(&inv, &det, &curView);
 
 	if (TheGlobalData && TheGlobalData->m_trilinearTerrainTex)
 	{	DX9Wrapper::Set_DX9_Sampler_State(0, D3DSAMP_MIPFILTER, D3DTEXF_LINEAR);
@@ -2425,12 +2425,12 @@ Int RoadShader2Stage::set(Int pass)
 		if (W3DShaderManager::getCurrentShader() >= W3DShaderManager::ST_ROAD_BASE_NOISE1)
 		{
 			//second texture unit will contain a noise pass
-			EwD3DMatrix curView;
+			D3DMatrix curView;
 			DX9Wrapper::_Get_DX9_Transform(D3DTS_VIEW, curView);
 
-			EwD3DMatrix inv;
+			D3DMatrix inv;
 			float det;
-			EwD3DMatrixInverse(&inv, &det, &curView);
+			D3DMatrixInverse(&inv, &det, &curView);
 
 			if (TheGlobalData && TheGlobalData->m_trilinearTerrainTex)
 				DX9Wrapper::Set_DX9_Sampler_State(1, D3DSAMP_MIPFILTER, D3DTEXF_LINEAR);
@@ -2493,12 +2493,12 @@ Int RoadShader2Stage::set(Int pass)
 	else
 	{
 		//pass 1, apply additional noise pass
-		EwD3DMatrix curView;
+		D3DMatrix curView;
 		DX9Wrapper::_Get_DX9_Transform(D3DTS_VIEW, curView);
 
-		EwD3DMatrix inv;
+		D3DMatrix inv;
 		float det;
-		EwD3DMatrixInverse(&inv, &det, &curView);
+		D3DMatrixInverse(&inv, &det, &curView);
 
 		if (TheGlobalData && TheGlobalData->m_trilinearTerrainTex)
 			DX9Wrapper::Set_DX9_Sampler_State(1, D3DSAMP_MIPFILTER, D3DTEXF_LINEAR);
@@ -2720,11 +2720,11 @@ void W3DShaderManager::shutdown()
 		}
 	}
 
-	EwTerrainLighting::Release();
-	EwPostProcess::Release();
-	EwWater::Release();
-	EwShadowMap::Release();
-	EwGpuTimer::Release();
+	W3DTerrainLighting::Release();
+	W3DPostProcess::Release();
+	W3DWaterShader::Release();
+	ShadowMap::Release();
+	GpuTimer::Release();
 }
 
 //=============================================================================
@@ -2820,7 +2820,7 @@ void W3DShaderManager::drawViewport(Int color)
 	LPDIRECT3DDEVICE9EX pDev=DX9Wrapper::_Get_D3D_Device9();
 
 	struct _TRANS_LIT_TEX_VERTEX {
-		EwD3DVector4 p;
+		D3DVector4 p;
 		DWORD color;   // diffuse color
 		float	u;
 		float	v;
@@ -2833,16 +2833,16 @@ void W3DShaderManager::drawViewport(Int color)
 	height=TheTacticalView->getHeight();
 
 	//bottom right
-	v[0].p = EwD3DVector4( xpos+width-0.5f, ypos+height-0.5f, 0.0f, 1.0f );
+	v[0].p = D3DVector4( xpos+width-0.5f, ypos+height-0.5f, 0.0f, 1.0f );
 	v[0].u = (Real)(xpos+width)/(Real)TheDisplay->getWidth();	v[0].v = (Real)(ypos+height)/(Real)TheDisplay->getHeight();
 	//top right
-	v[1].p = EwD3DVector4( xpos+width-0.5f, ypos-0.5f, 0.0f, 1.0f );
+	v[1].p = D3DVector4( xpos+width-0.5f, ypos-0.5f, 0.0f, 1.0f );
 	v[1].u = (Real)(xpos+width)/(Real)TheDisplay->getWidth();	v[1].v = (Real)(ypos)/(Real)TheDisplay->getHeight();
 	//bottom left
-	v[2].p = EwD3DVector4(  xpos-0.5f, ypos+height-0.5f, 0.0f, 1.0f );
+	v[2].p = D3DVector4(  xpos-0.5f, ypos+height-0.5f, 0.0f, 1.0f );
 	v[2].u = (Real)(xpos)/(Real)TheDisplay->getWidth();	v[2].v = (Real)(ypos+height)/(Real)TheDisplay->getHeight();
 	//top left
-	v[3].p = EwD3DVector4(  xpos-0.5f,  ypos-0.5f, 0.0f, 1.0f );
+	v[3].p = D3DVector4(  xpos-0.5f,  ypos-0.5f, 0.0f, 1.0f );
 	v[3].u = (Real)(xpos)/(Real)TheDisplay->getWidth();	v[3].v = (Real)(ypos)/(Real)TheDisplay->getHeight();
 	v[0].color = color;
 	v[1].color = color;
@@ -2866,7 +2866,7 @@ void W3DShaderManager::startRenderToTexture()
 
 	if (m_renderingToTexture || m_newRenderSurface==nullptr || m_oldDepthSurface==nullptr) return;
 	// EastWind: draw with, and return to, the depth buffer the scene uses, which is the depth
-	// texture ambient occlusion reads (EwPostProcess) rather than the back buffer's when AO is on.
+	// texture ambient occlusion reads (W3DPostProcess) rather than the back buffer's when AO is on.
 	IDirect3DSurface9 *currentDepth = nullptr;
 	if (DX9Wrapper::_Get_D3D_Device9()->GetDepthStencilSurface(&currentDepth) == S_OK && currentDepth)
 	{
@@ -2880,7 +2880,7 @@ void W3DShaderManager::startRenderToTexture()
 	if (hr == S_OK && depthDesc.MultiSampleType != D3DMULTISAMPLE_NONE)
 		hr = E_FAIL;
 	// EastWind: return to the target the scene draws into, which is the post-processing scene
-	// texture (EwPostProcess) rather than the back buffer when a post effect is on.
+	// texture (W3DPostProcess) rather than the back buffer when a post effect is on.
 	if (hr == S_OK)
 	{
 		IDirect3DSurface9 *current = nullptr;
@@ -3139,7 +3139,7 @@ HRESULT W3DShaderManager::LoadAndCreateD3DShader(const char* strFilePath, IDirec
 HRESULT W3DShaderManager::LoadAndCreateD3DShader(const char* strFilePath, IDirect3DVertexShader9** pHandle)
 {
 	// The game's .vso files are D3D8 vs.1.1 bytecode without the dcl_ instructions D3D9 needs; their
-	// register mapping came from a D3D8 declaration. EwShaders has HLSL ports of the ones the game
+	// register mapping came from a D3D8 declaration. ShaderLibrary has HLSL ports of the ones the game
 	// draws with (Trees, wave), so this never loads a .vso.
 	(void)strFilePath;
 	*pHandle = nullptr;
@@ -3290,14 +3290,14 @@ Int W3DShaderManager::setShroudTex(Int stage)
 		DX9Wrapper::Set_DX9_Texture_Stage_State( stage, D3DTSS_COLOROP,   D3DTOP_MODULATE );
 		DX9Wrapper::Set_DX9_Texture_Stage_State( stage, D3DTSS_ALPHAOP,   D3DTOP_SELECTARG2 );
 
-		EwD3DMatrix curView;
+		D3DMatrix curView;
 		DX9Wrapper::_Get_DX9_Transform(D3DTS_VIEW, curView);
 
-		EwD3DMatrix inv;
+		D3DMatrix inv;
 		float det;
-		EwD3DMatrixInverse(&inv, &det, &curView);
+		D3DMatrixInverse(&inv, &det, &curView);
 
-		EwD3DMatrix scale,offset;
+		D3DMatrix scale,offset;
 
 		//We need to make all world coordinates be relative to the heightmap data origin since that
 		//is where the shroud begins.
@@ -3314,11 +3314,11 @@ Int W3DShaderManager::setShroudTex(Int stage)
 			yoffset = -(float)shroud->getDrawOriginY() + height;
 		}
 
-		EwD3DMatrixTranslation(&offset, xoffset, yoffset,0);
+		D3DMatrixTranslation(&offset, xoffset, yoffset,0);
 
 		width = 1.0f/(width*shroud->getTextureWidth());
 		height = 1.0f/(height*shroud->getTextureHeight());
-		EwD3DMatrixScaling(&scale, width, height, 1);
+		D3DMatrixScaling(&scale, width, height, 1);
 		curView = (inv * offset) * scale;
 		DX9Wrapper::_Set_DX9_Transform((D3DTRANSFORMSTATETYPE )(D3DTS_TEXTURE0+stage), curView);
 		return TRUE;
@@ -3409,14 +3409,14 @@ Int FlatTerrainShader2Stage::set(Int pass)
 				W3DShroud *shroud;
 				if ((shroud=TheTerrainRenderObject->getShroud()) != nullptr)
 				{
-					EwD3DMatrix curView;
+					D3DMatrix curView;
 					DX9Wrapper::_Get_DX9_Transform(D3DTS_VIEW, curView);
 
-					EwD3DMatrix inv;
+					D3DMatrix inv;
 					float det;
-					EwD3DMatrixInverse(&inv, &det, &curView);
+					D3DMatrixInverse(&inv, &det, &curView);
 
-					EwD3DMatrix scale,offset;
+					D3DMatrix scale,offset;
 
 					//We need to make all world coordinates be relative to the heightmap data origin since that
 					//is where the shroud begins.
@@ -3433,11 +3433,11 @@ Int FlatTerrainShader2Stage::set(Int pass)
 						yoffset = -(float)shroud->getDrawOriginY() + height;
 					}
 
-					EwD3DMatrixTranslation(&offset, xoffset, yoffset,0);
+					D3DMatrixTranslation(&offset, xoffset, yoffset,0);
 
 					width = 1.0f/(width*shroud->getTextureWidth());
 					height = 1.0f/(height*shroud->getTextureHeight());
-					EwD3DMatrixScaling(&scale, width, height, 1);
+					D3DMatrixScaling(&scale, width, height, 1);
 					curView = (inv * offset) * scale;
 					DX9Wrapper::_Set_DX9_Transform((D3DTRANSFORMSTATETYPE )(D3DTS_TEXTURE0), curView);
 				}
@@ -3462,7 +3462,7 @@ Int FlatTerrainShader2Stage::set(Int pass)
 			break;
 		case 1:
 			// Noise/cloud pass
-			EwD3DMatrix curView;
+			D3DMatrix curView;
 			DX9Wrapper::_Get_DX9_Transform(D3DTS_VIEW, curView);
 
 			//these states apply to all noise/cloud combination passes
@@ -3482,9 +3482,9 @@ Int FlatTerrainShader2Stage::set(Int pass)
 			DX9Wrapper::Set_DX9_Render_State(D3DRS_SRCBLEND,D3DBLEND_DESTCOLOR);
 			DX9Wrapper::Set_DX9_Render_State(D3DRS_DESTBLEND,D3DBLEND_ZERO);
 
-			EwD3DMatrix inv;
+			D3DMatrix inv;
 			float det;
-			EwD3DMatrixInverse(&inv, &det, &curView);
+			D3DMatrixInverse(&inv, &det, &curView);
 
 			if (W3DShaderManager::getCurrentShader() == W3DShaderManager::ST_FLAT_TERRAIN_BASE_NOISE12)
 			{
@@ -3591,22 +3591,22 @@ Int FlatTerrainShaderPixelShader::init()
 			//this shader needs some assets that need to be loaded
 
 			//base version which doesn't apply any noise textures.
-			HRESULT hr = ewCreatePixelShader(EwShaders::PS_FLAT_TERRAIN, "shaders\\fterrain.pso", &m_dwBasePixelShader);
+			HRESULT hr = createPixelShader(ShaderLibrary::PS_FLAT_TERRAIN, "shaders\\fterrain.pso", &m_dwBasePixelShader);
 			if (FAILED(hr))
 				return FALSE;
 
 			//base version which doesn't apply any shroud textures.
-			hr = ewCreatePixelShader(EwShaders::PS_FLAT_TERRAIN0, "shaders\\fterrain0.pso", &m_dwBase0PixelShader);
+			hr = createPixelShader(ShaderLibrary::PS_FLAT_TERRAIN0, "shaders\\fterrain0.pso", &m_dwBase0PixelShader);
 			if (FAILED(hr))
 				return FALSE;
 
 			//version which blends 1 noise texture.
-			hr = ewCreatePixelShader(EwShaders::PS_FLAT_TERRAIN_NOISE1, "shaders\\fterrainnoise.pso", &m_dwBaseNoise1PixelShader);
+			hr = createPixelShader(ShaderLibrary::PS_FLAT_TERRAIN_NOISE1, "shaders\\fterrainnoise.pso", &m_dwBaseNoise1PixelShader);
 			if (FAILED(hr))
 				return FALSE;
 
 			//version which blends 2 noise textures.
-			hr = ewCreatePixelShader(EwShaders::PS_FLAT_TERRAIN_NOISE2, "shaders\\fterrainnoise2.pso", &m_dwBaseNoise2PixelShader);
+			hr = createPixelShader(ShaderLibrary::PS_FLAT_TERRAIN_NOISE2, "shaders\\fterrainnoise2.pso", &m_dwBaseNoise2PixelShader);
 			if (FAILED(hr))
 				return FALSE;
 
@@ -3670,14 +3670,14 @@ Int FlatTerrainShaderPixelShader::set(Int pass)
 		//We need to scale so shroud texel stretches over one full terrain cell.  Each texel
 		//is 1/128 the size of full texture. (assuming 128x128 vid-mem texture).
 		{
-			EwD3DMatrix curView;
+			D3DMatrix curView;
 			DX9Wrapper::_Get_DX9_Transform(D3DTS_VIEW, curView);
 
-			EwD3DMatrix inv;
+			D3DMatrix inv;
 			float det;
-			EwD3DMatrixInverse(&inv, &det, &curView);
+			D3DMatrixInverse(&inv, &det, &curView);
 
-			EwD3DMatrix scale,offset;
+			D3DMatrix scale,offset;
 
 			//We need to make all world coordinates be relative to the heightmap data origin since that
 			//is where the shroud begins.
@@ -3694,11 +3694,11 @@ Int FlatTerrainShaderPixelShader::set(Int pass)
 				yoffset = -(float)shroud->getDrawOriginY() + height;
 			}
 
-			EwD3DMatrixTranslation(&offset, xoffset, yoffset,0);
+			D3DMatrixTranslation(&offset, xoffset, yoffset,0);
 
 			width = 1.0f/(width*shroud->getTextureWidth());
 			height = 1.0f/(height*shroud->getTextureHeight());
-			EwD3DMatrixScaling(&scale, width, height, 1);
+			D3DMatrixScaling(&scale, width, height, 1);
 			curView = (inv * offset) * scale;
 			DX9Wrapper::_Set_DX9_Transform((D3DTRANSFORMSTATETYPE )(D3DTS_TEXTURE0+curStage), curView);
 		}
@@ -3715,12 +3715,12 @@ Int FlatTerrainShaderPixelShader::set(Int pass)
 						W3DShaderManager::getCurrentShader() == W3DShaderManager::ST_FLAT_TERRAIN_BASE_NOISE12);
 	if (doNoise1) {
 		// Cloud pass.
-		EwD3DMatrix curView;
+		D3DMatrix curView;
 		DX9Wrapper::_Get_DX9_Transform(D3DTS_VIEW, curView);
 
-		EwD3DMatrix inv;
+		D3DMatrix inv;
 		float det;
-		EwD3DMatrixInverse(&inv, &det, &curView);
+		D3DMatrixInverse(&inv, &det, &curView);
 
 		DX9Wrapper::Set_DX9_Texture_Stage_State(curStage,  D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_CAMERASPACEPOSITION);
 		// Two output coordinates are used.
@@ -3742,12 +3742,12 @@ Int FlatTerrainShaderPixelShader::set(Int pass)
 						W3DShaderManager::getCurrentShader() == W3DShaderManager::ST_FLAT_TERRAIN_BASE_NOISE12);
 	if (doNoise2)
 	{
-		EwD3DMatrix curView;
+		D3DMatrix curView;
 		DX9Wrapper::_Get_DX9_Transform(D3DTS_VIEW, curView);
 
-		EwD3DMatrix inv;
+		D3DMatrix inv;
 		float det;
-		EwD3DMatrixInverse(&inv, &det, &curView);
+		D3DMatrixInverse(&inv, &det, &curView);
 
 		DX9Wrapper::Set_DX9_Texture_Stage_State(curStage,  D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_CAMERASPACEPOSITION);
 		// Two output coordinates are used.

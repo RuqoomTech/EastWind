@@ -15,7 +15,7 @@
 **	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// EastWind DX9: sun shadow map (M3.4, Options.ini EwShadowMapSize = 1024, 2048 or 4096).
+// EastWind DX9: sun shadow map (M3.4, Options.ini ShadowMapSize = 1024, 2048 or 4096).
 //
 // Once a frame, before the water reflection and the main scene, W3DDisplay calls Render(). It
 // fits an orthographic camera looking along the sun to the ground the main camera sees and
@@ -23,10 +23,10 @@
 //   - RTS3DScene::Render sees Caster_Pass() and draws only units, buildings and props (meshes
 //     and HLods) that are opaque, not hidden and inside the light's box; sorted (transparent)
 //     triangles are thrown away. W3DTreeBuffer draws the trees with their sway, alpha tested.
-//   - EwMeshShader stays out of the way (fixed function, no colour writes).
+//   - MeshShader stays out of the way (fixed function, no colour writes).
 // Then the map is bound to sampler s12 and the constants c200..c205 for the rest of the frame,
 // and every lit pixel shader (meshes, terrain, roads, trees, water) darkens the sun light by
-// Ew_Sun_Shadow (EastWind/Shaders/shader_shadow.h).
+// Sun_Shadow (EastWind/Shaders/shader_shadow.h).
 //
 // While the map is active the classic shadows are off: stencil volumes, and the projected and
 // decal object shadows. Art decals (scorch marks, terrain decals) and cloud shadows stay.
@@ -37,7 +37,7 @@ class SceneClass;
 class CameraClass;
 class Vector3;
 
-class EwShadowMap
+class ShadowMap
 {
 public:
 	// Start of a frame: last frame's numbers become the status, and the map is unbound until
@@ -47,7 +47,7 @@ public:
 	// Draws the shadow map for this frame and binds it. view is the main camera, sun_travel the
 	// direction the sunlight travels (the map's first light, pointing down), ground_min and
 	// ground_max the heights of the terrain the camera sees. Does nothing when
-	// EwGraphics().ShadowMaps() is off.
+	// Get_Graphics_Options().ShadowMaps() is off.
 	static void Render(SceneClass *scene, CameraClass *view, const Vector3 &sun_travel, float ground_min, float ground_max);
 
 	// True while Render() draws the casters.

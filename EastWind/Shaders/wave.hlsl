@@ -4,8 +4,8 @@
 
 #include "shader_constants.h"
 
-float4 WorldViewProj[4] : EW_REG(EW_WAVE_VS_WVP);
-float4 TexProj          : EW_REG(EW_WAVE_VS_TEXPROJ);
+float4 WorldViewProj[4] : SHADER_REG(WAVE_VS_WVP);
+float4 TexProj          : SHADER_REG(WAVE_VS_TEXPROJ);
 
 struct VsIn
 {
@@ -34,7 +34,7 @@ VsOut WaveVS(VsIn i)
 	return o;
 }
 
-float4 BumpMatrix : EW_REG(EW_WAVE_PS_BUMPMAT); // (M00, M01, M10, M11)
+float4 BumpMatrix : SHADER_REG(WAVE_PS_BUMPMAT); // (M00, M01, M10, M11)
 
 sampler2D BumpMap    : register(s0);
 sampler2D Reflection : register(s1);

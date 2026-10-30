@@ -88,7 +88,7 @@ namespace
 		if (!Logged[reason])
 		{
 			Logged[reason] = true;
-			WWDEBUG_SAY(("EwMeshShader: fixed-function fallback for %s, value 0x%x (logged once)", ReasonText[reason], value));
+			WWDEBUG_SAY(("MeshShader: fixed-function fallback for %s, value 0x%x (logged once)", ReasonText[reason], value));
 		}
 		return false;
 	}
@@ -107,11 +107,11 @@ namespace
 	IDirect3DVertexShader9 *BoundVS;
 	IDirect3DPixelShader9 *BoundPS;
 
-	// Ctrl+Shift+T counters (EwDebugKeys only): CPU time from Begin() to End(), which includes the
+	// Ctrl+Shift+T counters (DebugKeys only): CPU time from Begin() to End(), which includes the
 	// draw call itself, and the draw counts, since the last Take_Stats().
 	bool DrawLit;
 	LARGE_INTEGER DrawStart;
-	EwMeshShader::StatsStruct Stats;
+	MeshShader::StatsStruct Stats;
 	unsigned StatsFrame;
 
 	// Unbinds whichever of our shaders the device still holds; a caller's own shader stays.
@@ -141,7 +141,7 @@ namespace
 	template <bool VERTEX>
 	void Upload(const Float4 *data, UINT count)
 	{
-		if (EwGraphics().DebugConstantDiffOff)
+		if (Get_Graphics_Options().DebugConstantDiffOff)
 		{
 			if (VERTEX)
 				Device->SetVertexShaderConstantF(0, &data[0].x, count);
@@ -192,8 +192,8 @@ namespace
 		BoundPS = pixel_shader;
 	}
 
-	// Soft particles: 1 / size of the scene view depth texture EwPostProcess bound on
-	// EW_PARTICLE_DEPTH_SAMPLER, or 0 while none is bound.
+	// Soft particles: 1 / size of the scene view depth texture W3DPostProcess bound on
+	// PARTICLE_DEPTH_SAMPLER, or 0 while none is bound.
 	float SceneDepthInvWidth;
 	float SceneDepthInvHeight;
 	const float SOFT_PARTICLE_FADE_DISTANCE = 8.0f;	// world units; a terrain tile is 10
@@ -256,7 +256,7 @@ namespace
 			_TheFileFactory->Return_File(file);
 			if (found)
 			{
-				WWDEBUG_SAY(("EwMeshShader: material map %s", name));
+				WWDEBUG_SAY(("MeshShader: material map %s", name));
 				return ext;
 			}
 		}
@@ -273,9 +273,9 @@ namespace
 	}
 
 	// Finds a diffuse texture's maps the first time it is drawn, and keeps them on the texture.
-	TextureClass::EwMaterialMapsStruct &Resolve_Maps(TextureClass *diffuse)
+	TextureClass::MaterialMapsStruct &Resolve_Maps(TextureClass *diffuse)
 	{
-		TextureClass::EwMaterialMapsStruct &maps = diffuse->Ew_Material_Maps();
+		TextureClass::MaterialMapsStruct &maps = diffuse->Material_Maps();
 		if (maps.Resolved)
 			return maps;
 		maps.Resolved = true;
@@ -370,11 +370,11 @@ namespace
 	}
 
 	// A light or material colour for ShadeMesh: decoded to linear here once a draw when linear
-	// lighting is on (as shader_linear.h Ew_To_Linear, signed), instead of in every pixel. Alpha stays.
+	// lighting is on (as shader_linear.h To_Linear, signed), instead of in every pixel. Alpha stays.
 	float To_Linear(float v) { return (v < 0.0f) ? -powf(-v, 2.2f) : powf(v, 2.2f); }
 	Float4 Lit(Float4 c)
 	{
-		if (EwGraphics().Linear())
+		if (Get_Graphics_Options().Linear())
 		{
 			c.x = To_Linear(c.x);
 			c.y = To_Linear(c.y);
@@ -743,8 +743,8 @@ namespace
 		if (!Gather_Fog(fog, range_fog))
 			return false;
 
-		IDirect3DVertexShader9 *vertex_shader = EwShaders::Peek_Vertex(EwShaders::VS_PARTICLE);
-		IDirect3DPixelShader9 *pixel_shader = EwShaders::Peek_Pixel(EwShaders::PS_PARTICLE);
+		IDirect3DVertexShader9 *vertex_shader = ShaderLibrary::Peek_Vertex(ShaderLibrary::VS_PARTICLE);
+		IDirect3DPixelShader9 *pixel_shader = ShaderLibrary::Peek_Pixel(ShaderLibrary::PS_PARTICLE);
 		if (vertex_shader == nullptr || pixel_shader == nullptr)
 			return Fallback(REASON_NO_SHADER, 2);
 
@@ -755,24 +755,24 @@ namespace
 		Multiply(world_view, world, view);
 		Multiply(world_view_projection, world_view, projection);
 
-		Float4 vs[EW_MESH_VS_COUNT];
+		Float4 vs[MESH_VS_COUNT];
 		memset(vs, 0, sizeof(vs));
-		Columns(&vs[EW_MESH_VS_WVP], world_view_projection, 4);
-		Columns(&vs[EW_MESH_VS_WORLDVIEW], world_view, 3);
-		vs[EW_MESH_VS_OPTIONS].x = range_fog;
+		Columns(&vs[MESH_VS_WVP], world_view_projection, 4);
+		Columns(&vs[MESH_VS_WORLDVIEW], world_view, 3);
+		vs[MESH_VS_OPTIONS].x = range_fog;
 
-		Float4 ps[EW_PARTICLE_PS_SOFT + 1];
+		Float4 ps[PARTICLE_PS_SOFT + 1];
 		memset(ps, 0, sizeof(ps));
-		memcpy(&ps[EW_MESH_PS_STAGE], stage_constants, sizeof(stage_constants));
-		ps[EW_MESH_PS_TFACTOR] = Color(D3DCOLOR(Render_State(D3DRS_TEXTUREFACTOR)));
-		ps[EW_MESH_PS_OPTIONS].z = has_texture;
-		ps[EW_MESH_PS_FOG] = fog;
-		ps[EW_MESH_PS_FOGCOLOR] = Color(D3DCOLOR(Render_State(D3DRS_FOGCOLOR)));
+		memcpy(&ps[MESH_PS_STAGE], stage_constants, sizeof(stage_constants));
+		ps[MESH_PS_TFACTOR] = Color(D3DCOLOR(Render_State(D3DRS_TEXTUREFACTOR)));
+		ps[MESH_PS_OPTIONS].z = has_texture;
+		ps[MESH_PS_FOG] = fog;
+		ps[MESH_PS_FOGCOLOR] = Color(D3DCOLOR(Render_State(D3DRS_FOGCOLOR)));
 		Float4 soft = { SceneDepthInvWidth, SceneDepthInvHeight, 1.0f / SOFT_PARTICLE_FADE_DISTANCE, mode };
-		ps[EW_PARTICLE_PS_SOFT] = soft;
+		ps[PARTICLE_PS_SOFT] = soft;
 
-		Upload<true>(vs, EW_MESH_VS_COUNT);
-		Upload<false>(ps, EW_PARTICLE_PS_SOFT + 1);
+		Upload<true>(vs, MESH_VS_COUNT);
+		Upload<false>(ps, PARTICLE_PS_SOFT + 1);
 		Bind_Shaders(vertex_shader, pixel_shader);
 
 		// The pixel shader fogs itself; End() turns fog back on.
@@ -783,7 +783,7 @@ namespace
 	}
 }
 
-void EwMeshShader::Set_Scene_Depth(float inv_width, float inv_height)
+void MeshShader::Set_Scene_Depth(float inv_width, float inv_height)
 {
 	SceneDepthInvWidth = inv_width;
 	SceneDepthInvHeight = inv_height;
@@ -791,9 +791,9 @@ void EwMeshShader::Set_Scene_Depth(float inv_width, float inv_height)
 
 static bool Begin_Draw();
 
-bool EwMeshShader::Begin()
+bool MeshShader::Begin()
 {
-	const bool timing = EwGraphics().DebugKeys;
+	const bool timing = Get_Graphics_Options().DebugKeys;
 	if (timing)
 		QueryPerformanceCounter(&DrawStart);
 	const bool shader = Begin_Draw();
@@ -812,7 +812,7 @@ bool EwMeshShader::Begin()
 	return shader;
 }
 
-EwMeshShader::StatsStruct EwMeshShader::Take_Stats()
+MeshShader::StatsStruct MeshShader::Take_Stats()
 {
 	LARGE_INTEGER frequency;
 	QueryPerformanceFrequency(&frequency);
@@ -830,12 +830,12 @@ EwMeshShader::StatsStruct EwMeshShader::Take_Stats()
 	return s;
 }
 
-void EwMeshShader::Begin_Batch()
+void MeshShader::Begin_Batch()
 {
-	Batching = !EwGraphics().DebugShaderBatchOff;
+	Batching = !Get_Graphics_Options().DebugShaderBatchOff;
 }
 
-void EwMeshShader::End_Batch()
+void MeshShader::End_Batch()
 {
 	Batching = false;
 	Device = DX9Wrapper::_Get_D3D_Device9();
@@ -852,13 +852,13 @@ static bool Begin_Draw()
 	// is drawn as any other unlit draw.
 	const bool lit = Render_State(D3DRS_LIGHTING) != FALSE;
 	DrawLit = lit;
-	if (!lit && SceneDepthInvWidth > 0.0f && DX9Wrapper::Get_Ew_Soft_Particle() && Begin_Particle())
+	if (!lit && SceneDepthInvWidth > 0.0f && DX9Wrapper::Get_Soft_Particle() && Begin_Particle())
 		return true;
 
-	if (lit ? !EwGraphics().MeshLighting() : !EwGraphics().UnlitShader())
+	if (lit ? !Get_Graphics_Options().MeshLighting() : !Get_Graphics_Options().UnlitShader())
 		return false;
 	// The shadow map's caster pass draws depth only, fixed function.
-	if (EwShadowMap::Caster_Pass())
+	if (ShadowMap::Caster_Pass())
 		return false;
 
 	// Draws with their own shaders are not ours, nor point sprites (the snow).
@@ -888,9 +888,9 @@ static bool Begin_Draw()
 	if ((fvf & D3DFVF_POSITION_MASK) != D3DFVF_XYZ || (lit && !has_normal) || (fvf & ~allowed) || texcoord_sets > 2)
 		return Fallback(REASON_FVF, fvf);
 
-	IDirect3DVertexShader9 *vertex_shader = EwShaders::Peek_Vertex(
-		EwShaders::Mesh_Vertex_Id(has_normal, (fvf & D3DFVF_DIFFUSE) != 0, (fvf & D3DFVF_SPECULAR) != 0, texcoord_sets));
-	IDirect3DPixelShader9 *pixel_shader = EwShaders::Peek_Pixel(lit ? EwShaders::PS_MESH : EwShaders::PS_UNLIT);
+	IDirect3DVertexShader9 *vertex_shader = ShaderLibrary::Peek_Vertex(
+		ShaderLibrary::Mesh_Vertex_Id(has_normal, (fvf & D3DFVF_DIFFUSE) != 0, (fvf & D3DFVF_SPECULAR) != 0, texcoord_sets));
+	IDirect3DPixelShader9 *pixel_shader = ShaderLibrary::Peek_Pixel(lit ? ShaderLibrary::PS_MESH : ShaderLibrary::PS_UNLIT);
 	if (vertex_shader == nullptr || pixel_shader == nullptr)
 		return Fallback(REASON_NO_SHADER, lit ? 0 : 3);
 
@@ -949,7 +949,7 @@ static bool Begin_Draw()
 	unsigned house_color = 0;
 	TextureBaseClass *stage0 = DX9Wrapper::Peek_Render_State_Texture(0);
 	TextureClass *diffuse = (stage0 != nullptr) ? stage0->As_TextureClass() : nullptr;
-	if (lit && EwGraphics().MeshNormalMaps() && diffuse != nullptr && has_texture[0] > 0.5f && texgen[0].x == 0.0f
+	if (lit && Get_Graphics_Options().MeshNormalMaps() && diffuse != nullptr && has_texture[0] > 0.5f && texgen[0].x == 0.0f
 		&& stage_constants[4].x == float(D3DTOP_DISABLE))
 	{
 		IDirect3DBaseTexture9 *bound = nullptr;
@@ -958,10 +958,10 @@ static bool Begin_Draw()
 		{
 			if (bound == diffuse->Peek_D3D_Base_Texture())
 			{
-				TextureClass::EwMaterialMapsStruct &maps = Resolve_Maps(diffuse);
+				TextureClass::MaterialMapsStruct &maps = Resolve_Maps(diffuse);
 				normal_map = Map_Texture(maps.Normal);
 				spec_map = Map_Texture(maps.Spec);
-				house_color = maps.Recolored ? 0 : (DX9Wrapper::Get_Ew_House_Color() & 0xffffff);
+				house_color = maps.Recolored ? 0 : (DX9Wrapper::Get_House_Color() & 0xffffff);
 			}
 			bound->Release();
 		}
@@ -969,16 +969,16 @@ static bool Begin_Draw()
 	const bool use_material = normal_map != nullptr || spec_map != nullptr;
 	if (use_material)
 	{
-		IDirect3DPixelShader9 *material_shader = EwShaders::Peek_Pixel(EwShaders::PS_MESH_MATERIAL);
+		IDirect3DPixelShader9 *material_shader = ShaderLibrary::Peek_Pixel(ShaderLibrary::PS_MESH_MATERIAL);
 		if (material_shader == nullptr)
 			return Fallback(REASON_NO_SHADER, 1);
 		pixel_shader = material_shader;
 	}
 
 	// Lights: the wrapper uses indices 0..3, the same count the shader has. Unlit draws read none.
-	Float4 lights[EW_MESH_MAX_LIGHTS * 5];
+	Float4 lights[MESH_MAX_LIGHTS * 5];
 	memset(lights, 0, sizeof(lights));
-	for (DWORD i = 0; lit && i < EW_MESH_MAX_LIGHTS; ++i)
+	for (DWORD i = 0; lit && i < MESH_MAX_LIGHTS; ++i)
 	{
 		BOOL enabled = FALSE;
 		if (FAILED(Device->GetLightEnable(i, &enabled)) || !enabled)
@@ -1004,7 +1004,7 @@ static bool Begin_Draw()
 			l[3] = v;
 			// M3.4: the attenuation slot is unused for directional lights; x marks the sun, whose
 			// diffuse and highlights the sun shadow map darkens.
-			if (EwShadowMap::Is_Sun(v.x, v.y, v.z))
+			if (ShadowMap::Is_Sun(v.x, v.y, v.z))
 				l[4].x = 1.0f;
 		}
 		else
@@ -1050,54 +1050,54 @@ static bool Begin_Draw()
 	const bool color_vertex = Render_State(D3DRS_COLORVERTEX) != FALSE;
 
 	// Vertex shader constants.
-	Float4 vs[EW_MESH_VS_COUNT];
+	Float4 vs[MESH_VS_COUNT];
 	memset(vs, 0, sizeof(vs));
-	Columns(&vs[EW_MESH_VS_WVP], world_view_projection, 4);
-	Columns(&vs[EW_MESH_VS_WORLD], world, 3);
-	Normal_Rows(&vs[EW_MESH_VS_WORLD_NORMAL], world_inverse);
-	Columns(&vs[EW_MESH_VS_WORLDVIEW], world_view, 3);
-	Normal_Rows(&vs[EW_MESH_VS_WORLDVIEW_NORMAL], world_view_inverse);
-	vs[EW_MESH_VS_TEXGEN + 0] = texgen[0];
-	vs[EW_MESH_VS_TEXGEN + 1] = texgen[1];
-	memcpy(&vs[EW_MESH_VS_TEXMATRIX], texmatrix, sizeof(texmatrix));
-	vs[EW_MESH_VS_OPTIONS].x = range_fog;
+	Columns(&vs[MESH_VS_WVP], world_view_projection, 4);
+	Columns(&vs[MESH_VS_WORLD], world, 3);
+	Normal_Rows(&vs[MESH_VS_WORLD_NORMAL], world_inverse);
+	Columns(&vs[MESH_VS_WORLDVIEW], world_view, 3);
+	Normal_Rows(&vs[MESH_VS_WORLDVIEW_NORMAL], world_view_inverse);
+	vs[MESH_VS_TEXGEN + 0] = texgen[0];
+	vs[MESH_VS_TEXGEN + 1] = texgen[1];
+	memcpy(&vs[MESH_VS_TEXMATRIX], texmatrix, sizeof(texmatrix));
+	vs[MESH_VS_OPTIONS].x = range_fog;
 
 	// Pixel shader constants.
-	Float4 ps[EW_MESH_PS_COUNT];
+	Float4 ps[MESH_PS_COUNT];
 	memset(ps, 0, sizeof(ps));
-	memcpy(&ps[EW_MESH_PS_STAGE], stage_constants, sizeof(stage_constants));
-	ps[EW_MESH_PS_TFACTOR] = Color(D3DCOLOR(Render_State(D3DRS_TEXTUREFACTOR)));
-	ps[EW_MESH_PS_AMBIENT] = Lit(Color(D3DCOLOR(Render_State(D3DRS_AMBIENT))));
-	ps[EW_MESH_PS_MATERIAL + 0] = Lit(Color(material.Diffuse));
-	ps[EW_MESH_PS_MATERIAL + 1] = Lit(Color(material.Ambient));
-	ps[EW_MESH_PS_MATERIAL + 2] = Lit(Color(material.Specular));
-	ps[EW_MESH_PS_MATERIAL + 3] = Lit(Color(material.Emissive));
-	ps[EW_MESH_PS_MATSOURCE].x = Material_Source(D3DRS_DIFFUSEMATERIALSOURCE, color_vertex, fvf);
-	ps[EW_MESH_PS_MATSOURCE].y = Material_Source(D3DRS_AMBIENTMATERIALSOURCE, color_vertex, fvf);
-	ps[EW_MESH_PS_MATSOURCE].z = Material_Source(D3DRS_SPECULARMATERIALSOURCE, color_vertex, fvf);
-	ps[EW_MESH_PS_MATSOURCE].w = Material_Source(D3DRS_EMISSIVEMATERIALSOURCE, color_vertex, fvf);
-	ps[EW_MESH_PS_OPTIONS].x = material.Power;
-	ps[EW_MESH_PS_OPTIONS].y = (Render_State(D3DRS_SPECULARENABLE) != FALSE) ? 1.0f : 0.0f;
-	ps[EW_MESH_PS_OPTIONS].z = has_texture[0];
-	ps[EW_MESH_PS_OPTIONS].w = has_texture[1];
-	ps[EW_MESH_PS_FOG] = fog;
-	ps[EW_MESH_PS_FOGCOLOR] = Color(D3DCOLOR(Render_State(D3DRS_FOGCOLOR)));
-	ps[EW_MESH_PS_CAMERA] = camera;
-	ps[EW_MESH_PS_VIEWDIR] = view_dir;
-	memcpy(&ps[EW_MESH_PS_LIGHTS], lights, sizeof(lights));
+	memcpy(&ps[MESH_PS_STAGE], stage_constants, sizeof(stage_constants));
+	ps[MESH_PS_TFACTOR] = Color(D3DCOLOR(Render_State(D3DRS_TEXTUREFACTOR)));
+	ps[MESH_PS_AMBIENT] = Lit(Color(D3DCOLOR(Render_State(D3DRS_AMBIENT))));
+	ps[MESH_PS_MATERIAL + 0] = Lit(Color(material.Diffuse));
+	ps[MESH_PS_MATERIAL + 1] = Lit(Color(material.Ambient));
+	ps[MESH_PS_MATERIAL + 2] = Lit(Color(material.Specular));
+	ps[MESH_PS_MATERIAL + 3] = Lit(Color(material.Emissive));
+	ps[MESH_PS_MATSOURCE].x = Material_Source(D3DRS_DIFFUSEMATERIALSOURCE, color_vertex, fvf);
+	ps[MESH_PS_MATSOURCE].y = Material_Source(D3DRS_AMBIENTMATERIALSOURCE, color_vertex, fvf);
+	ps[MESH_PS_MATSOURCE].z = Material_Source(D3DRS_SPECULARMATERIALSOURCE, color_vertex, fvf);
+	ps[MESH_PS_MATSOURCE].w = Material_Source(D3DRS_EMISSIVEMATERIALSOURCE, color_vertex, fvf);
+	ps[MESH_PS_OPTIONS].x = material.Power;
+	ps[MESH_PS_OPTIONS].y = (Render_State(D3DRS_SPECULARENABLE) != FALSE) ? 1.0f : 0.0f;
+	ps[MESH_PS_OPTIONS].z = has_texture[0];
+	ps[MESH_PS_OPTIONS].w = has_texture[1];
+	ps[MESH_PS_FOG] = fog;
+	ps[MESH_PS_FOGCOLOR] = Color(D3DCOLOR(Render_State(D3DRS_FOGCOLOR)));
+	ps[MESH_PS_CAMERA] = camera;
+	ps[MESH_PS_VIEWDIR] = view_dir;
+	memcpy(&ps[MESH_PS_LIGHTS], lights, sizeof(lights));
 	if (use_material)
 	{
-		ps[EW_MESH_PS_MATERIAL_OPTIONS].x = (normal_map != nullptr) ? 1.0f : 0.0f;
-		ps[EW_MESH_PS_MATERIAL_OPTIONS].y = (spec_map != nullptr) ? 1.0f : 0.0f;
-		ps[EW_MESH_PS_MATERIAL_OPTIONS].z = (house_color != 0) ? 1.0f : 0.0f;
-		ps[EW_MESH_PS_MATERIAL_OPTIONS].w = 0.5f;	// ambient light from below, relative to the sky
-		ps[EW_MESH_PS_HOUSECOLOR] = Color(D3DCOLOR(house_color));
+		ps[MESH_PS_MATERIAL_OPTIONS].x = (normal_map != nullptr) ? 1.0f : 0.0f;
+		ps[MESH_PS_MATERIAL_OPTIONS].y = (spec_map != nullptr) ? 1.0f : 0.0f;
+		ps[MESH_PS_MATERIAL_OPTIONS].z = (house_color != 0) ? 1.0f : 0.0f;
+		ps[MESH_PS_MATERIAL_OPTIONS].w = 0.5f;	// ambient light from below, relative to the sky
+		ps[MESH_PS_HOUSECOLOR] = Color(D3DCOLOR(house_color));
 		// W3D materials rarely set a shininess, so the SpecMap highlight falls back to a tight one.
-		ps[EW_MESH_PS_HOUSECOLOR].w = (material.Power > 1.0f) ? material.Power : 32.0f;
+		ps[MESH_PS_HOUSECOLOR].w = (material.Power > 1.0f) ? material.Power : 32.0f;
 	}
 
-	Upload<true>(vs, EW_MESH_VS_COUNT);
-	Upload<false>(ps, EW_MESH_PS_COUNT);
+	Upload<true>(vs, MESH_VS_COUNT);
+	Upload<false>(ps, MESH_PS_COUNT);
 	Bind_Shaders(vertex_shader, pixel_shader);
 
 	RestoreMaps = use_material;
@@ -1114,9 +1114,9 @@ static bool Begin_Draw()
 	return true;
 }
 
-void EwMeshShader::End()
+void MeshShader::End()
 {
-	if (EwGraphics().DebugKeys)
+	if (Get_Graphics_Options().DebugKeys)
 	{
 		LARGE_INTEGER now;
 		QueryPerformanceCounter(&now);
@@ -1137,11 +1137,11 @@ void EwMeshShader::End()
 	}
 }
 
-void EwMeshShader::Set_Object(const RenderObjClass *object)
+void MeshShader::Set_Object(const RenderObjClass *object)
 {
 	// The game sets the team colour on the top object of a model, not on its meshes.
 	unsigned colour = 0;
-	if (EwGraphics().MeshNormalMaps())
+	if (Get_Graphics_Options().MeshNormalMaps())
 	{
 		for (const RenderObjClass *o = object; o != nullptr; o = o->Get_Container())
 		{
@@ -1150,19 +1150,19 @@ void EwMeshShader::Set_Object(const RenderObjClass *object)
 				break;
 		}
 	}
-	DX9Wrapper::Set_Ew_House_Color(colour);
+	DX9Wrapper::Set_House_Color(colour);
 }
 
-void EwMeshShader::Clear_Object()
+void MeshShader::Clear_Object()
 {
-	DX9Wrapper::Set_Ew_House_Color(0);
+	DX9Wrapper::Set_House_Color(0);
 }
 
-void EwMeshShader::Shutdown()
+void MeshShader::Shutdown()
 {
 	MapFiles.Remove_All();
 }
 
-static_assert(EW_MESH_VS_WVP == 0 && EW_MESH_VS_OPTIONS + 1 == EW_MESH_VS_COUNT, "mesh vertex constants are uploaded as one block from c0");
-static_assert(EW_MESH_PS_STAGE == 0 && EW_MESH_PS_HOUSECOLOR + 1 == EW_MESH_PS_COUNT, "mesh pixel constants are uploaded as one block from c0");
-static_assert(EW_MESH_PS_LIGHTS + EW_MESH_MAX_LIGHTS * 5 == EW_MESH_PS_MATERIAL_OPTIONS, "mesh pixel constants must not overlap");
+static_assert(MESH_VS_WVP == 0 && MESH_VS_OPTIONS + 1 == MESH_VS_COUNT, "mesh vertex constants are uploaded as one block from c0");
+static_assert(MESH_PS_STAGE == 0 && MESH_PS_HOUSECOLOR + 1 == MESH_PS_COUNT, "mesh pixel constants are uploaded as one block from c0");
+static_assert(MESH_PS_LIGHTS + MESH_MAX_LIGHTS * 5 == MESH_PS_MATERIAL_OPTIONS, "mesh pixel constants must not overlap");

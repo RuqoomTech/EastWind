@@ -515,7 +515,7 @@ void SurfaceClass::Stretch_Copy(
 	dest.top=dsty;
 	dest.bottom=dsty+dstheight;
 
-	// EW_DX9_TODO: D3DX used a triangle filter here. Ours box-filters exact halvings and
+	// DX9_TODO: D3DX used a triangle filter here. Ours box-filters exact halvings and
 	// point-samples any other scale.
 	DX9_ErrorCode(DX9Wrapper::_Load_Surface_From_Surface(D3DSurface,&dest,other->D3DSurface,&src));
 }

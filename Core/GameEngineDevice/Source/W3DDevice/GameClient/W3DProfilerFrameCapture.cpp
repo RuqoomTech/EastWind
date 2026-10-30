@@ -65,7 +65,7 @@ void W3DProfilerFrameCapture::Capture(UnsignedInt displayWidth, UnsignedInt disp
 	// EastWind: DX8 assembled the BGRA to RGBA swizzle from ps.1.4 text here; now it is embedded
 	// HLSL (EastWind/Shaders/profiler.hlsl).
 	if (!m_swizzleShader)
-		m_swizzleShader = EwShaders::Pixel(EwShaders::PS_PROFILER_SWIZZLE);
+		m_swizzleShader = ShaderLibrary::Pixel(ShaderLibrary::PS_PROFILER_SWIZZLE);
 	if (!m_swizzleShader)
 		return;
 

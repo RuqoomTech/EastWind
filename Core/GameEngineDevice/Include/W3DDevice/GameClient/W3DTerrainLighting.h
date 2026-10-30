@@ -15,7 +15,7 @@
 **	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// EastWind DX9: per-pixel terrain lighting (M3.1c, Options.ini EwPerPixelLighting).
+// EastWind DX9: per-pixel terrain lighting (M3.1c, Options.ini PerPixelLighting).
 //
 // HeightMapRenderObjClass::Render calls Begin() after W3DShaderManager::setShader has set up a
 // terrain base pass, and End() after the pass has drawn its vertex buffer tiles. When the pass
@@ -38,7 +38,7 @@
 
 class WorldHeightMap;
 
-class EwTerrainLighting
+class W3DTerrainLighting
 {
 public:
 	// Binds the per-pixel terrain shaders for the pass the terrain shader just set up.
@@ -57,7 +57,7 @@ public:
 	// a device reset.
 	static void Release();
 
-	// For the debug keys (EwDebugKeys): W3DDisplay::draw calls New_Frame() once a frame.
+	// For the debug keys (DebugKeys): W3DDisplay::draw calls New_Frame() once a frame.
 	// Last_Frame_Passes() is how many terrain passes of the last frame used the shader, and
 	// Last_Reason() why the last pass that did not fell back.
 	static void New_Frame();

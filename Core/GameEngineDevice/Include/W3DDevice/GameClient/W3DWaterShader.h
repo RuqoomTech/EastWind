@@ -15,7 +15,7 @@
 **	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// EastWind DX9: the water shader (M3.3a, Options.ini EwWaterQuality = 1).
+// EastWind DX9: the water shader (M3.3a, Options.ini WaterQuality = 1).
 //
 // WaterRenderObjClass::drawTrapezoidWater and drawRiverWater call Begin() right before they draw,
 // after the pass is set up with the parity water pixel shader (water.hlsl TrapezoidPS/RiverPS),
@@ -30,10 +30,10 @@
 //
 // The reflection: before the frame, WaterRenderObjClass::updateRenderTargetTextures picks the
 // visible water area nearest the middle of the view and draws the scene mirrored about its
-// height into a texture half the size of the back buffer (the full size at EwWaterQuality = 2),
+// height into a texture half the size of the back buffer (the full size at WaterQuality = 2),
 // with its own depth buffer. Water at another height shows a plain sky colour instead.
 //
-// EwWaterQuality 2 (M3.3b) draws the water seen into instead (water.hlsl WaterTrapezoidHqPS and
+// WaterQuality 2 (M3.3b) draws the water seen into instead (water.hlsl WaterTrapezoidHqPS and
 // WaterRiverHqPS): the scene behind it, copied before the first water draw of the frame, bent by
 // the waves and coloured by how deep the water is, from a texture of the terrain heights; caustics
 // in the shallows and foam along the shore, from a cellular noise texture made here. The classic
@@ -46,7 +46,7 @@
 
 struct IDirect3DSurface9;
 
-class EwWater
+class W3DWaterShader
 {
 public:
 	enum Kind
@@ -78,13 +78,13 @@ public:
 	// before a device reset; they are created again when needed.
 	static void Release();
 
-	// For the debug keys (EwDebugKeys): W3DDisplay::draw calls New_Frame() once a frame.
+	// For the debug keys (DebugKeys): W3DDisplay::draw calls New_Frame() once a frame.
 	static void New_Frame();
 	static unsigned Last_Frame_Passes();	// water draws that used the shader in the last frame
 	static const char *Last_Reason();		// why the last draw that did not fell back
 	// The reflection of the last frame: true if one was drawn, with its height and size;
 	// else why not.
 	static bool Last_Reflection(float *level, int *width, int *height, const char **why_not);
-	// EwWaterQuality 2: null if the last frame drew water seen into, with terrain heights; else why not.
+	// WaterQuality 2: null if the last frame drew water seen into, with terrain heights; else why not.
 	static const char *Last_Seen_Into();
 };

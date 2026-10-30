@@ -19,7 +19,7 @@
 #include "dx9wrapper.h"
 #include "WWDebug/wwdebug.h"
 
-// Bytecode written by fxc (cmake/eastwind_shaders.cmake), one BYTE array g_ew_<name> each.
+// Bytecode written by fxc (cmake/eastwind_shaders.cmake), one BYTE array g_shader_<name> each.
 #include "trees_vs.h"
 #include "wave_vs.h"
 #include "wave_ps.h"
@@ -100,92 +100,92 @@ namespace
 
 	const ShaderCode VertexCode[] =
 	{
-		{ g_ew_trees_vs, "trees_vs" },
-		{ g_ew_wave_vs, "wave_vs" },
-		{ g_ew_mesh_n_t0_vs, "mesh_n_t0_vs" },
-		{ g_ew_mesh_nd_t0_vs, "mesh_nd_t0_vs" },
-		{ g_ew_mesh_ns_t0_vs, "mesh_ns_t0_vs" },
-		{ g_ew_mesh_nds_t0_vs, "mesh_nds_t0_vs" },
-		{ g_ew_mesh_n_t1_vs, "mesh_n_t1_vs" },
-		{ g_ew_mesh_nd_t1_vs, "mesh_nd_t1_vs" },
-		{ g_ew_mesh_ns_t1_vs, "mesh_ns_t1_vs" },
-		{ g_ew_mesh_nds_t1_vs, "mesh_nds_t1_vs" },
-		{ g_ew_mesh_n_t2_vs, "mesh_n_t2_vs" },
-		{ g_ew_mesh_nd_t2_vs, "mesh_nd_t2_vs" },
-		{ g_ew_mesh_ns_t2_vs, "mesh_ns_t2_vs" },
-		{ g_ew_mesh_nds_t2_vs, "mesh_nds_t2_vs" },
-		{ g_ew_terrain_lit_vs, "terrain_lit_vs" },
-		{ g_ew_road_lit_vs, "road_lit_vs" },
-		{ g_ew_trees_lit_vs, "trees_lit_vs" },
-		{ g_ew_post_vs, "post_vs" },
-		{ g_ew_water_vs, "water_vs" },
-		{ g_ew_particle_vs, "particle_vs" },
-		{ g_ew_mesh_t0_vs, "mesh_t0_vs" },
-		{ g_ew_mesh_d_t0_vs, "mesh_d_t0_vs" },
-		{ g_ew_mesh_s_t0_vs, "mesh_s_t0_vs" },
-		{ g_ew_mesh_ds_t0_vs, "mesh_ds_t0_vs" },
-		{ g_ew_mesh_t1_vs, "mesh_t1_vs" },
-		{ g_ew_mesh_d_t1_vs, "mesh_d_t1_vs" },
-		{ g_ew_mesh_s_t1_vs, "mesh_s_t1_vs" },
-		{ g_ew_mesh_ds_t1_vs, "mesh_ds_t1_vs" },
-		{ g_ew_mesh_t2_vs, "mesh_t2_vs" },
-		{ g_ew_mesh_d_t2_vs, "mesh_d_t2_vs" },
-		{ g_ew_mesh_s_t2_vs, "mesh_s_t2_vs" },
-		{ g_ew_mesh_ds_t2_vs, "mesh_ds_t2_vs" },
+		{ g_shader_trees_vs, "trees_vs" },
+		{ g_shader_wave_vs, "wave_vs" },
+		{ g_shader_mesh_n_t0_vs, "mesh_n_t0_vs" },
+		{ g_shader_mesh_nd_t0_vs, "mesh_nd_t0_vs" },
+		{ g_shader_mesh_ns_t0_vs, "mesh_ns_t0_vs" },
+		{ g_shader_mesh_nds_t0_vs, "mesh_nds_t0_vs" },
+		{ g_shader_mesh_n_t1_vs, "mesh_n_t1_vs" },
+		{ g_shader_mesh_nd_t1_vs, "mesh_nd_t1_vs" },
+		{ g_shader_mesh_ns_t1_vs, "mesh_ns_t1_vs" },
+		{ g_shader_mesh_nds_t1_vs, "mesh_nds_t1_vs" },
+		{ g_shader_mesh_n_t2_vs, "mesh_n_t2_vs" },
+		{ g_shader_mesh_nd_t2_vs, "mesh_nd_t2_vs" },
+		{ g_shader_mesh_ns_t2_vs, "mesh_ns_t2_vs" },
+		{ g_shader_mesh_nds_t2_vs, "mesh_nds_t2_vs" },
+		{ g_shader_terrain_lit_vs, "terrain_lit_vs" },
+		{ g_shader_road_lit_vs, "road_lit_vs" },
+		{ g_shader_trees_lit_vs, "trees_lit_vs" },
+		{ g_shader_post_vs, "post_vs" },
+		{ g_shader_water_vs, "water_vs" },
+		{ g_shader_particle_vs, "particle_vs" },
+		{ g_shader_mesh_t0_vs, "mesh_t0_vs" },
+		{ g_shader_mesh_d_t0_vs, "mesh_d_t0_vs" },
+		{ g_shader_mesh_s_t0_vs, "mesh_s_t0_vs" },
+		{ g_shader_mesh_ds_t0_vs, "mesh_ds_t0_vs" },
+		{ g_shader_mesh_t1_vs, "mesh_t1_vs" },
+		{ g_shader_mesh_d_t1_vs, "mesh_d_t1_vs" },
+		{ g_shader_mesh_s_t1_vs, "mesh_s_t1_vs" },
+		{ g_shader_mesh_ds_t1_vs, "mesh_ds_t1_vs" },
+		{ g_shader_mesh_t2_vs, "mesh_t2_vs" },
+		{ g_shader_mesh_d_t2_vs, "mesh_d_t2_vs" },
+		{ g_shader_mesh_s_t2_vs, "mesh_s_t2_vs" },
+		{ g_shader_mesh_ds_t2_vs, "mesh_ds_t2_vs" },
 	};
-	static_assert(sizeof(VertexCode) / sizeof(VertexCode[0]) == EwShaders::VS_COUNT, "VertexCode must match EwShaders::VertexShaderId");
+	static_assert(sizeof(VertexCode) / sizeof(VertexCode[0]) == ShaderLibrary::VS_COUNT, "VertexCode must match ShaderLibrary::VertexShaderId");
 
 	const ShaderCode PixelCode[] =
 	{
-		{ g_ew_wave_ps, "wave_ps" },
-		{ g_ew_river_ps, "river_ps" },
-		{ g_ew_trapezoid_ps, "trapezoid_ps" },
-		{ g_ew_terrain_ps, "terrain_ps" },
-		{ g_ew_terrain_noise1_ps, "terrain_noise1_ps" },
-		{ g_ew_terrain_noise2_ps, "terrain_noise2_ps" },
-		{ g_ew_road_noise2_ps, "road_noise2_ps" },
-		{ g_ew_flat_terrain_ps, "flat_terrain_ps" },
-		{ g_ew_flat_terrain0_ps, "flat_terrain0_ps" },
-		{ g_ew_flat_terrain_noise1_ps, "flat_terrain_noise1_ps" },
-		{ g_ew_flat_terrain_noise2_ps, "flat_terrain_noise2_ps" },
-		{ g_ew_monochrome_ps, "monochrome_ps" },
-		{ g_ew_profiler_swizzle_ps, "profiler_swizzle_ps" },
-		{ g_ew_mesh_ps, "mesh_ps" },
-		{ g_ew_mesh_material_ps, "mesh_material_ps" },
-		{ g_ew_terrain_lit_ps, "terrain_lit_ps" },
-		{ g_ew_terrain_lit_noise1_ps, "terrain_lit_noise1_ps" },
-		{ g_ew_terrain_lit_noise2_ps, "terrain_lit_noise2_ps" },
-		{ g_ew_road_lit_ps, "road_lit_ps" },
-		{ g_ew_road_lit_noise1_ps, "road_lit_noise1_ps" },
-		{ g_ew_road_lit_noise2_ps, "road_lit_noise2_ps" },
-		{ g_ew_trees_lit_ps, "trees_lit_ps" },
-		{ g_ew_post_copy_ps, "post_copy_ps" },
-		{ g_ew_post_bright_ps, "post_bright_ps" },
-		{ g_ew_post_down_ps, "post_down_ps" },
-		{ g_ew_post_blur_ps, "post_blur_ps" },
-		{ g_ew_post_final_ps, "post_final_ps" },
-		{ g_ew_post_fxaa_ps, "post_fxaa_ps" },
-		{ g_ew_post_ao_ps, "post_ao_ps" },
-		{ g_ew_post_ao_blur_ps, "post_ao_blur_ps" },
-		{ g_ew_water_trapezoid_ps, "water_trapezoid_ps" },
-		{ g_ew_water_river_ps, "water_river_ps" },
-		{ g_ew_water_trapezoid_hq_ps, "water_trapezoid_hq_ps" },
-		{ g_ew_water_river_hq_ps, "water_river_hq_ps" },
-		{ g_ew_particle_ps, "particle_ps" },
-		{ g_ew_post_depth_copy_ps, "post_depth_copy_ps" },
-		{ g_ew_unlit_ps, "unlit_ps" },
+		{ g_shader_wave_ps, "wave_ps" },
+		{ g_shader_river_ps, "river_ps" },
+		{ g_shader_trapezoid_ps, "trapezoid_ps" },
+		{ g_shader_terrain_ps, "terrain_ps" },
+		{ g_shader_terrain_noise1_ps, "terrain_noise1_ps" },
+		{ g_shader_terrain_noise2_ps, "terrain_noise2_ps" },
+		{ g_shader_road_noise2_ps, "road_noise2_ps" },
+		{ g_shader_flat_terrain_ps, "flat_terrain_ps" },
+		{ g_shader_flat_terrain0_ps, "flat_terrain0_ps" },
+		{ g_shader_flat_terrain_noise1_ps, "flat_terrain_noise1_ps" },
+		{ g_shader_flat_terrain_noise2_ps, "flat_terrain_noise2_ps" },
+		{ g_shader_monochrome_ps, "monochrome_ps" },
+		{ g_shader_profiler_swizzle_ps, "profiler_swizzle_ps" },
+		{ g_shader_mesh_ps, "mesh_ps" },
+		{ g_shader_mesh_material_ps, "mesh_material_ps" },
+		{ g_shader_terrain_lit_ps, "terrain_lit_ps" },
+		{ g_shader_terrain_lit_noise1_ps, "terrain_lit_noise1_ps" },
+		{ g_shader_terrain_lit_noise2_ps, "terrain_lit_noise2_ps" },
+		{ g_shader_road_lit_ps, "road_lit_ps" },
+		{ g_shader_road_lit_noise1_ps, "road_lit_noise1_ps" },
+		{ g_shader_road_lit_noise2_ps, "road_lit_noise2_ps" },
+		{ g_shader_trees_lit_ps, "trees_lit_ps" },
+		{ g_shader_post_copy_ps, "post_copy_ps" },
+		{ g_shader_post_bright_ps, "post_bright_ps" },
+		{ g_shader_post_down_ps, "post_down_ps" },
+		{ g_shader_post_blur_ps, "post_blur_ps" },
+		{ g_shader_post_final_ps, "post_final_ps" },
+		{ g_shader_post_fxaa_ps, "post_fxaa_ps" },
+		{ g_shader_post_ao_ps, "post_ao_ps" },
+		{ g_shader_post_ao_blur_ps, "post_ao_blur_ps" },
+		{ g_shader_water_trapezoid_ps, "water_trapezoid_ps" },
+		{ g_shader_water_river_ps, "water_river_ps" },
+		{ g_shader_water_trapezoid_hq_ps, "water_trapezoid_hq_ps" },
+		{ g_shader_water_river_hq_ps, "water_river_hq_ps" },
+		{ g_shader_particle_ps, "particle_ps" },
+		{ g_shader_post_depth_copy_ps, "post_depth_copy_ps" },
+		{ g_shader_unlit_ps, "unlit_ps" },
 	};
-	static_assert(sizeof(PixelCode) / sizeof(PixelCode[0]) == EwShaders::PS_COUNT, "PixelCode must match EwShaders::PixelShaderId");
+	static_assert(sizeof(PixelCode) / sizeof(PixelCode[0]) == ShaderLibrary::PS_COUNT, "PixelCode must match ShaderLibrary::PixelShaderId");
 
-	IDirect3DVertexShader9 *VertexShaders[EwShaders::VS_COUNT];
-	IDirect3DPixelShader9 *PixelShaders[EwShaders::PS_COUNT];
+	IDirect3DVertexShader9 *VertexShaders[ShaderLibrary::VS_COUNT];
+	IDirect3DPixelShader9 *PixelShaders[ShaderLibrary::PS_COUNT];
 
 	// A failed creation is not retried every frame.
-	bool VertexFailed[EwShaders::VS_COUNT];
-	bool PixelFailed[EwShaders::PS_COUNT];
+	bool VertexFailed[ShaderLibrary::VS_COUNT];
+	bool PixelFailed[ShaderLibrary::PS_COUNT];
 }
 
-IDirect3DVertexShader9 *EwShaders::Vertex(VertexShaderId id)
+IDirect3DVertexShader9 *ShaderLibrary::Vertex(VertexShaderId id)
 {
 	IDirect3DVertexShader9 *shader = Peek_Vertex(id);
 	if (shader)
@@ -193,7 +193,7 @@ IDirect3DVertexShader9 *EwShaders::Vertex(VertexShaderId id)
 	return shader;
 }
 
-IDirect3DPixelShader9 *EwShaders::Pixel(PixelShaderId id)
+IDirect3DPixelShader9 *ShaderLibrary::Pixel(PixelShaderId id)
 {
 	IDirect3DPixelShader9 *shader = Peek_Pixel(id);
 	if (shader)
@@ -201,7 +201,7 @@ IDirect3DPixelShader9 *EwShaders::Pixel(PixelShaderId id)
 	return shader;
 }
 
-IDirect3DVertexShader9 *EwShaders::Peek_Vertex(VertexShaderId id)
+IDirect3DVertexShader9 *ShaderLibrary::Peek_Vertex(VertexShaderId id)
 {
 	WWASSERT(id >= 0 && id < VS_COUNT);
 	if (!VertexShaders[id] && !VertexFailed[id])
@@ -212,7 +212,7 @@ IDirect3DVertexShader9 *EwShaders::Peek_Vertex(VertexShaderId id)
 		HRESULT hr = device->CreateVertexShader(reinterpret_cast<const DWORD *>(VertexCode[id].code), &VertexShaders[id]);
 		if (FAILED(hr))
 		{
-			WWDEBUG_SAY(("EwShaders: CreateVertexShader(%s) failed, 0x%08x", VertexCode[id].name, hr));
+			WWDEBUG_SAY(("ShaderLibrary: CreateVertexShader(%s) failed, 0x%08x", VertexCode[id].name, hr));
 			VertexShaders[id] = nullptr;
 			VertexFailed[id] = true;
 		}
@@ -220,7 +220,7 @@ IDirect3DVertexShader9 *EwShaders::Peek_Vertex(VertexShaderId id)
 	return VertexShaders[id];
 }
 
-IDirect3DPixelShader9 *EwShaders::Peek_Pixel(PixelShaderId id)
+IDirect3DPixelShader9 *ShaderLibrary::Peek_Pixel(PixelShaderId id)
 {
 	WWASSERT(id >= 0 && id < PS_COUNT);
 	if (!PixelShaders[id] && !PixelFailed[id])
@@ -231,7 +231,7 @@ IDirect3DPixelShader9 *EwShaders::Peek_Pixel(PixelShaderId id)
 		HRESULT hr = device->CreatePixelShader(reinterpret_cast<const DWORD *>(PixelCode[id].code), &PixelShaders[id]);
 		if (FAILED(hr))
 		{
-			WWDEBUG_SAY(("EwShaders: CreatePixelShader(%s) failed, 0x%08x", PixelCode[id].name, hr));
+			WWDEBUG_SAY(("ShaderLibrary: CreatePixelShader(%s) failed, 0x%08x", PixelCode[id].name, hr));
 			PixelShaders[id] = nullptr;
 			PixelFailed[id] = true;
 		}
@@ -239,7 +239,7 @@ IDirect3DPixelShader9 *EwShaders::Peek_Pixel(PixelShaderId id)
 	return PixelShaders[id];
 }
 
-void EwShaders::Shutdown()
+void ShaderLibrary::Shutdown()
 {
 	for (int i = 0; i < VS_COUNT; ++i)
 	{
@@ -261,7 +261,7 @@ void EwShaders::Shutdown()
 	}
 }
 
-bool EwShaders::Format_Supported(IDirect3DDevice9 *device, DWORD usage, D3DRESOURCETYPE type, D3DFORMAT format)
+bool ShaderLibrary::Format_Supported(IDirect3DDevice9 *device, DWORD usage, D3DRESOURCETYPE type, D3DFORMAT format)
 {
 	IDirect3D9 *d3d = nullptr;
 	if (FAILED(device->GetDirect3D(&d3d)) || d3d == nullptr)

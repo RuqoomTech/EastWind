@@ -226,7 +226,7 @@ private:
 	DX9IndexBufferClass			*m_indexTree[MAX_BUFFERS];	///<indices defining a triangles for the tree drawing.
 	IDirect3DPixelShader9*					m_dwTreePixelShader;	///<handle to D3D pixel shader
 	IDirect3DVertexShader9*					m_dwTreeVertexShader;	///<handle to D3D vertex shader
-	Bool		m_ewLitFormat;	///< EastWind M3.1d: the vertex buffers are DX9_FVF_XYZNDUV1TG3, with the inputs of TreesLitPS.
+	Bool		m_litFormat;	///< EastWind M3.1d: the vertex buffers are DX9_FVF_XYZNDUV1TG3, with the inputs of TreesLitPS.
 
 	Short		m_areaPartition[PARTITION_WIDTH_HEIGHT*PARTITION_WIDTH_HEIGHT];
 	Region2D m_bounds;
@@ -256,7 +256,7 @@ private:
 	Real		m_curSwayOffset[MAX_SWAY_TYPES];
 	Real		m_curSwayStep[MAX_SWAY_TYPES];
 	Real		m_curSwayFactor[MAX_SWAY_TYPES];
-	Vector3	m_ewLastSway[MAX_SWAY_TYPES];	///< EastWind M3.4: the sway drawTrees used last, for the shadow map's caster pass.
+	Vector3	m_lastSway[MAX_SWAY_TYPES];	///< EastWind M3.4: the sway drawTrees used last, for the shadow map's caster pass.
 
 	W3DProjectedShadow *m_shadow;
 

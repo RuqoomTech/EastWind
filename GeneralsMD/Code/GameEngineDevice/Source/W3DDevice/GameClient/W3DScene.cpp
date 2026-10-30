@@ -868,7 +868,7 @@ void RTS3DScene::Flush(RenderInfoClass & rinfo)
 
 	// (gth) CNC3 Flush the shader meshes
 	SHD_FLUSH;
-	EwGpuTimer::Mark(EwGpuTimer::SCENE_MESHES);
+	GpuTimer::Mark(GpuTimer::SCENE_MESHES);
 
 	// Draw the trees last so they alpha blend onto everything correctly.
 	DoTrees(rinfo);
@@ -876,10 +876,10 @@ void RTS3DScene::Flush(RenderInfoClass & rinfo)
 	//don't draw shadows in this mode because they interfere with destination alpha
 	if (m_customPassMode == SCENE_PASS_DEFAULT && Get_Extra_Pass_Polygon_Mode() == EXTRA_PASS_DISABLE)
 		DoShadows(rinfo, true);	//draw all stencil shadows
-	EwGpuTimer::Mark(EwGpuTimer::SCENE_TREES);
+	GpuTimer::Mark(GpuTimer::SCENE_TREES);
 
 	WW3D::Render_And_Clear_Static_Sort_Lists(rinfo);	//draws things like water
-	EwGpuTimer::Mark(EwGpuTimer::SCENE_WATER);
+	GpuTimer::Mark(GpuTimer::SCENE_WATER);
 
 	if (m_customPassMode == SCENE_PASS_DEFAULT && Get_Extra_Pass_Polygon_Mode() == EXTRA_PASS_DISABLE)
 		flushTranslucentObjects(rinfo);	//draw all translucent meshes which don't need per-polygon sorting.
@@ -890,14 +890,14 @@ void RTS3DScene::Flush(RenderInfoClass & rinfo)
 		//don't draw transparent in this mode because they interfere with destination alpha
 		if (m_customPassMode == SCENE_PASS_DEFAULT && Get_Extra_Pass_Polygon_Mode() == EXTRA_PASS_DISABLE)
 		{
-			EwPostProcess::Begin_Particles(&rinfo.Camera);	// EastWind: soft particles read the scene depth
+			W3DPostProcess::Begin_Particles(&rinfo.Camera);	// EastWind: soft particles read the scene depth
 			DoParticles(rinfo);	//queue up particles for rendering.
 		}
 
 		SortingRendererClass::Flush();	//draw sorted translucent polygons like particles.
-		EwPostProcess::End_Particles();
+		W3DPostProcess::End_Particles();
 	}
-	EwGpuTimer::Mark(EwGpuTimer::SCENE_PARTICLES);
+	GpuTimer::Mark(GpuTimer::SCENE_PARTICLES);
 	TheDX9MeshRenderer.Clear_Pending_Delete_Lists();
 }
 
@@ -984,10 +984,10 @@ void RTS3DScene::Render(RenderInfoClass & rinfo)
 {
 	//USE_PERF_TIMER(NonTerrainRender)
 
-	// EastWind M3.4: the sun shadow map's caster pass (EwShadowMap::Render). Only depth is drawn:
+	// EastWind M3.4: the sun shadow map's caster pass (ShadowMap::Render). Only depth is drawn:
 	// the opaque units, buildings and props inside the light's box, then the trees. No terrain,
 	// no shadows, no particles; transparent (sorted) triangles are thrown away.
-	if (EwShadowMap::Caster_Pass())
+	if (ShadowMap::Caster_Pass())
 	{
 		RefRenderObjListIterator it(&RenderList);
 		for (it.First(); !it.Is_Done();)
@@ -1010,13 +1010,13 @@ void RTS3DScene::Render(RenderInfoClass & rinfo)
 				|| draw->getEffectiveOpacity() != 1.0f))
 				continue;
 			const SphereClass &sphere = robj->Get_Bounding_Sphere();
-			if (!EwShadowMap::Caster_Visible(sphere.Center, sphere.Radius))
+			if (!ShadowMap::Caster_Visible(sphere.Center, sphere.Radius))
 				continue;
 
 			rinfo.light_environment = &m_foggedLightEnv;
 			robj->Render(rinfo);
 			rinfo.light_environment = nullptr;
-			EwShadowMap::Count_Caster();
+			ShadowMap::Count_Caster();
 		}
 		TheDX9MeshRenderer.Flush();
 		DoTrees(rinfo);
@@ -1220,7 +1220,7 @@ void RTS3DScene::Customized_Render( RenderInfoClass &rinfo )
 		else
 		robj->Render(rinfo);
 	}
-	EwGpuTimer::Mark(EwGpuTimer::SCENE_TERRAIN);
+	GpuTimer::Mark(GpuTimer::SCENE_TERRAIN);
 
 	if (m_drawTerrainOnly) {
 		return;

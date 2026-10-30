@@ -1,7 +1,7 @@
-// EastWind DX9: per-pixel terrain lighting (M3.1c/M3.1d, EwPerPixelLighting).
+// EastWind DX9: per-pixel terrain lighting (M3.1c/M3.1d, PerPixelLighting).
 //
 // Replaces the terrain base pass shaders of terrain.hlsl (TerrainPS, TerrainNoise1PS,
-// TerrainNoise2PS) for the main heightmap. EwTerrainLighting (W3DTerrainLighting.cpp) binds it
+// TerrainNoise2PS) for the main heightmap. W3DTerrainLighting (W3DTerrainLighting.cpp) binds it
 // right after TerrainShaderPixelShader::set has set the textures, so the samplers are the same:
 // s0/s1 the two blended terrain tiles, s2/s3 the cloud and light-map textures.
 //
@@ -34,16 +34,16 @@
 #include "shader_shadow.h"
 #include "shader_linear.h"
 
-float4 WorldViewProj[4]                : EW_REG(EW_TERRAIN_VS_WVP);
-float4 World[3]                        : EW_REG(EW_TERRAIN_VS_WORLD);
-float4 WorldView[3]                    : EW_REG(EW_TERRAIN_VS_WORLDVIEW);
-float4 TexMatrix[8]                    : EW_REG(EW_TERRAIN_VS_TEXMATRIX);
-float4 GridMap                         : EW_REG(EW_TERRAIN_VS_GRIDMAP);
-float4 VsOptions                       : EW_REG(EW_TERRAIN_VS_OPTIONS);
-float4 Sun[EW_TERRAIN_SUN_COUNT]       : EW_REG(EW_TERRAIN_SUN);	// [0] ambient, [1..3] direction to the light, [4..6] diffuse
-float4 Fog                             : EW_REG(EW_TERRAIN_PS_FOG);	// x enable, y end, z 1 / (end - start)
-float4 FogColor                        : EW_REG(EW_TERRAIN_PS_FOGCOLOR);
-float4 Debug                           : EW_REG(EW_TERRAIN_PS_DEBUG);	// x per-vertex light (as terrain.hlsl), y light only
+float4 WorldViewProj[4]                : SHADER_REG(TERRAIN_VS_WVP);
+float4 World[3]                        : SHADER_REG(TERRAIN_VS_WORLD);
+float4 WorldView[3]                    : SHADER_REG(TERRAIN_VS_WORLDVIEW);
+float4 TexMatrix[8]                    : SHADER_REG(TERRAIN_VS_TEXMATRIX);
+float4 GridMap                         : SHADER_REG(TERRAIN_VS_GRIDMAP);
+float4 VsOptions                       : SHADER_REG(TERRAIN_VS_OPTIONS);
+float4 Sun[TERRAIN_SUN_COUNT]       : SHADER_REG(TERRAIN_SUN);	// [0] ambient, [1..3] direction to the light, [4..6] diffuse
+float4 Fog                             : SHADER_REG(TERRAIN_PS_FOG);	// x enable, y end, z 1 / (end - start)
+float4 FogColor                        : SHADER_REG(TERRAIN_PS_FOGCOLOR);
+float4 Debug                           : SHADER_REG(TERRAIN_PS_DEBUG);	// x per-vertex light (as terrain.hlsl), y light only
 
 // Vertex sampler 0 (D3DVERTEXTEXTURESAMPLER0) and pixel sampler 4 hold the same grid normals.
 // Each entry point uses only one of the two s0 samplers, so fxc accepts the shared register.
@@ -65,7 +65,7 @@ float3 Grid_Normal(float4 texel)
 // shaders only) adds the colours up in linear space (shader_linear.h).
 float3 Sun_Colour(int k, uniform bool linearLight)
 {
-	return linearLight ? Ew_To_Linear(Sun[k].rgb) : Sun[k].rgb;
+	return linearLight ? To_Linear(Sun[k].rgb) : Sun[k].rgb;
 }
 
 float3 SunLight(float3 n, float shadow, uniform bool linearLight)
@@ -171,8 +171,8 @@ struct PsIn
 float3 Pixel_Light(float2 grid, float3 world, float3 extra, float3 vertexLight)
 {
 	float3 n = Grid_Normal(tex2D(GridNormals, grid));
-	float shadow = Ew_Sun_Shadow(world, n, Sun[1].xyz);
-	float3 light = Ew_To_Gamma(saturate(SunLight(n, shadow, true) + Ew_To_Linear(extra)));
+	float shadow = Sun_Shadow(world, n, Sun[1].xyz);
+	float3 light = To_Gamma(saturate(SunLight(n, shadow, true) + To_Linear(extra)));
 	// Debug keys: the vertex colour is the classic per-vertex light.
 	if (Debug.x > 0.5)
 		light = vertexLight;

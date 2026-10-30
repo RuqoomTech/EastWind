@@ -247,8 +247,8 @@ set(WW3D2_SRC
 add_library(corei_ww3d2 INTERFACE)
 
 # The HLSL shaders compiled by cmake/eastwind_shaders.cmake: build them first and find their headers.
-add_dependencies(corei_ww3d2 ew_shaders)
-target_include_directories(corei_ww3d2 INTERFACE "${EW_SHADER_OUTPUT_DIR}")
+add_dependencies(corei_ww3d2 hlsl_shaders)
+target_include_directories(corei_ww3d2 INTERFACE "${SHADER_OUTPUT_DIR}")
 
 target_sources(corei_ww3d2 INTERFACE ${WW3D2_SRC})
 

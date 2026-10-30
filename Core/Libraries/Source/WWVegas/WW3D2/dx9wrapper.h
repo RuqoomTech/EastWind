@@ -215,8 +215,8 @@ struct RenderStateStruct
 	VertexBufferClass* vertex_buffers[MAX_VERTEX_STREAMS];
 	IndexBufferClass* index_buffer;
 	unsigned short index_base_offset;
-	unsigned EwHouseColor;	// EastWind M3.1b: 0x00RRGGBB house colour of the object drawn, 0 for none
-	bool EwSoftParticle;	// EastWind: a camera-facing particle, which may fade against the scene depth
+	unsigned HouseColor;	// EastWind M3.1b: 0x00RRGGBB house colour of the object drawn, 0 for none
+	bool SoftParticle;	// EastWind: a camera-facing particle, which may fade against the scene depth
 
 	RenderStateStruct();
 	~RenderStateStruct();
@@ -317,12 +317,12 @@ public:
 	static void Get_Render_State(RenderStateStruct& state);
 	static void Set_Render_State(const RenderStateStruct& state);
 
-	// EastWind M3.1b (EwMeshShader): the house colour travels with the render state, so the
+	// EastWind M3.1b (MeshShader): the house colour travels with the render state, so the
 	// sorting renderer replays it with the deferred draws.
-	static void Set_Ew_House_Color(unsigned color) { render_state.EwHouseColor = color; }
-	static unsigned Get_Ew_House_Color() { return render_state.EwHouseColor; }
-	static void Set_Ew_Soft_Particle(bool on) { render_state.EwSoftParticle = on; }
-	static bool Get_Ew_Soft_Particle() { return render_state.EwSoftParticle; }
+	static void Set_House_Color(unsigned color) { render_state.HouseColor = color; }
+	static unsigned Get_House_Color() { return render_state.HouseColor; }
+	static void Set_Soft_Particle(bool on) { render_state.SoftParticle = on; }
+	static bool Get_Soft_Particle() { return render_state.SoftParticle; }
 	static TextureBaseClass *Peek_Render_State_Texture(unsigned stage) { return render_state.Textures[stage]; }
 	static void Release_Render_State();
 
@@ -1416,8 +1416,8 @@ WWINLINE RenderStateStruct::RenderStateStruct()
 	:
 	material(0),
 	index_buffer(0),
-	EwHouseColor(0),
-	EwSoftParticle(false)
+	HouseColor(0),
+	SoftParticle(false)
 {
 	unsigned i;
 	for (i=0;i<MAX_VERTEX_STREAMS;++i) vertex_buffers[i]=0;
@@ -1482,8 +1482,8 @@ WWINLINE RenderStateStruct& RenderStateStruct::operator= (const RenderStateStruc
 	vba_count=src.vba_count;
 	iba_offset=src.iba_offset;
 	index_base_offset=src.index_base_offset;
-	EwHouseColor=src.EwHouseColor;
-	EwSoftParticle=src.EwSoftParticle;
+	HouseColor=src.HouseColor;
+	SoftParticle=src.SoftParticle;
 
 	return *this;
 }

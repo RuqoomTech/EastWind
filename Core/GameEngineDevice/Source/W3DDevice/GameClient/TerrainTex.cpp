@@ -711,15 +711,15 @@ void LightMapTerrainTextureClass::Apply(unsigned int stage)
 	DX9Wrapper::Set_DX9_Sampler_State( stage, D3DSAMP_ADDRESSU, D3DTADDRESS_WRAP);
 	DX9Wrapper::Set_DX9_Sampler_State( stage, D3DSAMP_ADDRESSV, D3DTADDRESS_WRAP);
 
-	EwD3DMatrix curView;
+	D3DMatrix curView;
 	DX9Wrapper::_Get_DX9_Transform(D3DTS_VIEW, curView);
 
-	EwD3DMatrix inv;
+	D3DMatrix inv;
 	float det;
-	EwD3DMatrixInverse(&inv, &det, &curView);
+	D3DMatrixInverse(&inv, &det, &curView);
 
-	EwD3DMatrix scale;
-	EwD3DMatrixScaling(&scale, STRETCH_FACTOR, STRETCH_FACTOR,1);
+	D3DMatrix scale;
+	D3DMatrixScaling(&scale, STRETCH_FACTOR, STRETCH_FACTOR,1);
 	inv *=scale;
 	if (stage==0) {
 		DX9Wrapper::_Set_DX9_Transform(D3DTS_TEXTURE0, inv);
@@ -965,17 +965,17 @@ void CloudMapTerrainTextureClass::Apply(unsigned int stage)
 	DX9Wrapper::Set_DX9_Sampler_State( stage,  D3DSAMP_ADDRESSU, D3DTADDRESS_WRAP);
 	DX9Wrapper::Set_DX9_Sampler_State( stage,  D3DSAMP_ADDRESSV, D3DTADDRESS_WRAP);
 
-	EwD3DMatrix curView;
+	D3DMatrix curView;
 	DX9Wrapper::_Get_DX9_Transform(D3DTS_VIEW, curView);
 
-	EwD3DMatrix inv;
+	D3DMatrix inv;
 	float det;
-	EwD3DMatrixInverse(&inv, &det, &curView);
+	D3DMatrixInverse(&inv, &det, &curView);
 
-	EwD3DMatrix scale;
-	EwD3DMatrixScaling(&scale, STRETCH_FACTOR, STRETCH_FACTOR,1);
+	D3DMatrix scale;
+	D3DMatrixScaling(&scale, STRETCH_FACTOR, STRETCH_FACTOR,1);
 	inv *=scale;
-	EwD3DMatrix offset;
+	D3DMatrix offset;
 
 	Int delta = m_curTick;
 	m_curTick = ::GetTickCount();
@@ -989,7 +989,7 @@ void CloudMapTerrainTextureClass::Apply(unsigned int stage)
 	if (m_yOffset < -1) m_yOffset += 1;
 
 
-	EwD3DMatrixTranslation(&offset, m_xOffset, m_yOffset,0);
+	D3DMatrixTranslation(&offset, m_xOffset, m_yOffset,0);
 
 	inv *= offset;
 

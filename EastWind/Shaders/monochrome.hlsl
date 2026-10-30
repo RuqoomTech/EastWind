@@ -2,9 +2,9 @@
 
 #include "shader_constants.h"
 
-float4 Luminance : EW_REG(EW_MONO_PS_LUMINANCE);
-float4 Color     : EW_REG(EW_MONO_PS_COLOR);
-float4 Fade      : EW_REG(EW_MONO_PS_FADE);
+float4 Luminance : SHADER_REG(MONO_PS_LUMINANCE);
+float4 Color     : SHADER_REG(MONO_PS_COLOR);
+float4 Fade      : SHADER_REG(MONO_PS_FADE);
 
 sampler2D Scene : register(s0);
 

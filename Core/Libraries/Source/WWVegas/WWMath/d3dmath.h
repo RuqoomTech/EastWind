@@ -19,7 +19,7 @@
 //
 // Same conventions as D3DX: row-major storage laid out like D3DMATRIX, row vectors
 // (v' = v * M), and the same argument order, so a call such as
-// D3DXMatrixInverse(&out, nullptr, &m) becomes EwD3DMatrixInverse(&out, nullptr, &m).
+// D3DXMatrixInverse(&out, nullptr, &m) becomes D3DMatrixInverse(&out, nullptr, &m).
 //
 // Sums are evaluated left to right, ((x*m00 + y*m10) + z*m20) + w*m30, the same order
 // BezierSegment.h uses with USE_DETERMINISTIC_MATH, so game logic gets the same results.
@@ -30,34 +30,34 @@
 #include <math.h>
 #include <string.h>
 
-struct EwD3DVector3
+struct D3DVector3
 {
 	float x, y, z;
 
-	EwD3DVector3() {}
-	EwD3DVector3(float fx, float fy, float fz) : x(fx), y(fy), z(fz) {}
+	D3DVector3() {}
+	D3DVector3(float fx, float fy, float fz) : x(fx), y(fy), z(fz) {}
 
 	operator float*() { return &x; }
 	operator const float*() const { return &x; }
 };
 
-struct EwD3DVector4
+struct D3DVector4
 {
 	float x, y, z, w;
 
-	EwD3DVector4() {}
-	EwD3DVector4(float fx, float fy, float fz, float fw) : x(fx), y(fy), z(fz), w(fw) {}
+	D3DVector4() {}
+	D3DVector4(float fx, float fy, float fz, float fw) : x(fx), y(fy), z(fz), w(fw) {}
 
 	// Lets a temporary be passed straight to Set*ShaderConstantF, as with D3DXVECTOR4.
 	operator float*() { return &x; }
 	operator const float*() const { return &x; }
 };
 
-struct EwD3DMatrix : public D3DMATRIX
+struct D3DMatrix : public D3DMATRIX
 {
-	EwD3DMatrix() {}
-	EwD3DMatrix(const D3DMATRIX& m) : D3DMATRIX(m) {}
-	EwD3DMatrix(
+	D3DMatrix() {}
+	D3DMatrix(const D3DMATRIX& m) : D3DMATRIX(m) {}
+	D3DMatrix(
 		float f11, float f12, float f13, float f14,
 		float f21, float f22, float f23, float f24,
 		float f31, float f32, float f33, float f34,
@@ -75,15 +75,15 @@ struct EwD3DMatrix : public D3DMATRIX
 	operator float*() { return &_11; }
 	operator const float*() const { return &_11; }
 
-	EwD3DMatrix operator*(const D3DMATRIX& b) const;
-	EwD3DMatrix& operator*=(const D3DMATRIX& b) { *this = *this * b; return *this; }
+	D3DMatrix operator*(const D3DMATRIX& b) const;
+	D3DMatrix& operator*=(const D3DMATRIX& b) { *this = *this * b; return *this; }
 };
 
-const float EW_D3D_PI = 3.141592654f;
+const float D3D_PI = 3.141592654f;
 
-inline EwD3DMatrix* EwD3DMatrixIdentity(EwD3DMatrix* out)
+inline D3DMatrix* D3DMatrixIdentity(D3DMatrix* out)
 {
-	*out = EwD3DMatrix(
+	*out = D3DMatrix(
 		1.0f, 0.0f, 0.0f, 0.0f,
 		0.0f, 1.0f, 0.0f, 0.0f,
 		0.0f, 0.0f, 1.0f, 0.0f,
@@ -91,7 +91,7 @@ inline EwD3DMatrix* EwD3DMatrixIdentity(EwD3DMatrix* out)
 	return out;
 }
 
-inline EwD3DMatrix* EwD3DMatrixMultiply(EwD3DMatrix* out, const D3DMATRIX* a, const D3DMATRIX* b)
+inline D3DMatrix* D3DMatrixMultiply(D3DMatrix* out, const D3DMATRIX* a, const D3DMATRIX* b)
 {
 	// out may alias a or b.
 	D3DMATRIX r;
@@ -104,14 +104,14 @@ inline EwD3DMatrix* EwD3DMatrixMultiply(EwD3DMatrix* out, const D3DMATRIX* a, co
 	return out;
 }
 
-inline EwD3DMatrix EwD3DMatrix::operator*(const D3DMATRIX& b) const
+inline D3DMatrix D3DMatrix::operator*(const D3DMATRIX& b) const
 {
-	EwD3DMatrix r;
-	EwD3DMatrixMultiply(&r, this, &b);
+	D3DMatrix r;
+	D3DMatrixMultiply(&r, this, &b);
 	return r;
 }
 
-inline EwD3DMatrix* EwD3DMatrixTranspose(EwD3DMatrix* out, const D3DMATRIX* m)
+inline D3DMatrix* D3DMatrixTranspose(D3DMatrix* out, const D3DMATRIX* m)
 {
 	D3DMATRIX r;
 	for (int i = 0; i < 4; ++i) {
@@ -123,29 +123,29 @@ inline EwD3DMatrix* EwD3DMatrixTranspose(EwD3DMatrix* out, const D3DMATRIX* m)
 	return out;
 }
 
-inline EwD3DMatrix* EwD3DMatrixScaling(EwD3DMatrix* out, float sx, float sy, float sz)
+inline D3DMatrix* D3DMatrixScaling(D3DMatrix* out, float sx, float sy, float sz)
 {
-	EwD3DMatrixIdentity(out);
+	D3DMatrixIdentity(out);
 	out->_11 = sx;
 	out->_22 = sy;
 	out->_33 = sz;
 	return out;
 }
 
-inline EwD3DMatrix* EwD3DMatrixTranslation(EwD3DMatrix* out, float x, float y, float z)
+inline D3DMatrix* D3DMatrixTranslation(D3DMatrix* out, float x, float y, float z)
 {
-	EwD3DMatrixIdentity(out);
+	D3DMatrixIdentity(out);
 	out->_41 = x;
 	out->_42 = y;
 	out->_43 = z;
 	return out;
 }
 
-inline EwD3DMatrix* EwD3DMatrixRotationZ(EwD3DMatrix* out, float angle)
+inline D3DMatrix* D3DMatrixRotationZ(D3DMatrix* out, float angle)
 {
 	const float s = sinf(angle);
 	const float c = cosf(angle);
-	EwD3DMatrixIdentity(out);
+	D3DMatrixIdentity(out);
 	out->_11 = c;
 	out->_12 = s;
 	out->_21 = -s;
@@ -154,7 +154,7 @@ inline EwD3DMatrix* EwD3DMatrixRotationZ(EwD3DMatrix* out, float angle)
 }
 
 // General 4x4 inverse by cofactors. Returns nullptr when the matrix is singular, as D3DX does.
-inline EwD3DMatrix* EwD3DMatrixInverse(EwD3DMatrix* out, float* determinant, const D3DMATRIX* src)
+inline D3DMatrix* D3DMatrixInverse(D3DMatrix* out, float* determinant, const D3DMATRIX* src)
 {
 	const float* m = &src->_11;
 	float inv[16];
@@ -191,7 +191,7 @@ inline EwD3DMatrix* EwD3DMatrixInverse(EwD3DMatrix* out, float* determinant, con
 	return out;
 }
 
-inline EwD3DVector4* EwD3DVec4Transform(EwD3DVector4* out, const EwD3DVector4* v, const D3DMATRIX* m)
+inline D3DVector4* D3DVec4Transform(D3DVector4* out, const D3DVector4* v, const D3DMATRIX* m)
 {
 	const float x = v->x, y = v->y, z = v->z, w = v->w;
 	out->x = ((x * m->m[0][0] + y * m->m[1][0]) + z * m->m[2][0]) + w * m->m[3][0];
@@ -202,13 +202,13 @@ inline EwD3DVector4* EwD3DVec4Transform(EwD3DVector4* out, const EwD3DVector4* v
 }
 
 // Transforms (x, y, z, 1).
-inline EwD3DVector4* EwD3DVec3Transform(EwD3DVector4* out, const EwD3DVector3* v, const D3DMATRIX* m)
+inline D3DVector4* D3DVec3Transform(D3DVector4* out, const D3DVector3* v, const D3DMATRIX* m)
 {
-	const EwD3DVector4 v4(v->x, v->y, v->z, 1.0f);
-	return EwD3DVec4Transform(out, &v4, m);
+	const D3DVector4 v4(v->x, v->y, v->z, 1.0f);
+	return D3DVec4Transform(out, &v4, m);
 }
 
-inline float EwD3DVec4Dot(const EwD3DVector4* a, const EwD3DVector4* b)
+inline float D3DVec4Dot(const D3DVector4* a, const D3DVector4* b)
 {
 	return ((a->x * b->x + a->y * b->y) + a->z * b->z) + a->w * b->w;
 }

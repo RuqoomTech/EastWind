@@ -1843,7 +1843,7 @@ void W3DView::draw()
 	Bool preRenderResult = false;
 
 	// EastWind: with a post effect on, the 3D scene draws into a scene texture (M3.2).
-	const Bool ewPostScene = EwPostProcess::Begin_Scene(TheWaterTransparency->m_minWaterOpacity);
+	const Bool postScene = W3DPostProcess::Begin_Scene(TheWaterTransparency->m_minWaterOpacity);
 
 	if (m_viewFilterMode &&
 			m_viewFilter > FT_NULL_FILTER &&
@@ -1922,11 +1922,11 @@ void W3DView::draw()
 	}
 
 	// EastWind: the post passes draw the scene onto the back buffer, under the 2D scene and UI.
-	if (ewPostScene)
+	if (postScene)
 	{
 		Int originX, originY;
 		getOrigin(&originX, &originY);
-		EwPostProcess::End_Scene(originX, originY, getWidth(), getHeight(), m_3DCamera);
+		W3DPostProcess::End_Scene(originX, originY, getWidth(), getHeight(), m_3DCamera);
 	}
 
 	if( TheGlobalData->m_debugAI )

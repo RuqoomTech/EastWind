@@ -106,12 +106,12 @@ namespace
 		Free_Resources();
 
 		D3DFORMAT depth_format;
-		if (EwShaders::Format_Supported(device, D3DUSAGE_DEPTHSTENCIL, D3DRTYPE_TEXTURE, D3DFMT_D24X8))
+		if (ShaderLibrary::Format_Supported(device, D3DUSAGE_DEPTHSTENCIL, D3DRTYPE_TEXTURE, D3DFMT_D24X8))
 		{
 			Format = DEPTH_D24;
 			depth_format = D3DFMT_D24X8;
 		}
-		else if (EwShaders::Format_Supported(device, D3DUSAGE_DEPTHSTENCIL, D3DRTYPE_TEXTURE, FORMAT_INTZ))
+		else if (ShaderLibrary::Format_Supported(device, D3DUSAGE_DEPTHSTENCIL, D3DRTYPE_TEXTURE, FORMAT_INTZ))
 		{
 			Format = DEPTH_INTZ;
 			depth_format = FORMAT_INTZ;
@@ -130,7 +130,7 @@ namespace
 		const D3DFORMAT colors[] = { FORMAT_NULL, D3DFMT_R5G6B5, D3DFMT_X8R8G8B8 };
 		for (int i = 0; i < 3 && ColorSurface == nullptr; ++i)
 		{
-			if (!EwShaders::Format_Supported(device, D3DUSAGE_RENDERTARGET, D3DRTYPE_SURFACE, colors[i]))
+			if (!ShaderLibrary::Format_Supported(device, D3DUSAGE_RENDERTARGET, D3DRTYPE_SURFACE, colors[i]))
 				continue;
 			if (FAILED(device->CreateRenderTarget(size, size, colors[i], D3DMULTISAMPLE_NONE, 0, FALSE, &ColorSurface, nullptr)))
 				ColorSurface = nullptr;
@@ -142,49 +142,49 @@ namespace
 		}
 
 		Size = size;
-		WWDEBUG_SAY(("EwShadowMap: %dx%d %s depth map", size, size, Format == DEPTH_D24 ? "D24X8 (hardware PCF)" : "INTZ"));
+		WWDEBUG_SAY(("ShadowMap: %dx%d %s depth map", size, size, Format == DEPTH_D24 ? "D24X8 (hardware PCF)" : "INTZ"));
 		return nullptr;
 	}
 
 	// Constants c200..c205: on/off, matrix, filter and bias.
 	void Set_Constants(IDirect3DDevice9Ex *device, const Matrix4x4 *uvz, float texel_world, float depth_range)
 	{
-		float c[EW_SHADOW_PS_COUNT][4];
+		float c[SHADOW_PS_COUNT][4];
 		memset(c, 0, sizeof(c));
 		if (uvz != nullptr)
 		{
 			for (int r = 0; r < 3; ++r)
 				for (int k = 0; k < 4; ++k)
-					c[EW_SHADOW_PS_MATRIX - EW_SHADOW_PS_FIRST + r][k] = (*uvz)[r][k];
+					c[SHADOW_PS_MATRIX - SHADOW_PS_FIRST + r][k] = (*uvz)[r][k];
 
 			float radius = SOFT_EDGE / texel_world;
 			if (radius < MIN_RADIUS_TEXELS) radius = MIN_RADIUS_TEXELS;
 			if (radius > MAX_RADIUS_TEXELS) radius = MAX_RADIUS_TEXELS;
-			float *p = c[EW_SHADOW_PS_PARAMS - EW_SHADOW_PS_FIRST];
+			float *p = c[SHADOW_PS_PARAMS - SHADOW_PS_FIRST];
 			p[0] = 1.0f;
 			p[1] = 1.0f / (float)Size;
 			p[2] = radius;
 			p[3] = texel_world * NORMAL_OFFSET_TEXELS;
-			float *p2 = c[EW_SHADOW_PS_PARAMS2 - EW_SHADOW_PS_FIRST];
+			float *p2 = c[SHADOW_PS_PARAMS2 - SHADOW_PS_FIRST];
 			p2[0] = Format == DEPTH_D24 ? 1.0f : 0.0f;
 			p2[1] = DEPTH_BIAS_WORLD / depth_range;
 			p2[3] = STRENGTH;
 		}
-		device->SetPixelShaderConstantF(EW_SHADOW_PS_FIRST, &c[0][0], EW_SHADOW_PS_COUNT);
+		device->SetPixelShaderConstantF(SHADOW_PS_FIRST, &c[0][0], SHADOW_PS_COUNT);
 	}
 
 	void Bind(IDirect3DDevice9Ex *device, bool on)
 	{
-		device->SetTexture(EW_SHADOW_SAMPLER, on ? DepthTexture : nullptr);
+		device->SetTexture(SHADOW_SAMPLER, on ? DepthTexture : nullptr);
 		if (!on)
 			return;
 		const DWORD filter = Format == DEPTH_D24 ? D3DTEXF_LINEAR : D3DTEXF_POINT;
-		device->SetSamplerState(EW_SHADOW_SAMPLER, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP);
-		device->SetSamplerState(EW_SHADOW_SAMPLER, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP);
-		device->SetSamplerState(EW_SHADOW_SAMPLER, D3DSAMP_MINFILTER, filter);
-		device->SetSamplerState(EW_SHADOW_SAMPLER, D3DSAMP_MAGFILTER, filter);
-		device->SetSamplerState(EW_SHADOW_SAMPLER, D3DSAMP_MIPFILTER, D3DTEXF_NONE);
-		device->SetSamplerState(EW_SHADOW_SAMPLER, D3DSAMP_SRGBTEXTURE, FALSE);
+		device->SetSamplerState(SHADOW_SAMPLER, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP);
+		device->SetSamplerState(SHADOW_SAMPLER, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP);
+		device->SetSamplerState(SHADOW_SAMPLER, D3DSAMP_MINFILTER, filter);
+		device->SetSamplerState(SHADOW_SAMPLER, D3DSAMP_MAGFILTER, filter);
+		device->SetSamplerState(SHADOW_SAMPLER, D3DSAMP_MIPFILTER, D3DTEXF_NONE);
+		device->SetSamplerState(SHADOW_SAMPLER, D3DSAMP_SRGBTEXTURE, FALSE);
 	}
 
 	void Turn_Off(const char *why_not)
@@ -214,7 +214,7 @@ namespace
 	}
 }
 
-void EwShadowMap::New_Frame()
+void ShadowMap::New_Frame()
 {
 	Last = This;
 	Turn_Off("not drawn this frame");
@@ -222,22 +222,22 @@ void EwShadowMap::New_Frame()
 	This.Box = 0.0f;
 }
 
-bool EwShadowMap::Caster_Pass()
+bool ShadowMap::Caster_Pass()
 {
 	return InCasterPass;
 }
 
-bool EwShadowMap::Active()
+bool ShadowMap::Active()
 {
 	return IsActive;
 }
 
-bool EwShadowMap::Is_Sun(float x, float y, float z)
+bool ShadowMap::Is_Sun(float x, float y, float z)
 {
 	return IsActive && x * ToLight.X + y * ToLight.Y + z * ToLight.Z > 0.99f;
 }
 
-bool EwShadowMap::Caster_Visible(const Vector3 &center, float radius)
+bool ShadowMap::Caster_Visible(const Vector3 &center, float radius)
 {
 	const float x = Vector3::Dot_Product(center, BoxAxisX) - BoxCenterX;
 	const float y = Vector3::Dot_Product(center, BoxAxisY) - BoxCenterY;
@@ -246,12 +246,12 @@ bool EwShadowMap::Caster_Visible(const Vector3 &center, float radius)
 	return x > -reach && x < reach && y > -reach && y < reach && z + radius > BoxZMin && z - radius < BoxZMax;
 }
 
-void EwShadowMap::Count_Caster()
+void ShadowMap::Count_Caster()
 {
 	++This.Casters;
 }
 
-bool EwShadowMap::Last_Frame(int *size, const char **format, unsigned *casters, float *box, const char **why_not)
+bool ShadowMap::Last_Frame(int *size, const char **format, unsigned *casters, float *box, const char **why_not)
 {
 	*size = Size;
 	*format = Format == DEPTH_D24 ? "D24X8, hardware PCF" : Format == DEPTH_INTZ ? "INTZ" : "none";
@@ -261,7 +261,7 @@ bool EwShadowMap::Last_Frame(int *size, const char **format, unsigned *casters, 
 	return Last.Drawn;
 }
 
-void EwShadowMap::Release()
+void ShadowMap::Release()
 {
 	Free_Resources();
 	CreateFailed = nullptr;
@@ -274,9 +274,9 @@ void EwShadowMap::Release()
 	}
 }
 
-void EwShadowMap::Render(SceneClass *scene, CameraClass *view, const Vector3 &sun_travel, float ground_min, float ground_max)
+void ShadowMap::Render(SceneClass *scene, CameraClass *view, const Vector3 &sun_travel, float ground_min, float ground_max)
 {
-	const EwGraphicsOptions &options = EwGraphics();
+	const GraphicsOptions &options = Get_Graphics_Options();
 	if (!options.ShadowMaps())
 	{
 		if (Size != 0)

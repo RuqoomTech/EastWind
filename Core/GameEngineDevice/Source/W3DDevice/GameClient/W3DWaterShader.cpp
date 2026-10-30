@@ -30,7 +30,7 @@
 #include <vector>
 #include <mmsystem.h>
 
-// Like EwTerrainLighting, all state is read from the device: setupFlatWaterShader and
+// Like W3DTerrainLighting, all state is read from the device: setupFlatWaterShader and
 // setupJbaWaterShader set the textures, texture matrices and pixel shader on it directly.
 
 namespace
@@ -73,7 +73,7 @@ namespace
 		if (!Logged[reason])
 		{
 			Logged[reason] = true;
-			WWDEBUG_SAY(("EwWater: classic water for %s, value 0x%x (logged once)", ReasonText[reason], value));
+			WWDEBUG_SAY(("W3DWaterShader: classic water for %s, value 0x%x (logged once)", ReasonText[reason], value));
 		}
 		return false;
 	}
@@ -124,7 +124,7 @@ namespace
 	const char *ReflectionReason = "not drawn yet";
 	const char *LastReflectionReason = "not drawn yet";
 
-	// --- EwWaterQuality 2: the water seen into (M3.3b). ---
+	// --- WaterQuality 2: the water seen into (M3.3b). ---
 	const float HQ_FRESNEL_BIAS = 0.15f;
 	const float HQ_FRESNEL_SCALE = 0.88f;
 	const float HQ_FRESNEL_POWER = 3.0f;
@@ -198,7 +198,7 @@ namespace
 	static_assert(sizeof(WaveSamplerValues) / sizeof(WaveSamplerValues[0]) == SAMPLER_STATE_COUNT, "one value per sampler state");
 	static_assert(sizeof(ReflectionSamplerValues) / sizeof(ReflectionSamplerValues[0]) == SAMPLER_STATE_COUNT, "one value per sampler state");
 
-	// EwWaterQuality 2 adds s6 the refraction, s7 the terrain heights and s8 the foam noise.
+	// WaterQuality 2 adds s6 the refraction, s7 the terrain heights and s8 the foam noise.
 	const DWORD REFRACTION_SAMPLER = 6;
 	const DWORD HEIGHT_SAMPLER = 7;
 	const DWORD FOAM_SAMPLER = 8;
@@ -230,7 +230,7 @@ namespace
 	bool RestoreWaterMip;
 	DWORD SavedWaterMip;
 
-	// EwWaterQuality 2 draws the water over the scene with plain alpha blending.
+	// WaterQuality 2 draws the water over the scene with plain alpha blending.
 	bool RestoreBlend;
 	DWORD SavedBlend[3];
 	const D3DRENDERSTATETYPE BlendStates[3] = { D3DRS_ALPHABLENDENABLE, D3DRS_SRCBLEND, D3DRS_DESTBLEND };
@@ -479,9 +479,9 @@ namespace
 	{
 		const DX9Caps *caps = DX9Wrapper::Get_Current_Caps();
 		return caps != nullptr && caps->Get_Vertex_Shader_Major_Version() >= 3 && caps->Get_Pixel_Shader_Major_Version() >= 3
-			&& EwShaders::Peek_Vertex(EwShaders::VS_WATER) != nullptr
-			&& EwShaders::Peek_Pixel(EwShaders::PS_WATER_TRAPEZOID) != nullptr
-			&& EwShaders::Peek_Pixel(EwShaders::PS_WATER_RIVER) != nullptr;
+			&& ShaderLibrary::Peek_Vertex(ShaderLibrary::VS_WATER) != nullptr
+			&& ShaderLibrary::Peek_Pixel(ShaderLibrary::PS_WATER_TRAPEZOID) != nullptr
+			&& ShaderLibrary::Peek_Pixel(ShaderLibrary::PS_WATER_RIVER) != nullptr;
 	}
 
 	// The camera position from the view matrix: the view rotation is orthonormal, so
@@ -784,7 +784,7 @@ namespace
 	}
 }
 
-void EwWater::Sky_Color(float rgb[3])
+void W3DWaterShader::Sky_Color(float rgb[3])
 {
 	// The ambient and first sun of the map, so the sky darkens at night.
 	float light[3] = { 1.0f, 1.0f, 1.0f };
@@ -801,9 +801,9 @@ void EwWater::Sky_Color(float rgb[3])
 	}
 }
 
-bool EwWater::Wants_Reflection()
+bool W3DWaterShader::Wants_Reflection()
 {
-	if (!EwGraphics().WaterShader())
+	if (!Get_Graphics_Options().WaterShader())
 	{
 		ReflectionReason = "the water shader is off";
 		return false;
@@ -817,13 +817,13 @@ bool EwWater::Wants_Reflection()
 	return true;
 }
 
-bool EwWater::Begin_Reflection(IDirect3DSurface9 **target, IDirect3DSurface9 **depth)
+bool W3DWaterShader::Begin_Reflection(IDirect3DSurface9 **target, IDirect3DSurface9 **depth)
 {
 	Device = DX9Wrapper::_Get_D3D_Device9();
 	if (Device == nullptr)
 		return false;
 
-	// EwWaterQuality 1: half the back buffer, sharp enough once the waves move it, at a quarter of
+	// WaterQuality 1: half the back buffer, sharp enough once the waves move it, at a quarter of
 	// the cost. 2 and up: the full back buffer.
 	IDirect3DSurface9 *back_buffer = nullptr;
 	if (FAILED(Device->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &back_buffer)) || back_buffer == nullptr)
@@ -834,7 +834,7 @@ bool EwWater::Begin_Reflection(IDirect3DSurface9 **target, IDirect3DSurface9 **d
 	D3DSURFACE_DESC desc;
 	back_buffer->GetDesc(&desc);
 	back_buffer->Release();
-	const unsigned divisor = (EwGraphics().WaterQuality >= 2) ? 1 : 2;
+	const unsigned divisor = (Get_Graphics_Options().WaterQuality >= 2) ? 1 : 2;
 	int width = int(desc.Width / divisor);
 	int height = int(desc.Height / divisor);
 	if (width < 16)
@@ -871,22 +871,22 @@ bool EwWater::Begin_Reflection(IDirect3DSurface9 **target, IDirect3DSurface9 **d
 	return true;
 }
 
-void EwWater::End_Reflection(float level)
+void W3DWaterShader::End_Reflection(float level)
 {
 	HasReflection = true;
 	ReflectionLevel = level;
 	ReflectionReason = nullptr;
 }
 
-void EwWater::Skip_Reflection(const char *why)
+void W3DWaterShader::Skip_Reflection(const char *why)
 {
 	ReflectionReason = why;
 }
 
-bool EwWater::Begin(Kind kind, float water_level, float river_width, float river_alpha)
+bool W3DWaterShader::Begin(Kind kind, float water_level, float river_width, float river_alpha)
 {
-	if (!EwGraphics().WaterShader())
-		return Skip(EwGraphics().WaterQuality < 1 ? "EwWaterQuality is 0 in Options.ini" : "switched off by a debug key");
+	if (!Get_Graphics_Options().WaterShader())
+		return Skip(Get_Graphics_Options().WaterQuality < 1 ? "WaterQuality is 0 in Options.ini" : "switched off by a debug key");
 	if (TheGlobalData == nullptr)
 		return Skip("no global data");
 	Device = DX9Wrapper::_Get_D3D_Device9();
@@ -912,8 +912,8 @@ bool EwWater::Begin(Kind kind, float water_level, float river_width, float river
 	if (caps->Get_Vertex_Shader_Major_Version() < 3 || caps->Get_Pixel_Shader_Major_Version() < 3)
 		return Fallback(REASON_NO_SM3, (caps->Get_Vertex_Shader_Major_Version() << 8) | caps->Get_Pixel_Shader_Major_Version());
 
-	IDirect3DVertexShader9 *vertex_shader = EwShaders::Peek_Vertex(EwShaders::VS_WATER);
-	IDirect3DPixelShader9 *pixel_shader = EwShaders::Peek_Pixel(kind == RIVER ? EwShaders::PS_WATER_RIVER : EwShaders::PS_WATER_TRAPEZOID);
+	IDirect3DVertexShader9 *vertex_shader = ShaderLibrary::Peek_Vertex(ShaderLibrary::VS_WATER);
+	IDirect3DPixelShader9 *pixel_shader = ShaderLibrary::Peek_Pixel(kind == RIVER ? ShaderLibrary::PS_WATER_RIVER : ShaderLibrary::PS_WATER_TRAPEZOID);
 	if (vertex_shader == nullptr || pixel_shader == nullptr)
 		return Fallback(REASON_NO_SHADER, unsigned(kind));
 
@@ -944,12 +944,12 @@ bool EwWater::Begin(Kind kind, float water_level, float river_width, float river
 	if (!Create_Wave_Texture())
 		return false;	// Create_Wave_Texture records the reason
 
-	// EwWaterQuality 2: the water seen into, once its textures are ready; else as at 1.
+	// WaterQuality 2: the water seen into, once its textures are ready; else as at 1.
 	bool high_quality = false;
 	bool has_heights = false;
-	if (EwGraphics().WaterQuality >= 2)
+	if (Get_Graphics_Options().WaterQuality >= 2)
 	{
-		IDirect3DPixelShader9 *seen_into = EwShaders::Peek_Pixel(kind == RIVER ? EwShaders::PS_WATER_RIVER_HQ : EwShaders::PS_WATER_TRAPEZOID_HQ);
+		IDirect3DPixelShader9 *seen_into = ShaderLibrary::Peek_Pixel(kind == RIVER ? ShaderLibrary::PS_WATER_RIVER_HQ : ShaderLibrary::PS_WATER_TRAPEZOID_HQ);
 		if (seen_into == nullptr)
 			HighQualityReason = "its shaders failed to load";
 		else if (!Create_Foam_Texture())
@@ -983,19 +983,19 @@ bool EwWater::Begin(Kind kind, float water_level, float river_width, float river
 		Wrap(seconds * WAVE_SPEED_B[0]), Wrap(seconds * WAVE_SPEED_B[1]),
 	};
 
-	Float4 vs[EW_WATER_VS_COUNT];
+	Float4 vs[WATER_VS_COUNT];
 	memset(vs, 0, sizeof(vs));
-	Columns(&vs[EW_WATER_VS_WVP], world_view_projection, 4);
-	Columns(&vs[EW_WATER_VS_WORLD], world, 3);
-	Columns(&vs[EW_WATER_VS_WORLDVIEW], world_view, 3);
-	Columns(&vs[EW_WATER_VS_NOISE], noise, 2);
-	Columns(&vs[EW_WATER_VS_SHROUD], shroud, 2);
-	vs[EW_WATER_VS_OPTIONS].x = range_fog;
-	vs[EW_WATER_VS_WAVES] = waves;
-	vs[EW_WATER_VS_WAVE_SCALE].x = WAVE_SCALE_A;
-	vs[EW_WATER_VS_WAVE_SCALE].y = WAVE_SCALE_B;
-	vs[EW_WATER_VS_WAVE_SCALE].z = (kind == RIVER) ? 1.0f : 0.0f;
-	vs[EW_WATER_VS_WAVE_SCALE].w = river_width;
+	Columns(&vs[WATER_VS_WVP], world_view_projection, 4);
+	Columns(&vs[WATER_VS_WORLD], world, 3);
+	Columns(&vs[WATER_VS_WORLDVIEW], world_view, 3);
+	Columns(&vs[WATER_VS_NOISE], noise, 2);
+	Columns(&vs[WATER_VS_SHROUD], shroud, 2);
+	vs[WATER_VS_OPTIONS].x = range_fog;
+	vs[WATER_VS_WAVES] = waves;
+	vs[WATER_VS_WAVE_SCALE].x = WAVE_SCALE_A;
+	vs[WATER_VS_WAVE_SCALE].y = WAVE_SCALE_B;
+	vs[WATER_VS_WAVE_SCALE].z = (kind == RIVER) ? 1.0f : 0.0f;
+	vs[WATER_VS_WAVE_SCALE].w = river_width;
 
 	// The sun: the first terrain light, which lights the water's vertex colours too.
 	Float4 sun = { 0.0f, 0.0f, 1.0f, 0.0f };
@@ -1018,37 +1018,37 @@ bool EwWater::Begin(Kind kind, float water_level, float river_width, float river
 	float sky[3];
 	Sky_Color(sky);
 
-	Float4 ps[EW_WATER_PS_COUNT];
+	Float4 ps[WATER_PS_COUNT];
 	memset(ps, 0, sizeof(ps));
-	ps[EW_WATER_PS_SUN] = sun;
-	ps[EW_WATER_PS_SUN_COLOR] = sun_color;
-	ps[EW_WATER_PS_CAMERA] = Camera_Position(view);
-	ps[EW_WATER_PS_FRESNEL].x = FRESNEL_BIAS;
-	ps[EW_WATER_PS_FRESNEL].y = FRESNEL_SCALE;
-	ps[EW_WATER_PS_FRESNEL].z = FRESNEL_POWER;
-	ps[EW_WATER_PS_FRESNEL].w = FRESNEL_MAX;
-	ps[EW_WATER_PS_OPTIONS].x = REFLECTION_DISTORTION;
-	ps[EW_WATER_PS_OPTIONS].y = WAVE_NORMAL_STRENGTH;
-	ps[EW_WATER_PS_OPTIONS].z = SPECULAR_STRENGTH;
-	ps[EW_WATER_PS_FOG] = fog;
-	ps[EW_WATER_PS_FOGCOLOR] = Color_Value(D3DCOLOR(Render_State(D3DRS_FOGCOLOR)));
-	ps[EW_WATER_PS_SKY].x = sky[0];
-	ps[EW_WATER_PS_SKY].y = sky[1];
-	ps[EW_WATER_PS_SKY].z = sky[2];
-	ps[EW_WATER_PS_SKY].w = use_reflection ? 1.0f : 0.0f;
-	ps[EW_WATER_PS_RIVER].x = river_alpha;
-	ps[EW_WATER_PS_WAVE_LOOK].x = WAVE_SHADING;
-	ps[EW_WATER_PS_WAVE_LOOK].y = TEXTURE_WOBBLE;
-	ps[EW_WATER_PS_WAVE_LOOK].z = REFLECTION_OPACITY;
+	ps[WATER_PS_SUN] = sun;
+	ps[WATER_PS_SUN_COLOR] = sun_color;
+	ps[WATER_PS_CAMERA] = Camera_Position(view);
+	ps[WATER_PS_FRESNEL].x = FRESNEL_BIAS;
+	ps[WATER_PS_FRESNEL].y = FRESNEL_SCALE;
+	ps[WATER_PS_FRESNEL].z = FRESNEL_POWER;
+	ps[WATER_PS_FRESNEL].w = FRESNEL_MAX;
+	ps[WATER_PS_OPTIONS].x = REFLECTION_DISTORTION;
+	ps[WATER_PS_OPTIONS].y = WAVE_NORMAL_STRENGTH;
+	ps[WATER_PS_OPTIONS].z = SPECULAR_STRENGTH;
+	ps[WATER_PS_FOG] = fog;
+	ps[WATER_PS_FOGCOLOR] = Color_Value(D3DCOLOR(Render_State(D3DRS_FOGCOLOR)));
+	ps[WATER_PS_SKY].x = sky[0];
+	ps[WATER_PS_SKY].y = sky[1];
+	ps[WATER_PS_SKY].z = sky[2];
+	ps[WATER_PS_SKY].w = use_reflection ? 1.0f : 0.0f;
+	ps[WATER_PS_RIVER].x = river_alpha;
+	ps[WATER_PS_WAVE_LOOK].x = WAVE_SHADING;
+	ps[WATER_PS_WAVE_LOOK].y = TEXTURE_WOBBLE;
+	ps[WATER_PS_WAVE_LOOK].z = REFLECTION_OPACITY;
 
 	if (high_quality)
 	{
-		ps[EW_WATER_PS_FRESNEL].x = HQ_FRESNEL_BIAS;
-		ps[EW_WATER_PS_FRESNEL].y = HQ_FRESNEL_SCALE;
-		ps[EW_WATER_PS_FRESNEL].z = HQ_FRESNEL_POWER;
-		ps[EW_WATER_PS_FRESNEL].w = HQ_FRESNEL_MAX;
-		ps[EW_WATER_PS_SUN_COLOR].w = HQ_SPECULAR_POWER;
-		ps[EW_WATER_PS_OPTIONS].z = HQ_SPECULAR_STRENGTH;
+		ps[WATER_PS_FRESNEL].x = HQ_FRESNEL_BIAS;
+		ps[WATER_PS_FRESNEL].y = HQ_FRESNEL_SCALE;
+		ps[WATER_PS_FRESNEL].z = HQ_FRESNEL_POWER;
+		ps[WATER_PS_FRESNEL].w = HQ_FRESNEL_MAX;
+		ps[WATER_PS_SUN_COLOR].w = HQ_SPECULAR_POWER;
+		ps[WATER_PS_OPTIONS].z = HQ_SPECULAR_STRENGTH;
 
 		// Clip xy / w to the refraction uv: the viewport within the render target, and D3D9's half
 		// texel between pixel and texel centres.
@@ -1056,43 +1056,43 @@ bool EwWater::Begin(Kind kind, float water_level, float river_width, float river
 		Device->GetViewport(&viewport);
 		const float target_width = float(RefractionDesc.Width);
 		const float target_height = float(RefractionDesc.Height);
-		ps[EW_WATER_PS_SCREEN].x = 0.5f * viewport.Width / target_width;
-		ps[EW_WATER_PS_SCREEN].y = -0.5f * viewport.Height / target_height;
-		ps[EW_WATER_PS_SCREEN].z = (viewport.X + 0.5f * viewport.Width + 0.5f) / target_width;
-		ps[EW_WATER_PS_SCREEN].w = (viewport.Y + 0.5f * viewport.Height + 0.5f) / target_height;
+		ps[WATER_PS_SCREEN].x = 0.5f * viewport.Width / target_width;
+		ps[WATER_PS_SCREEN].y = -0.5f * viewport.Height / target_height;
+		ps[WATER_PS_SCREEN].z = (viewport.X + 0.5f * viewport.Width + 0.5f) / target_width;
+		ps[WATER_PS_SCREEN].w = (viewport.Y + 0.5f * viewport.Height + 0.5f) / target_height;
 
 		// World xy to the height texel: vertex k of the height map is at (k - border) * MAP_XY_FACTOR.
 		if (has_heights)
 		{
-			ps[EW_WATER_PS_HEIGHT].x = 1.0f / (MAP_XY_FACTOR * HeightWidth);
-			ps[EW_WATER_PS_HEIGHT].y = 1.0f / (MAP_XY_FACTOR * HeightHeight);
-			ps[EW_WATER_PS_HEIGHT].z = (HeightBorder + 0.5f) / HeightWidth;
-			ps[EW_WATER_PS_HEIGHT].w = (HeightBorder + 0.5f) / HeightHeight;
+			ps[WATER_PS_HEIGHT].x = 1.0f / (MAP_XY_FACTOR * HeightWidth);
+			ps[WATER_PS_HEIGHT].y = 1.0f / (MAP_XY_FACTOR * HeightHeight);
+			ps[WATER_PS_HEIGHT].z = (HeightBorder + 0.5f) / HeightWidth;
+			ps[WATER_PS_HEIGHT].w = (HeightBorder + 0.5f) / HeightHeight;
 		}
-		ps[EW_WATER_PS_BODY].x = 255.0f * MAP_HEIGHT_SCALE;
-		ps[EW_WATER_PS_BODY].y = has_heights ? 1.0f : 0.0f;
-		ps[EW_WATER_PS_BODY].z = float(fmod(seconds * SHORE_WAVE_SPEED, 6.28318530718));
-		ps[EW_WATER_PS_BODY].w = REFRACTION_DISTORTION;
-		ps[EW_WATER_PS_ABSORB].x = ABSORPTION[0];
-		ps[EW_WATER_PS_ABSORB].y = ABSORPTION[1];
-		ps[EW_WATER_PS_ABSORB].z = ABSORPTION[2];
-		ps[EW_WATER_PS_ABSORB].w = DEEP_COLOR_SCALE;
-		ps[EW_WATER_PS_FOAM].x = FOAM_DEPTH;
-		ps[EW_WATER_PS_FOAM].y = FOAM_STRENGTH;
-		ps[EW_WATER_PS_FOAM].z = CAUSTIC_STRENGTH;
-		ps[EW_WATER_PS_FOAM].w = CAUSTIC_DEPTH;
-		ps[EW_WATER_PS_AMBIENT].x = TheGlobalData->m_terrainAmbient[0].red;
-		ps[EW_WATER_PS_AMBIENT].y = TheGlobalData->m_terrainAmbient[0].green;
-		ps[EW_WATER_PS_AMBIENT].z = TheGlobalData->m_terrainAmbient[0].blue;
-		ps[EW_WATER_PS_AMBIENT].w = HQ_BROAD_GLINT;
-		ps[EW_WATER_PS_WAVE_LOOK].x = HQ_WAVE_SHADING;
-		ps[EW_WATER_PS_WAVE_MIX].x = SWELL_SIZE;
-		ps[EW_WATER_PS_WAVE_MIX].y = SWELL_STRENGTH;
-		ps[EW_WATER_PS_WAVE_MIX].z = RIPPLE_STRENGTH;
+		ps[WATER_PS_BODY].x = 255.0f * MAP_HEIGHT_SCALE;
+		ps[WATER_PS_BODY].y = has_heights ? 1.0f : 0.0f;
+		ps[WATER_PS_BODY].z = float(fmod(seconds * SHORE_WAVE_SPEED, 6.28318530718));
+		ps[WATER_PS_BODY].w = REFRACTION_DISTORTION;
+		ps[WATER_PS_ABSORB].x = ABSORPTION[0];
+		ps[WATER_PS_ABSORB].y = ABSORPTION[1];
+		ps[WATER_PS_ABSORB].z = ABSORPTION[2];
+		ps[WATER_PS_ABSORB].w = DEEP_COLOR_SCALE;
+		ps[WATER_PS_FOAM].x = FOAM_DEPTH;
+		ps[WATER_PS_FOAM].y = FOAM_STRENGTH;
+		ps[WATER_PS_FOAM].z = CAUSTIC_STRENGTH;
+		ps[WATER_PS_FOAM].w = CAUSTIC_DEPTH;
+		ps[WATER_PS_AMBIENT].x = TheGlobalData->m_terrainAmbient[0].red;
+		ps[WATER_PS_AMBIENT].y = TheGlobalData->m_terrainAmbient[0].green;
+		ps[WATER_PS_AMBIENT].z = TheGlobalData->m_terrainAmbient[0].blue;
+		ps[WATER_PS_AMBIENT].w = HQ_BROAD_GLINT;
+		ps[WATER_PS_WAVE_LOOK].x = HQ_WAVE_SHADING;
+		ps[WATER_PS_WAVE_MIX].x = SWELL_SIZE;
+		ps[WATER_PS_WAVE_MIX].y = SWELL_STRENGTH;
+		ps[WATER_PS_WAVE_MIX].z = RIPPLE_STRENGTH;
 	}
 
-	Device->SetVertexShaderConstantF(0, &vs[0].x, EW_WATER_VS_COUNT);
-	Device->SetPixelShaderConstantF(0, &ps[0].x, EW_WATER_PS_COUNT);
+	Device->SetVertexShaderConstantF(0, &vs[0].x, WATER_VS_COUNT);
+	Device->SetPixelShaderConstantF(0, &ps[0].x, WATER_PS_COUNT);
 
 	// The pass's own pixel shader goes back in End(). GetPixelShader adds the reference End()
 	// releases.
@@ -1134,7 +1134,7 @@ bool EwWater::Begin(Kind kind, float water_level, float river_width, float river
 	return true;
 }
 
-void EwWater::End()
+void W3DWaterShader::End()
 {
 	Device->SetVertexShader(nullptr);
 	Device->SetPixelShader(SavedPixelShader);
@@ -1172,7 +1172,7 @@ void EwWater::End()
 	}
 }
 
-void EwWater::Release()
+void W3DWaterShader::Release()
 {
 	if (WaveTexture != nullptr)
 	{
@@ -1184,7 +1184,7 @@ void EwWater::Release()
 	Release_High_Quality();
 }
 
-void EwWater::New_Frame()
+void W3DWaterShader::New_Frame()
 {
 	++FrameNumber;
 	LastFramePasses = FramePasses;
@@ -1199,17 +1199,17 @@ void EwWater::New_Frame()
 	ReflectionReason = "not drawn";
 }
 
-unsigned EwWater::Last_Frame_Passes()
+unsigned W3DWaterShader::Last_Frame_Passes()
 {
 	return LastFramePasses;
 }
 
-const char *EwWater::Last_Reason()
+const char *W3DWaterShader::Last_Reason()
 {
 	return LastReason;
 }
 
-bool EwWater::Last_Reflection(float *level, int *width, int *height, const char **why_not)
+bool W3DWaterShader::Last_Reflection(float *level, int *width, int *height, const char **why_not)
 {
 	*level = LastReflectionLevel;
 	*width = ReflectionWidth;
@@ -1218,14 +1218,14 @@ bool EwWater::Last_Reflection(float *level, int *width, int *height, const char 
 	return LastHasReflection;
 }
 
-const char *EwWater::Last_Seen_Into()
+const char *W3DWaterShader::Last_Seen_Into()
 {
-	if (EwGraphics().WaterQuality < 2)
-		return "EwWaterQuality is below 2";
+	if (Get_Graphics_Options().WaterQuality < 2)
+		return "WaterQuality is below 2";
 	if (LastHighQualityPasses > 0)
 		return nullptr;
 	return LastHighQualityReason != nullptr ? LastHighQualityReason : "no water drawn";
 }
 
-static_assert(EW_WATER_VS_WVP == 0 && EW_WATER_VS_WAVE_SCALE + 1 == EW_WATER_VS_COUNT, "water vertex constants are uploaded as one block from c0");
-static_assert(EW_WATER_PS_SUN == 0 && EW_WATER_PS_WAVE_MIX + 1 == EW_WATER_PS_COUNT, "water pixel constants are uploaded as one block from c0");
+static_assert(WATER_VS_WVP == 0 && WATER_VS_WAVE_SCALE + 1 == WATER_VS_COUNT, "water vertex constants are uploaded as one block from c0");
+static_assert(WATER_PS_SUN == 0 && WATER_PS_WAVE_MIX + 1 == WATER_PS_COUNT, "water pixel constants are uploaded as one block from c0");

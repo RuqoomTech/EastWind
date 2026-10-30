@@ -47,7 +47,7 @@ namespace
 	// Bloom strength, until it moves to INI data.
 	const float BLOOM_THRESHOLD = 0.7f;		// scene brightness (luma) where the glow starts
 	const float BLOOM_STRENGTH = 0.8f;
-	// With EwLinearLighting the bloom is added to linear light instead of screen blended, which
+	// With LinearLighting the bloom is added to linear light instead of screen blended, which
 	// lights the area around a glow more; this strength gives about the same halo.
 	const float BLOOM_LINEAR_STRENGTH = 0.45f;
 	const float BLOOM_WEIGHTS[3] = { 0.45f, 0.35f, 0.30f };	// the 1/4, 1/8 and 1/16 size levels
@@ -56,14 +56,14 @@ namespace
 	// values give deeper shadows, brighter mid-tones and softer highlights.
 	const float TONE_EXPOSURE = 0.6f;
 
-	// With EwHdr: the 16-bit float scene and bloom format, and the tone curve for it, which shows
+	// With Hdr: the 16-bit float scene and bloom format, and the tone curve for it, which shows
 	// scene (gamma) value TONE_HDR_WHITE as white so the light above 1 rolls off instead of clipping.
 	const D3DFORMAT FORMAT_HDR = D3DFMT_A16B16G16R16F;
 	const float TONE_HDR_EXPOSURE = 0.8f;
 	const float TONE_HDR_WHITE = 2.0f;
 
 	// Colour grading: a 256x16 TGA strip (see post.hlsl). The map's own LUT wins over the default.
-	const char *const LUT_DEFAULT_FILE = "Art\\Textures\\EwColorGrading.tga";
+	const char *const LUT_DEFAULT_FILE = "Art\\Textures\\ColorGrading.tga";
 	const char *const LUT_MAP_FILE = "ColorGrading.tga";	// in the map's folder, beside map.str
 	const int LUT_WIDTH = 256;
 	const int LUT_HEIGHT = 16;
@@ -152,7 +152,7 @@ namespace
 		const char *Reason;
 		const char *LastReason;
 	};
-	EffectStats Stats[EwPostProcess::EFFECT_COUNT];
+	EffectStats Stats[W3DPostProcess::EFFECT_COUNT];
 
 	IDirect3DTexture9 *SceneTexture = nullptr;		// what the post passes read
 	IDirect3DSurface9 *SceneSurface = nullptr;		// level 0 of SceneTexture
@@ -209,7 +209,7 @@ namespace
 	bool AoFailed = false;
 
 	// Soft particles: the scene's view depth, copied from DepthTexture before the particles draw,
-	// the size of the scene texture. Bound on EW_PARTICLE_DEPTH_SAMPLER until End_Particles().
+	// the size of the scene texture. Bound on PARTICLE_DEPTH_SAMPLER until End_Particles().
 	IDirect3DTexture9 *ParticleDepthTexture = nullptr;
 	IDirect3DSurface9 *ParticleDepthSurface = nullptr;
 	Reason ParticleDepthFailed = REASON_COUNT;	// why it cannot be made; not tried again until Release()
@@ -226,11 +226,11 @@ namespace
 			&& reason != REASON_SOFT_DEBUG_OFF)
 		{
 			Logged[reason] = true;
-			WWDEBUG_SAY(("EwPostProcess: %s, value 0x%x (logged once)", ReasonText[reason], value));
+			WWDEBUG_SAY(("W3DPostProcess: %s, value 0x%x (logged once)", ReasonText[reason], value));
 		}
 	}
 
-	void Set_Reason(EwPostProcess::Effect effect, Reason reason)
+	void Set_Reason(W3DPostProcess::Effect effect, Reason reason)
 	{
 		Stats[effect].Reason = ReasonText[reason];
 	}
@@ -238,7 +238,7 @@ namespace
 	// The scene texture is not used, so no effect runs.
 	bool Fail(Reason reason, unsigned value = 0)
 	{
-		for (int i = 0; i < EwPostProcess::EFFECT_COUNT; ++i)
+		for (int i = 0; i < W3DPostProcess::EFFECT_COUNT; ++i)
 			Stats[i].Reason = ReasonText[reason];
 		Log_Once(reason, value);
 		return false;
@@ -345,7 +345,7 @@ namespace
 			return false;	// DepthReason still says why
 
 		HRESULT hr = E_FAIL;
-		if (!EwShaders::Format_Supported(device, D3DUSAGE_DEPTHSTENCIL, D3DRTYPE_TEXTURE, FORMAT_INTZ))
+		if (!ShaderLibrary::Format_Supported(device, D3DUSAGE_DEPTHSTENCIL, D3DRTYPE_TEXTURE, FORMAT_INTZ))
 			DepthReason = REASON_AO_NO_INTZ;
 		else
 		{
@@ -364,7 +364,7 @@ namespace
 			Log_Once(DepthReason, hr);
 			return false;
 		}
-		WWDEBUG_SAY(("EwPostProcess: %ux%u INTZ scene depth texture for ambient occlusion", TargetDesc.Width, TargetDesc.Height));
+		WWDEBUG_SAY(("W3DPostProcess: %ux%u INTZ scene depth texture for ambient occlusion", TargetDesc.Width, TargetDesc.Height));
 		return true;
 	}
 
@@ -375,14 +375,14 @@ namespace
 			return true;
 		if (AoFailed)
 		{
-			Set_Reason(EwPostProcess::AMBIENT_OCCLUSION, REASON_AO_CREATE_FAILED);
+			Set_Reason(W3DPostProcess::AMBIENT_OCCLUSION, REASON_AO_CREATE_FAILED);
 			return false;
 		}
 		Release_Ao();
-		if (!EwShaders::Format_Supported(device, D3DUSAGE_RENDERTARGET, D3DRTYPE_TEXTURE, D3DFMT_G16R16F))
+		if (!ShaderLibrary::Format_Supported(device, D3DUSAGE_RENDERTARGET, D3DRTYPE_TEXTURE, D3DFMT_G16R16F))
 		{
 			AoFailed = true;
-			Set_Reason(EwPostProcess::AMBIENT_OCCLUSION, REASON_AO_NO_G16R16F);
+			Set_Reason(W3DPostProcess::AMBIENT_OCCLUSION, REASON_AO_NO_G16R16F);
 			Log_Once(REASON_AO_NO_G16R16F, 0);
 			return false;
 		}
@@ -399,14 +399,14 @@ namespace
 		{
 			Release_Ao();
 			AoFailed = true;
-			Set_Reason(EwPostProcess::AMBIENT_OCCLUSION, REASON_AO_CREATE_FAILED);
+			Set_Reason(W3DPostProcess::AMBIENT_OCCLUSION, REASON_AO_CREATE_FAILED);
 			Log_Once(REASON_AO_CREATE_FAILED, hr);
 			return false;
 		}
 		AoWidth = w;
 		AoHeight = h;
 		AoDivisor = divisor;
-		WWDEBUG_SAY(("EwPostProcess: %dx%d ambient occlusion textures", w, h));
+		WWDEBUG_SAY(("W3DPostProcess: %dx%d ambient occlusion textures", w, h));
 		return true;
 	}
 
@@ -417,7 +417,7 @@ namespace
 			return true;
 		if (BloomFailed)
 		{
-			Set_Reason(EwPostProcess::BLOOM, REASON_BLOOM_CREATE_FAILED);
+			Set_Reason(W3DPostProcess::BLOOM, REASON_BLOOM_CREATE_FAILED);
 			return false;
 		}
 
@@ -443,7 +443,7 @@ namespace
 		{
 			Release_Bloom();
 			BloomFailed = true;
-			Set_Reason(EwPostProcess::BLOOM, REASON_BLOOM_CREATE_FAILED);
+			Set_Reason(W3DPostProcess::BLOOM, REASON_BLOOM_CREATE_FAILED);
 			Log_Once(REASON_BLOOM_CREATE_FAILED, hr);
 			return false;
 		}
@@ -466,7 +466,7 @@ namespace
 			if (!FinalFailed)
 				Log_Once(REASON_FXAA_CREATE_FAILED, hr);
 			FinalFailed = true;
-			Set_Reason(EwPostProcess::FXAA, REASON_FXAA_CREATE_FAILED);
+			Set_Reason(W3DPostProcess::FXAA, REASON_FXAA_CREATE_FAILED);
 			return false;
 		}
 		return true;
@@ -502,7 +502,7 @@ namespace
 		const unsigned char *h = &data[0];
 		if (size < 18 || read != size)
 		{
-			WWDEBUG_SAY(("EwPostProcess: colour LUT %s could not be read", path));
+			WWDEBUG_SAY(("W3DPostProcess: colour LUT %s could not be read", path));
 			return false;
 		}
 		const int id_length = h[0];
@@ -515,7 +515,7 @@ namespace
 		if (colormap_type != 0 || (type != 2 && type != 10) || (depth != 24 && depth != 32)
 			|| width != LUT_WIDTH || height != LUT_HEIGHT)
 		{
-			WWDEBUG_SAY(("EwPostProcess: colour LUT %s must be a %dx%d true-colour TGA (24 or 32 bits), it is %dx%d type %d, %d bits",
+			WWDEBUG_SAY(("W3DPostProcess: colour LUT %s must be a %dx%d true-colour TGA (24 or 32 bits), it is %dx%d type %d, %d bits",
 				path, LUT_WIDTH, LUT_HEIGHT, width, height, type, depth));
 			return false;
 		}
@@ -563,7 +563,7 @@ namespace
 		}
 		if (short_data || i < count)
 		{
-			WWDEBUG_SAY(("EwPostProcess: colour LUT %s is cut short", path));
+			WWDEBUG_SAY(("W3DPostProcess: colour LUT %s is cut short", path));
 			return false;
 		}
 		return true;
@@ -607,7 +607,7 @@ namespace
 			Choose_Lut(map);
 		if (LutFailed)
 		{
-			Set_Reason(EwPostProcess::COLOR_GRADING, REASON_LUT_CREATE_FAILED);
+			Set_Reason(W3DPostProcess::COLOR_GRADING, REASON_LUT_CREATE_FAILED);
 			return false;
 		}
 
@@ -634,7 +634,7 @@ namespace
 		{
 			Release_Com(LutTexture);
 			LutFailed = true;
-			Set_Reason(EwPostProcess::COLOR_GRADING, REASON_LUT_CREATE_FAILED);
+			Set_Reason(W3DPostProcess::COLOR_GRADING, REASON_LUT_CREATE_FAILED);
 			Log_Once(REASON_LUT_CREATE_FAILED, hr);
 			return false;
 		}
@@ -689,29 +689,29 @@ namespace
 	void Set_Texel(IDirect3DDevice9 *device, float x, float y, float step_x, float step_y)
 	{
 		const float texel[4] = { x, y, step_x, step_y };
-		device->SetPixelShaderConstantF(EW_POST_PS_TEXEL, texel, 1);
+		device->SetPixelShaderConstantF(POST_PS_TEXEL, texel, 1);
 	}
 
 	// One pass into a whole bloom texture, reading source with linear filtering.
-	void Bloom_Pass(IDirect3DDevice9 *device, EwShaders::PixelShaderId shader, IDirect3DTexture9 *source,
+	void Bloom_Pass(IDirect3DDevice9 *device, ShaderLibrary::PixelShaderId shader, IDirect3DTexture9 *source,
 		IDirect3DSurface9 *dest, int width, int height)
 	{
 		device->SetRenderTarget(0, dest);
-		device->SetPixelShader(EwShaders::Peek_Pixel(shader));
+		device->SetPixelShader(ShaderLibrary::Peek_Pixel(shader));
 		Set_Texture(device, 0, source, true);
 		Draw_Quad(device, 0, 0, width, height, 0.0f, 0.0f, 1.0f, 1.0f);
-		++Stats[EwPostProcess::BLOOM].Passes;
+		++Stats[W3DPostProcess::BLOOM].Passes;
 	}
 
 	// Builds the three blurred bloom levels from the scene texture. Ends with the back buffer and
 	// its depth buffer bound again.
 	void Draw_Bloom(IDirect3DDevice9 *device)
 	{
-		const float strength = EwGraphics().Linear() ? BLOOM_LINEAR_STRENGTH : BLOOM_STRENGTH;
+		const float strength = Get_Graphics_Options().Linear() ? BLOOM_LINEAR_STRENGTH : BLOOM_STRENGTH;
 		const float params[4] = { BLOOM_THRESHOLD, 1.0f / (1.0f - BLOOM_THRESHOLD), strength, 0.0f };
 		const float weights[4] = { BLOOM_WEIGHTS[0], BLOOM_WEIGHTS[1], BLOOM_WEIGHTS[2], 0.0f };
-		device->SetPixelShaderConstantF(EW_POST_PS_BLOOM, params, 1);
-		device->SetPixelShaderConstantF(EW_POST_PS_BLOOM_WEIGHTS, weights, 1);
+		device->SetPixelShaderConstantF(POST_PS_BLOOM, params, 1);
+		device->SetPixelShaderConstantF(POST_PS_BLOOM_WEIGHTS, weights, 1);
 
 		// The bloom textures have no multisampling, so no (possibly multisampled) depth buffer may
 		// be bound with them.
@@ -724,13 +724,13 @@ namespace
 		{
 			BloomLevel &level = Bloom[i];
 			Set_Texel(device, 1.0f / source_w, 1.0f / source_h, 0.0f, 0.0f);
-			Bloom_Pass(device, i == 0 ? EwShaders::PS_POST_BRIGHT : EwShaders::PS_POST_DOWN, source,
+			Bloom_Pass(device, i == 0 ? ShaderLibrary::PS_POST_BRIGHT : ShaderLibrary::PS_POST_DOWN, source,
 				level.Surface[0], level.Width, level.Height);
 
 			Set_Texel(device, 0.0f, 0.0f, 1.0f / level.Width, 0.0f);
-			Bloom_Pass(device, EwShaders::PS_POST_BLUR, level.Texture[0], level.Surface[1], level.Width, level.Height);
+			Bloom_Pass(device, ShaderLibrary::PS_POST_BLUR, level.Texture[0], level.Surface[1], level.Width, level.Height);
 			Set_Texel(device, 0.0f, 0.0f, 0.0f, 1.0f / level.Height);
-			Bloom_Pass(device, EwShaders::PS_POST_BLUR, level.Texture[1], level.Surface[0], level.Width, level.Height);
+			Bloom_Pass(device, ShaderLibrary::PS_POST_BLUR, level.Texture[1], level.Surface[0], level.Width, level.Height);
 
 			source = level.Texture[0];
 			source_w = level.Width;
@@ -742,15 +742,15 @@ namespace
 	}
 
 	// One AO pass over a whole AO texture.
-	void Ao_Pass(IDirect3DDevice9 *device, EwShaders::PixelShaderId shader, IDirect3DSurface9 *dest)
+	void Ao_Pass(IDirect3DDevice9 *device, ShaderLibrary::PixelShaderId shader, IDirect3DSurface9 *dest)
 	{
 		device->SetRenderTarget(0, dest);
-		device->SetPixelShader(EwShaders::Peek_Pixel(shader));
+		device->SetPixelShader(ShaderLibrary::Peek_Pixel(shader));
 		Draw_Quad(device, 0, 0, AoWidth, AoHeight, 0.0f, 0.0f, 1.0f, 1.0f);
-		++Stats[EwPostProcess::AMBIENT_OCCLUSION].Passes;
+		++Stats[W3DPostProcess::AMBIENT_OCCLUSION].Passes;
 	}
 
-	// The EW_POST_PS_DEPTH constant: stored depth -> view depth. The projection maps view depth d
+	// The POST_PS_DEPTH constant: stored depth -> view depth. The projection maps view depth d
 	// to f/(f-n) * (1 - n/d), and the viewport puts that into zmin..zmax.
 	void Depth_Params(const CameraClass *camera, float depth[4])
 	{
@@ -784,7 +784,7 @@ namespace
 		device->SetRenderState(D3DRS_COLORWRITEENABLE, D3DCOLORWRITEENABLE_RED | D3DCOLORWRITEENABLE_GREEN
 			| D3DCOLORWRITEENABLE_BLUE | D3DCOLORWRITEENABLE_ALPHA);
 		device->SetFVF(POST_FVF);
-		device->SetVertexShader(EwShaders::Peek_Vertex(EwShaders::VS_POST));
+		device->SetVertexShader(ShaderLibrary::Peek_Vertex(ShaderLibrary::VS_POST));
 	}
 
 	// Creates the soft particle depth texture for the current scene texture, once.
@@ -793,7 +793,7 @@ namespace
 		if (ParticleDepthTexture == nullptr && ParticleDepthFailed == REASON_COUNT)
 		{
 			HRESULT hr = E_FAIL;
-			if (!EwShaders::Format_Supported(device, D3DUSAGE_RENDERTARGET, D3DRTYPE_TEXTURE, D3DFMT_R32F))
+			if (!ShaderLibrary::Format_Supported(device, D3DUSAGE_RENDERTARGET, D3DRTYPE_TEXTURE, D3DFMT_R32F))
 				ParticleDepthFailed = REASON_SOFT_NO_R32F;
 			else
 			{
@@ -813,7 +813,7 @@ namespace
 		}
 		if (ParticleDepthFailed != REASON_COUNT)
 		{
-			Set_Reason(EwPostProcess::SOFT_PARTICLES, ParticleDepthFailed);
+			Set_Reason(W3DPostProcess::SOFT_PARTICLES, ParticleDepthFailed);
 			return false;
 		}
 		return true;
@@ -855,49 +855,49 @@ namespace
 		const float ray[4] = { ray_x, ray_y, vmin.X - u0 * ray_x, vmax.Y - v0 * ray_y };
 		const float params[4] = { AO_RADIUS, AO_INTENSITY, AO_BIAS, AO_MAX_RADIUS_UV * du };
 		const float params2[4] = { du / view_w, dv / view_h, 1.0f / AoWidth, 1.0f / AoHeight };
-		const float final_params[4] = { EwGraphics().PostAoOnly() ? 1.0f : 0.0f, AO_DEPTH_SHARPNESS, AO_POWER, 0.0f };
-		device->SetPixelShaderConstantF(EW_POST_PS_DEPTH, depth, 1);
-		device->SetPixelShaderConstantF(EW_POST_PS_AO_RAY, ray, 1);
-		device->SetPixelShaderConstantF(EW_POST_PS_AO, params, 1);
-		device->SetPixelShaderConstantF(EW_POST_PS_AO2, params2, 1);
-		device->SetPixelShaderConstantF(EW_POST_PS_AO_FINAL, final_params, 1);
+		const float final_params[4] = { Get_Graphics_Options().PostAoOnly() ? 1.0f : 0.0f, AO_DEPTH_SHARPNESS, AO_POWER, 0.0f };
+		device->SetPixelShaderConstantF(POST_PS_DEPTH, depth, 1);
+		device->SetPixelShaderConstantF(POST_PS_AO_RAY, ray, 1);
+		device->SetPixelShaderConstantF(POST_PS_AO, params, 1);
+		device->SetPixelShaderConstantF(POST_PS_AO2, params2, 1);
+		device->SetPixelShaderConstantF(POST_PS_AO_FINAL, final_params, 1);
 
 		// The AO textures are smaller than the depth buffer, and the passes need none.
 		device->SetDepthStencilSurface(nullptr);
-		Set_Texture(device, EW_POST_DEPTH_SAMPLER, DepthTexture, false);
+		Set_Texture(device, POST_DEPTH_SAMPLER, DepthTexture, false);
 
 		// Occlusion. The taps stay half a texel inside the view rectangle; outside it the depth is
 		// the clear value, which the shader treats as too far to occlude.
 		const float tw = (float)TargetDesc.Width;
 		const float th = (float)TargetDesc.Height;
 		const float view_clamp[4] = { u0 + 0.5f / tw, v0 + 0.5f / th, u1 - 0.5f / tw, v1 - 0.5f / th };
-		device->SetPixelShaderConstantF(EW_POST_PS_CLAMP, view_clamp, 1);
+		device->SetPixelShaderConstantF(POST_PS_CLAMP, view_clamp, 1);
 		Set_Texel(device, 1.0f / tw, 1.0f / th, 0.0f, 0.0f);
-		Ao_Pass(device, EwShaders::PS_POST_AO, AoSurface[0]);
+		Ao_Pass(device, ShaderLibrary::PS_POST_AO, AoSurface[0]);
 
 		// Blur across, then down.
 		const float whole[4] = { 0.0f, 0.0f, 1.0f, 1.0f };
-		device->SetPixelShaderConstantF(EW_POST_PS_CLAMP, whole, 1);
-		Set_Texture(device, EW_POST_AO_SAMPLER, AoTexture[0], false);
+		device->SetPixelShaderConstantF(POST_PS_CLAMP, whole, 1);
+		Set_Texture(device, POST_AO_SAMPLER, AoTexture[0], false);
 		Set_Texel(device, 0.0f, 0.0f, 1.0f / AoWidth, 0.0f);
-		Ao_Pass(device, EwShaders::PS_POST_AO_BLUR, AoSurface[1]);
-		Set_Texture(device, EW_POST_AO_SAMPLER, AoTexture[1], false);
+		Ao_Pass(device, ShaderLibrary::PS_POST_AO_BLUR, AoSurface[1]);
+		Set_Texture(device, POST_AO_SAMPLER, AoTexture[1], false);
 		Set_Texel(device, 0.0f, 0.0f, 0.0f, 1.0f / AoHeight);
-		Ao_Pass(device, EwShaders::PS_POST_AO_BLUR, AoSurface[0]);
+		Ao_Pass(device, ShaderLibrary::PS_POST_AO_BLUR, AoSurface[0]);
 
 		device->SetRenderTarget(0, BackBuffer);
 		device->SetDepthStencilSurface(DepthBuffer);
 	}
 
 	// Whether a post effect runs this frame; sets the reason if not.
-	bool Effect_On(EwPostProcess::Effect effect, bool option, bool debug_off, Reason debug_reason,
-		EwShaders::PixelShaderId shader)
+	bool Effect_On(W3DPostProcess::Effect effect, bool option, bool debug_off, Reason debug_reason,
+		ShaderLibrary::PixelShaderId shader)
 	{
 		if (!option)
 			Set_Reason(effect, REASON_EFFECT_OFF);
 		else if (debug_off)
 			Set_Reason(effect, debug_reason);
-		else if (EwShaders::Peek_Pixel(shader) == nullptr)
+		else if (ShaderLibrary::Peek_Pixel(shader) == nullptr)
 			Set_Reason(effect, REASON_NO_SHADER);
 		else
 			return true;
@@ -905,16 +905,16 @@ namespace
 	}
 }
 
-bool EwPostProcess::Begin_Scene(float clear_alpha)
+bool W3DPostProcess::Begin_Scene(float clear_alpha)
 {
 	if (BackBuffer != nullptr)
 		return false;	// already rendering into the scene texture
 
-	const EwGraphicsOptions &o = EwGraphics();
+	const GraphicsOptions &o = Get_Graphics_Options();
 	if (!o.PostProcess())
 		return Fail(o.PostProcessWanted() ? REASON_DEBUG_OFF : REASON_OFF);
 
-	if (EwShaders::Peek_Vertex(EwShaders::VS_POST) == nullptr || EwShaders::Peek_Pixel(EwShaders::PS_POST_COPY) == nullptr)
+	if (ShaderLibrary::Peek_Vertex(ShaderLibrary::VS_POST) == nullptr || ShaderLibrary::Peek_Pixel(ShaderLibrary::PS_POST_COPY) == nullptr)
 		return Fail(REASON_NO_SHADER);
 
 	IDirect3DDevice9 *device = DX9Wrapper::_Get_D3D_Device9();
@@ -941,7 +941,7 @@ bool EwPostProcess::Begin_Scene(float clear_alpha)
 		if (hdr && !CreateFailed)
 		{
 			// Particles and water blend into the scene, and bloom and the water refraction filter it.
-			if (!EwShaders::Format_Supported(device, D3DUSAGE_RENDERTARGET | D3DUSAGE_QUERY_POSTPIXELSHADER_BLENDING
+			if (!ShaderLibrary::Format_Supported(device, D3DUSAGE_RENDERTARGET | D3DUSAGE_QUERY_POSTPIXELSHADER_BLENDING
 				| D3DUSAGE_QUERY_FILTER, D3DRTYPE_TEXTURE, FORMAT_HDR))
 				HdrFailed = REASON_HDR_NO_FORMAT;
 			else if (FAILED(hr = Create_Targets(device, desc, true)))
@@ -1001,11 +1001,11 @@ bool EwPostProcess::Begin_Scene(float clear_alpha)
 	return true;
 }
 
-void EwPostProcess::End_Scene(int x, int y, int width, int height, const CameraClass *camera)
+void W3DPostProcess::End_Scene(int x, int y, int width, int height, const CameraClass *camera)
 {
 	if (BackBuffer == nullptr)
 		return;
-	EwGpuTimer::Mark(EwGpuTimer::SCENE);
+	GpuTimer::Mark(GpuTimer::SCENE);
 	const bool scene_depth = SceneDepthBound;
 	SceneDepthBound = false;
 
@@ -1035,10 +1035,10 @@ void EwPostProcess::End_Scene(int x, int y, int width, int height, const CameraC
 
 	// Which effects of the final pass run. Bloom also needs its own shaders and textures, colour
 	// grading its LUT texture; without any effect the scene is only copied.
-	const EwGraphicsOptions &o = EwGraphics();
-	bool bloom = Effect_On(BLOOM, o.Bloom, false, REASON_EFFECT_OFF, EwShaders::PS_POST_FINAL);
-	if (bloom && (EwShaders::Peek_Pixel(EwShaders::PS_POST_BRIGHT) == nullptr || EwShaders::Peek_Pixel(EwShaders::PS_POST_DOWN) == nullptr
-		|| EwShaders::Peek_Pixel(EwShaders::PS_POST_BLUR) == nullptr))
+	const GraphicsOptions &o = Get_Graphics_Options();
+	bool bloom = Effect_On(BLOOM, o.Bloom, false, REASON_EFFECT_OFF, ShaderLibrary::PS_POST_FINAL);
+	if (bloom && (ShaderLibrary::Peek_Pixel(ShaderLibrary::PS_POST_BRIGHT) == nullptr || ShaderLibrary::Peek_Pixel(ShaderLibrary::PS_POST_DOWN) == nullptr
+		|| ShaderLibrary::Peek_Pixel(ShaderLibrary::PS_POST_BLUR) == nullptr))
 	{
 		Set_Reason(BLOOM, REASON_NO_SHADER);
 		bloom = false;
@@ -1046,14 +1046,14 @@ void EwPostProcess::End_Scene(int x, int y, int width, int height, const CameraC
 	if (bloom)
 		bloom = Bloom_Ready(device);
 	const bool tone = Effect_On(TONE_MAPPING, o.ToneMapping, o.DebugToneMappingOff, REASON_TONE_DEBUG_OFF,
-		EwShaders::PS_POST_FINAL);
+		ShaderLibrary::PS_POST_FINAL);
 	bool grade = Effect_On(COLOR_GRADING, o.ColorGrading, o.DebugColorGradingOff, REASON_GRADE_DEBUG_OFF,
-		EwShaders::PS_POST_FINAL);
+		ShaderLibrary::PS_POST_FINAL);
 	if (grade)
 		grade = Lut_Ready(device);
 	bool ao = Effect_On(AMBIENT_OCCLUSION, o.AmbientOcclusion > 0, o.DebugAoMode == 2, REASON_AO_DEBUG_OFF,
-		EwShaders::PS_POST_FINAL);
-	if (ao && (EwShaders::Peek_Pixel(EwShaders::PS_POST_AO) == nullptr || EwShaders::Peek_Pixel(EwShaders::PS_POST_AO_BLUR) == nullptr))
+		ShaderLibrary::PS_POST_FINAL);
+	if (ao && (ShaderLibrary::Peek_Pixel(ShaderLibrary::PS_POST_AO) == nullptr || ShaderLibrary::Peek_Pixel(ShaderLibrary::PS_POST_AO_BLUR) == nullptr))
 	{
 		Set_Reason(AMBIENT_OCCLUSION, REASON_NO_SHADER);
 		ao = false;
@@ -1071,7 +1071,7 @@ void EwPostProcess::End_Scene(int x, int y, int width, int height, const CameraC
 	if (ao)
 		ao = Ao_Ready(device, o.AmbientOcclusion >= 2 ? 1 : 2);
 	const bool final_effects = bloom || tone || grade || ao;
-	bool fxaa = Effect_On(FXAA, o.FXAA, o.DebugFxaaOff, REASON_FXAA_DEBUG_OFF, EwShaders::PS_POST_FXAA);
+	bool fxaa = Effect_On(FXAA, o.FXAA, o.DebugFxaaOff, REASON_FXAA_DEBUG_OFF, ShaderLibrary::PS_POST_FXAA);
 	if (fxaa && final_effects)
 		fxaa = Final_Ready(device);
 
@@ -1083,12 +1083,12 @@ void EwPostProcess::End_Scene(int x, int y, int width, int height, const CameraC
 	if (ao)
 	{
 		Draw_Ao(device, camera, u0, v0, u1, v1);
-		EwGpuTimer::Mark(EwGpuTimer::AO);
+		GpuTimer::Mark(GpuTimer::AO);
 	}
 	if (bloom)
 	{
 		Draw_Bloom(device);
-		EwGpuTimer::Mark(EwGpuTimer::BLOOM);
+		GpuTimer::Mark(GpuTimer::BLOOM);
 	}
 
 	// The final pass, onto the back buffer over the view rectangle, or into the same rectangle of
@@ -1114,26 +1114,26 @@ void EwPostProcess::End_Scene(int x, int y, int width, int height, const CameraC
 			Set_Texture(device, 4, LutTexture, true);
 		if (ao)
 		{
-			Set_Texture(device, EW_POST_AO_SAMPLER, AoTexture[0], false);
-			Set_Texture(device, EW_POST_DEPTH_SAMPLER, DepthTexture, false);
+			Set_Texture(device, POST_AO_SAMPLER, AoTexture[0], false);
+			Set_Texture(device, POST_DEPTH_SAMPLER, DepthTexture, false);
 		}
 		const float final_flags[4] = { bloom ? 1.0f : 0.0f, tone ? 1.0f : 0.0f, grade ? 1.0f : 0.0f, ao ? 1.0f : 0.0f };
 		// The curve works on linear light; 1 / (the curve at white) keeps white at white.
 		const float exposure = SceneHdr ? TONE_HDR_EXPOSURE : TONE_EXPOSURE;
 		const float white = SceneHdr ? powf(TONE_HDR_WHITE, 2.2f) : 1.0f;
 		const float tone_params[4] = { exposure, 1.0f / Filmic_Curve(exposure * white), 0.0f, 0.0f };
-		device->SetPixelShaderConstantF(EW_POST_PS_FINAL, final_flags, 1);
-		device->SetPixelShaderConstantF(EW_POST_PS_TONE, tone_params, 1);
-		device->SetPixelShader(EwShaders::Peek_Pixel(EwShaders::PS_POST_FINAL));
+		device->SetPixelShaderConstantF(POST_PS_FINAL, final_flags, 1);
+		device->SetPixelShaderConstantF(POST_PS_TONE, tone_params, 1);
+		device->SetPixelShader(ShaderLibrary::Peek_Pixel(ShaderLibrary::PS_POST_FINAL));
 		Draw_Quad(device, x, y, width, height, u0, v0, u1, v1);
 	}
 	else if (!fxaa)
 	{
-		device->SetPixelShader(EwShaders::Peek_Pixel(EwShaders::PS_POST_COPY));
+		device->SetPixelShader(ShaderLibrary::Peek_Pixel(ShaderLibrary::PS_POST_COPY));
 		Draw_Quad(device, x, y, width, height, u0, v0, u1, v1);
 	}
 	if (final_effects || !fxaa)
-		EwGpuTimer::Mark(EwGpuTimer::FINAL);
+		GpuTimer::Mark(GpuTimer::FINAL);
 	++Stats[SCENE].Passes;
 	if (SceneHdr)
 		++Stats[HDR].Passes;
@@ -1155,10 +1155,10 @@ void EwPostProcess::End_Scene(int x, int y, int width, int height, const CameraC
 		Set_Texture(device, 0, fxaa_source, true);
 		Set_Texel(device, 1.0f / tw, 1.0f / th, 0.0f, 0.0f);
 		const float clamp_uv[4] = { u0 + 0.5f / tw, v0 + 0.5f / th, u1 - 0.5f / tw, v1 - 0.5f / th };
-		device->SetPixelShaderConstantF(EW_POST_PS_CLAMP, clamp_uv, 1);
-		device->SetPixelShader(EwShaders::Peek_Pixel(EwShaders::PS_POST_FXAA));
+		device->SetPixelShaderConstantF(POST_PS_CLAMP, clamp_uv, 1);
+		device->SetPixelShader(ShaderLibrary::Peek_Pixel(ShaderLibrary::PS_POST_FXAA));
 		Draw_Quad(device, x, y, width, height, u0, v0, u1, v1);
-		EwGpuTimer::Mark(EwGpuTimer::FXAA);
+		GpuTimer::Mark(GpuTimer::FXAA);
 		++Stats[FXAA].Passes;
 	}
 
@@ -1168,9 +1168,9 @@ void EwPostProcess::End_Scene(int x, int y, int width, int height, const CameraC
 	Release_Saved_Targets();
 }
 
-void EwPostProcess::Begin_Particles(const CameraClass *camera)
+void W3DPostProcess::Begin_Particles(const CameraClass *camera)
 {
-	const EwGraphicsOptions &o = EwGraphics();
+	const GraphicsOptions &o = Get_Graphics_Options();
 	if (BackBuffer == nullptr)
 		return;	// no scene texture; Begin_Scene() gave the reason
 	if (!o.SoftParticles)
@@ -1181,8 +1181,8 @@ void EwPostProcess::Begin_Particles(const CameraClass *camera)
 		return Set_Reason(SOFT_PARTICLES, DepthReason);
 	if (camera == nullptr)
 		return Set_Reason(SOFT_PARTICLES, REASON_AO_NO_CAMERA);
-	if (EwShaders::Peek_Pixel(EwShaders::PS_POST_DEPTH_COPY) == nullptr || EwShaders::Peek_Vertex(EwShaders::VS_PARTICLE) == nullptr
-		|| EwShaders::Peek_Pixel(EwShaders::PS_PARTICLE) == nullptr)
+	if (ShaderLibrary::Peek_Pixel(ShaderLibrary::PS_POST_DEPTH_COPY) == nullptr || ShaderLibrary::Peek_Vertex(ShaderLibrary::VS_PARTICLE) == nullptr
+		|| ShaderLibrary::Peek_Pixel(ShaderLibrary::PS_PARTICLE) == nullptr)
 		return Set_Reason(SOFT_PARTICLES, REASON_NO_SHADER);
 
 	IDirect3DDevice9 *device = DX9Wrapper::_Get_D3D_Device9();
@@ -1209,33 +1209,33 @@ void EwPostProcess::Begin_Particles(const CameraClass *camera)
 	Set_Post_States(device);
 	float depth_params[4];
 	Depth_Params(camera, depth_params);
-	device->SetPixelShaderConstantF(EW_POST_PS_DEPTH, depth_params, 1);
-	Set_Texture(device, EW_POST_DEPTH_SAMPLER, DepthTexture, false);
-	device->SetPixelShader(EwShaders::Peek_Pixel(EwShaders::PS_POST_DEPTH_COPY));
+	device->SetPixelShaderConstantF(POST_PS_DEPTH, depth_params, 1);
+	Set_Texture(device, POST_DEPTH_SAMPLER, DepthTexture, false);
+	device->SetPixelShader(ShaderLibrary::Peek_Pixel(ShaderLibrary::PS_POST_DEPTH_COPY));
 	Draw_Quad(device, 0, 0, (int)TargetDesc.Width, (int)TargetDesc.Height, 0.0f, 0.0f, 1.0f, 1.0f);
 	device->SetRenderTarget(0, target);
 	device->SetDepthStencilSurface(DepthSurface);
 	target->Release();
 	SavedStates->Apply();
 
-	Set_Texture(device, EW_PARTICLE_DEPTH_SAMPLER, ParticleDepthTexture, false);
+	Set_Texture(device, PARTICLE_DEPTH_SAMPLER, ParticleDepthTexture, false);
 	ParticleDepthBound = true;
-	EwMeshShader::Set_Scene_Depth(1.0f / (float)TargetDesc.Width, 1.0f / (float)TargetDesc.Height);
+	MeshShader::Set_Scene_Depth(1.0f / (float)TargetDesc.Width, 1.0f / (float)TargetDesc.Height);
 	++Stats[SOFT_PARTICLES].Passes;
 }
 
-void EwPostProcess::End_Particles()
+void W3DPostProcess::End_Particles()
 {
 	if (!ParticleDepthBound)
 		return;
 	ParticleDepthBound = false;
-	EwMeshShader::Set_Scene_Depth(0.0f, 0.0f);
+	MeshShader::Set_Scene_Depth(0.0f, 0.0f);
 	IDirect3DDevice9 *device = DX9Wrapper::_Get_D3D_Device9();
 	if (device)
-		device->SetTexture(EW_PARTICLE_DEPTH_SAMPLER, nullptr);
+		device->SetTexture(PARTICLE_DEPTH_SAMPLER, nullptr);
 }
 
-void EwPostProcess::Release()
+void W3DPostProcess::Release()
 {
 	if (ParticleDepthBound)
 		End_Particles();
@@ -1260,7 +1260,7 @@ void EwPostProcess::Release()
 	SceneDepthBound = false;
 }
 
-void EwPostProcess::New_Frame()
+void W3DPostProcess::New_Frame()
 {
 	for (int i = 0; i < EFFECT_COUNT; ++i)
 	{
@@ -1272,17 +1272,17 @@ void EwPostProcess::New_Frame()
 	}
 }
 
-unsigned EwPostProcess::Last_Frame_Passes(Effect effect)
+unsigned W3DPostProcess::Last_Frame_Passes(Effect effect)
 {
 	return Stats[effect].LastPasses;
 }
 
-const char *EwPostProcess::Last_Reason(Effect effect)
+const char *W3DPostProcess::Last_Reason(Effect effect)
 {
 	return Stats[effect].LastReason ? Stats[effect].LastReason : ReasonText[REASON_NOT_DRAWN];
 }
 
-const char *EwPostProcess::Color_Lut_File()
+const char *W3DPostProcess::Color_Lut_File()
 {
 	return LutChosen && LutFile[0] != '\0' ? LutFile : nullptr;
 }

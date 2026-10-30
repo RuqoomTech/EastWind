@@ -549,7 +549,7 @@ void DX9Wrapper::Do_Onetime_Device_Dependent_Shutdowns()
 	REF_PTR_RELEASE(render_state.index_buffer);
 	REF_PTR_RELEASE(render_state.material);
 	for (i=0;i<CurrentCaps->Get_Max_Textures_Per_Pass();++i) REF_PTR_RELEASE(render_state.Textures[i]);
-	EwMeshShader::Shutdown();
+	MeshShader::Shutdown();
 
 
 	TextureLoader::Deinit();
@@ -563,7 +563,7 @@ void DX9Wrapper::Do_Onetime_Device_Dependent_Shutdowns()
 	SHD_SHUTDOWN;
 	TheDX9MeshRenderer.Shutdown();
 	MissingTexture::_Deinit();
-	EwShaders::Shutdown();
+	ShaderLibrary::Shutdown();
 
 	delete CurrentCaps;
 	CurrentCaps=nullptr;
@@ -2099,7 +2099,7 @@ void DX9Wrapper::Draw_Sorting_IB_VB(
 	DX9_RECORD_INDEX_BUFFER_CHANGE();
 
 	DX9_RECORD_DRAW_CALLS();
-	const bool mesh_shader = EwMeshShader::Begin();
+	const bool mesh_shader = MeshShader::Begin();
 	DX9CALL(DrawIndexedPrimitive(
 		D3DPT_TRIANGLELIST,
 		_Base_Vertex_Index,
@@ -2108,7 +2108,7 @@ void DX9Wrapper::Draw_Sorting_IB_VB(
 		dyn_ib_access.IndexBufferOffset,
 		polygon_count));
 	if (mesh_shader)
-		EwMeshShader::End();
+		MeshShader::End();
 
 	DX9_RECORD_RENDER(polygon_count,vertex_count,render_state.shader);
 }
@@ -2216,7 +2216,7 @@ void DX9Wrapper::Draw(
 				}*/
 				DX9_RECORD_RENDER(polygon_count,vertex_count,render_state.shader);
 				DX9_RECORD_DRAW_CALLS();
-				const bool mesh_shader = EwMeshShader::Begin();
+				const bool mesh_shader = MeshShader::Begin();
 				DX9CALL(DrawIndexedPrimitive(
 					(D3DPRIMITIVETYPE)primitive_type,
 					_Base_Vertex_Index,
@@ -2225,7 +2225,7 @@ void DX9Wrapper::Draw(
 					start_index+render_state.iba_offset,
 					polygon_count));
 				if (mesh_shader)
-					EwMeshShader::End();
+					MeshShader::End();
 			}
 			break;
 		case BUFFER_TYPE_SORTING:
@@ -2834,7 +2834,7 @@ HRESULT Copy_Surface_Rect(IDirect3DDevice9Ex* device, IDirect3DSurface9* src, co
 	}
 
 	// Render target (the back buffer, say) to system memory: read the whole target back first.
-	// EW_DX9_TODO: multisampled targets need a StretchRect to a plain target before this.
+	// DX9_TODO: multisampled targets need a StretchRect to a plain target before this.
 	if ((src_desc.Usage & D3DUSAGE_RENDERTARGET) && src_desc.Pool==D3DPOOL_DEFAULT && dest_desc.Pool==D3DPOOL_SYSTEMMEM) {
 		const RECT src_full=Full_Rect(src_desc);
 		if (src_desc.Width==dest_desc.Width && src_desc.Height==dest_desc.Height &&
@@ -2976,7 +2976,7 @@ HRESULT DX9Wrapper::_Load_Surface_From_Surface(
 	const WW3DFormat dest_format=D3DFormat_To_WW3DFormat(dest_desc.Format);
 	const WW3DFormat src_format=D3DFormat_To_WW3DFormat(src_desc.Format);
 	if (!Is_CPU_Format(dest_format) || !Is_CPU_Format(src_format)) {
-		// EW_DX9_TODO: DXT and bump conversion (D3DX could decompress and recompress).
+		// DX9_TODO: DXT and bump conversion (D3DX could decompress and recompress).
 		WWDEBUG_SAY(("DX9: cannot convert surface format %d to %d", src_desc.Format, dest_desc.Format));
 		return D3DERR_INVALIDCALL;
 	}
@@ -3059,7 +3059,7 @@ HRESULT DX9Wrapper::_Filter_Texture(IDirect3DBaseTexture9* texture)
 	}
 
 	default:
-		// EW_DX9_TODO: volume mip filtering. Nothing in Zero Hour filters volume textures.
+		// DX9_TODO: volume mip filtering. Nothing in Zero Hour filters volume textures.
 		WWDEBUG_SAY(("DX9: _Filter_Texture does not handle resource type %d", texture->GetType()));
 		return D3DERR_INVALIDCALL;
 	}

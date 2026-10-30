@@ -2027,7 +2027,7 @@ void HeightMapRenderObjClass::Render(RenderInfoClass & rinfo)
  	for (pass=0; pass<devicePasses; pass++) {
 #ifdef TIMING_TESTS
 #endif
-		Bool ewLit = false;	// EastWind M3.1c: the pass is lit per pixel
+		Bool perPixelLit = false;	// EastWind M3.1c: the pass is lit per pixel
 		if (!doMultiPassWireFrame)	//multi-pass wireframe doesn't use regular shaders.
 		{
  			if (m_disableTextures ) {
@@ -2035,7 +2035,7 @@ void HeightMapRenderObjClass::Render(RenderInfoClass & rinfo)
  				DX9Wrapper::Set_Texture(0,nullptr);
    			} else {
  				W3DShaderManager::setShader(st, pass);
-				ewLit = EwTerrainLighting::Begin(m_map);
+				perPixelLit = W3DTerrainLighting::Begin(m_map);
 			}
 		}
 
@@ -2066,8 +2066,8 @@ void HeightMapRenderObjClass::Render(RenderInfoClass & rinfo)
 				}
 
 			}
-		if (ewLit)
-			EwTerrainLighting::End();
+		if (perPixelLit)
+			W3DTerrainLighting::End();
 	}
 
 	if (!doMultiPassWireFrame)
@@ -2392,15 +2392,15 @@ void HeightMapRenderObjClass::renderExtraBlendTiles()
 			for (Int pass=0; pass < devicePasses; pass++)
 			{
 				W3DShaderManager::setShader(st, pass);
-				// EastWind M3.1d: per-pixel light, drawn in one pass (EwPerPixelLighting).
-				const Bool ewLit = (pass == 0) && EwTerrainLighting::Begin_Road(m_map,
+				// EastWind M3.1d: per-pixel light, drawn in one pass (PerPixelLighting).
+				const Bool perPixelLit = (pass == 0) && W3DTerrainLighting::Begin_Road(m_map,
 					(st == W3DShaderManager::ST_ROAD_BASE) ? 0 : ((st == W3DShaderManager::ST_ROAD_BASE_NOISE12) ? 2 : 1), devicePasses);
 				if (Is_Hidden() == 0) {
 					DX9Wrapper::Draw_Triangles(	0,indexCount/3, 0,	vertexCount);	//draw a quad, 2 triangles, 4 verts
 					m_numVisibleExtraBlendTiles += indexCount/6;
 				}
-				if (ewLit) {
-					EwTerrainLighting::End();
+				if (perPixelLit) {
+					W3DTerrainLighting::End();
 					break;
 				}
 			}

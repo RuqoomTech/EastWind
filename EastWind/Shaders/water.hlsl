@@ -40,7 +40,7 @@ float4 TrapezoidPS(PsIn i) : COLOR
 }
 
 // ------------------------------------------------------------------------------------------------
-// M3.3a water shader (Options.ini EwWaterQuality = 1), bound by W3DWaterShader.cpp over the pass the
+// M3.3a water shader (Options.ini WaterQuality = 1), bound by W3DWaterShader.cpp over the pass the
 // parity shaders above would draw. It keeps their textures and adds:
 // - waves: two layers of a tiling normal map (s4) scrolling in different directions;
 // - Fresnel: the water reflects more where the view is flat to it;
@@ -52,25 +52,25 @@ float4 TrapezoidPS(PsIn i) : COLOR
 
 #include "shader_constants.h"
 
-float4 WaterWorldViewProj[4] : EW_REG(EW_WATER_VS_WVP);
-float4 WaterWorld[3]         : EW_REG(EW_WATER_VS_WORLD);
-float4 WaterWorldView[3]     : EW_REG(EW_WATER_VS_WORLDVIEW);
-float4 NoiseMatrix[2]        : EW_REG(EW_WATER_VS_NOISE);
-float4 ShroudMatrix[2]       : EW_REG(EW_WATER_VS_SHROUD);
-float4 WaterVsOptions        : EW_REG(EW_WATER_VS_OPTIONS);	// x range fog
-float4 WaveOffsets           : EW_REG(EW_WATER_VS_WAVES);	// xy layer A, zw layer B
-float4 WaveScale             : EW_REG(EW_WATER_VS_WAVE_SCALE);	// x layer A, y layer B, z river, w river tiling
+float4 WaterWorldViewProj[4] : SHADER_REG(WATER_VS_WVP);
+float4 WaterWorld[3]         : SHADER_REG(WATER_VS_WORLD);
+float4 WaterWorldView[3]     : SHADER_REG(WATER_VS_WORLDVIEW);
+float4 NoiseMatrix[2]        : SHADER_REG(WATER_VS_NOISE);
+float4 ShroudMatrix[2]       : SHADER_REG(WATER_VS_SHROUD);
+float4 WaterVsOptions        : SHADER_REG(WATER_VS_OPTIONS);	// x range fog
+float4 WaveOffsets           : SHADER_REG(WATER_VS_WAVES);	// xy layer A, zw layer B
+float4 WaveScale             : SHADER_REG(WATER_VS_WAVE_SCALE);	// x layer A, y layer B, z river, w river tiling
 
-float4 SunDirection          : EW_REG(EW_WATER_PS_SUN);
-float4 SunColor              : EW_REG(EW_WATER_PS_SUN_COLOR);	// w specular power
-float4 CameraPosition        : EW_REG(EW_WATER_PS_CAMERA);
-float4 Fresnel               : EW_REG(EW_WATER_PS_FRESNEL);	// x bias, y scale, z power, w most reflection
-float4 WaterPsOptions        : EW_REG(EW_WATER_PS_OPTIONS);	// x distortion, y normal strength, z specular strength
-float4 WaterFog              : EW_REG(EW_WATER_PS_FOG);	// x enable, y end, z 1 / (end - start)
-float4 WaterFogColor         : EW_REG(EW_WATER_PS_FOGCOLOR);
-float4 SkyColor              : EW_REG(EW_WATER_PS_SKY);	// w has reflection
-float4 RiverOptions          : EW_REG(EW_WATER_PS_RIVER);	// x INI vertex alpha
-float4 WaveLook              : EW_REG(EW_WATER_PS_WAVE_LOOK);	// x wave shading, y texture wobble, z reflection opacity
+float4 SunDirection          : SHADER_REG(WATER_PS_SUN);
+float4 SunColor              : SHADER_REG(WATER_PS_SUN_COLOR);	// w specular power
+float4 CameraPosition        : SHADER_REG(WATER_PS_CAMERA);
+float4 Fresnel               : SHADER_REG(WATER_PS_FRESNEL);	// x bias, y scale, z power, w most reflection
+float4 WaterPsOptions        : SHADER_REG(WATER_PS_OPTIONS);	// x distortion, y normal strength, z specular strength
+float4 WaterFog              : SHADER_REG(WATER_PS_FOG);	// x enable, y end, z 1 / (end - start)
+float4 WaterFogColor         : SHADER_REG(WATER_PS_FOGCOLOR);
+float4 SkyColor              : SHADER_REG(WATER_PS_SKY);	// w has reflection
+float4 RiverOptions          : SHADER_REG(WATER_PS_RIVER);	// x INI vertex alpha
+float4 WaveLook              : SHADER_REG(WATER_PS_WAVE_LOOK);	// x wave shading, y texture wobble, z reflection opacity
 
 sampler2D WaveNormals : register(s4);
 sampler2D Reflection  : register(s5);
@@ -140,8 +140,8 @@ struct WaterPsIn
 struct WaterLight
 {
 	float3 normal;		// the wave normal
-	float3 reflection;	// what the water mirrors, linear with EwLinearLighting (shader_linear.h)
-	float3 specular;	// the sun on the waves, linear with EwLinearLighting
+	float3 reflection;	// what the water mirrors, linear with LinearLighting (shader_linear.h)
+	float3 specular;	// the sun on the waves, linear with LinearLighting
 	float fresnel;		// how much of the reflection shows
 	float shade;		// sun light on the wave relative to flat water, 1 on average
 	float shadow;		// sun shadow map: 1 lit, 0 in shadow
@@ -165,7 +165,7 @@ WaterLight Water_Light_From(WaterPsIn i, float3 n)
 
 	WaterLight l;
 	l.normal = n;
-	l.shadow = Ew_Sun_Shadow(i.worldFog.xyz, float3(0.0, 0.0, 1.0), SunDirection.xyz);
+	l.shadow = Sun_Shadow(i.worldFog.xyz, float3(0.0, 0.0, 1.0), SunDirection.xyz);
 	// Slopes toward the sun are brighter and slopes away darker, so the waves show on the water
 	// itself. Relative to flat water, so the water keeps its classic brightness on average.
 	float sunUp = max(SunDirection.z, 0.25);
@@ -176,10 +176,10 @@ WaterLight Water_Light_From(WaterPsIn i, float3 n)
 	// Points on the water plane are at the same screen position in the mirrored view.
 	float2 screenUv = i.screen.xy / i.screen.z * float2(0.5, -0.5) + 0.5;
 	float3 mirrored = tex2D(Reflection, screenUv + n.xy * WaterPsOptions.x).rgb;
-	l.reflection = Ew_To_Linear(lerp(SkyColor.rgb, mirrored, SkyColor.w));
+	l.reflection = To_Linear(lerp(SkyColor.rgb, mirrored, SkyColor.w));
 
 	float3 h = normalize(SunDirection.xyz + toEye);
-	l.specular = Ew_To_Linear(SunColor.rgb) * (pow(saturate(dot(n, h)), SunColor.w) * WaterPsOptions.z * l.shadow);
+	l.specular = To_Linear(SunColor.rgb) * (pow(saturate(dot(n, h)), SunColor.w) * WaterPsOptions.z * l.shadow);
 	return l;
 }
 
@@ -206,7 +206,7 @@ float4 WaterTrapezoidPS(WaterPsIn i) : COLOR
 	float4 base = i.diffuse * t0;
 	base.rgb *= l.shade;
 	// The reflection and sun mix in linear space; the shroud multiplies, so it can stay gamma.
-	float3 rgb = Ew_To_Gamma(lerp(Ew_To_Linear(base.rgb) + Ew_To_Linear(t1.rgb * t2.rgb), l.reflection, l.fresnel) + l.specular);
+	float3 rgb = To_Gamma(lerp(To_Linear(base.rgb) + To_Linear(t1.rgb * t2.rgb), l.reflection, l.fresnel) + l.specular);
 	rgb *= t3.rgb;
 	// Reflections show on the water even where it is see-through, part way so it stays clear.
 	float alpha = saturate(base.a + l.fresnel * WaveLook.z * (1.0 - base.a));
@@ -225,16 +225,16 @@ float4 WaterRiverPS(WaterPsIn i) : COLOR
 
 	float shroud = saturate(i.diffuse.a / max(RiverOptions.x, 1.0 / 255.0));
 	float3 sparkles = (t1.rgb * t2.rgb + t3.rgb) * i.diffuse.a;
-	float3 base = Ew_To_Linear(i.diffuse.rgb * t0.rgb * l.shade) + Ew_To_Linear(sparkles);
+	float3 base = To_Linear(i.diffuse.rgb * t0.rgb * l.shade) + To_Linear(sparkles);
 	float fresnel = l.fresnel * shroud;
-	float shroudLinear = Ew_To_Linear(shroud.xxx).x;
-	float3 rgb = Ew_To_Gamma(lerp(base, l.reflection * shroudLinear, fresnel) + l.specular * shroudLinear);
+	float shroudLinear = To_Linear(shroud.xxx).x;
+	float3 rgb = To_Gamma(lerp(base, l.reflection * shroudLinear, fresnel) + l.specular * shroudLinear);
 	float alpha = saturate(t0.a + fresnel * WaveLook.z * (1.0 - t0.a)) * t3.a;
 	return float4(Water_Fog(rgb, i.worldFog.w), alpha);
 }
 
 // ------------------------------------------------------------------------------------------------
-// M3.3b water seen into (Options.ini EwWaterQuality = 2). The same waves, Fresnel, reflection and
+// M3.3b water seen into (Options.ini WaterQuality = 2). The same waves, Fresnel, reflection and
 // sun as above, but the water is no longer a see-through texture over the ground:
 // - refraction: the scene behind the water (s6, copied before the first water draw of the frame),
 //   read at the pixel's screen position and moved by the waves where the water is deep enough;
@@ -247,13 +247,13 @@ float4 WaterRiverPS(WaterPsIn i) : COLOR
 // (its smallest mip) tints the deep water, so each map keeps its water colour.
 // ------------------------------------------------------------------------------------------------
 
-float4 RefractionScreen      : EW_REG(EW_WATER_PS_SCREEN);	// xy scale, zw offset
-float4 HeightMapping         : EW_REG(EW_WATER_PS_HEIGHT);	// xy scale, zw offset
-float4 WaterBody             : EW_REG(EW_WATER_PS_BODY);	// x height per value, y has heights, z shore phase, w distortion
-float4 Absorption            : EW_REG(EW_WATER_PS_ABSORB);	// rgb per world unit, w deep colour scale
-float4 ShoreFoam             : EW_REG(EW_WATER_PS_FOAM);	// x foam depth, y foam strength, z caustics, w caustic fade depth
-float4 AmbientLight          : EW_REG(EW_WATER_PS_AMBIENT);	// rgb ambient, w broad glint strength
-float4 WaveMix               : EW_REG(EW_WATER_PS_WAVE_MIX);	// x swell size, y swell strength, z ripple strength
+float4 RefractionScreen      : SHADER_REG(WATER_PS_SCREEN);	// xy scale, zw offset
+float4 HeightMapping         : SHADER_REG(WATER_PS_HEIGHT);	// xy scale, zw offset
+float4 WaterBody             : SHADER_REG(WATER_PS_BODY);	// x height per value, y has heights, z shore phase, w distortion
+float4 Absorption            : SHADER_REG(WATER_PS_ABSORB);	// rgb per world unit, w deep colour scale
+float4 ShoreFoam             : SHADER_REG(WATER_PS_FOAM);	// x foam depth, y foam strength, z caustics, w caustic fade depth
+float4 AmbientLight          : SHADER_REG(WATER_PS_AMBIENT);	// rgb ambient, w broad glint strength
+float4 WaveMix               : SHADER_REG(WATER_PS_WAVE_MIX);	// x swell size, y swell strength, z ripple strength
 
 sampler2D Refraction    : register(s6);
 sampler2D TerrainHeight : register(s7);
@@ -291,8 +291,8 @@ WaterLayers Water_Layers(WaterPsIn i, WaterLight l, float3 tint)
 	// The ground behind, bent by the waves. No bending at the shore, where it would show the land.
 	float2 screenUv = i.screen.xy / i.screen.z * RefractionScreen.xy + RefractionScreen.zw;
 	float bend = WaterBody.w * saturate(depth * 0.1);
-	float3 behind = Ew_To_Linear(tex2D(Refraction, screenUv + l.normal.xy * bend).rgb);
-	float3 sun = Ew_To_Linear(SunColor.rgb);
+	float3 behind = To_Linear(tex2D(Refraction, screenUv + l.normal.xy * bend).rgb);
+	float3 sun = To_Linear(SunColor.rgb);
 
 	// Caustics: two webs of focused light crossing on the ground, strongest in the shallows.
 	float2 causticUv = i.waves.xy * 3.1 + l.normal.xy * 0.08;
@@ -301,7 +301,7 @@ WaterLayers Water_Layers(WaterPsIn i, WaterLight l, float3 tint)
 	behind *= 1.0 + sun * (pow(web, 4.0) * ShoreFoam.z * causticFade);
 
 	// The water's own colour, lit by the waves, where the light is used up.
-	float3 deep = Ew_To_Linear(tint) * Absorption.w * l.shade;
+	float3 deep = To_Linear(tint) * Absorption.w * l.shade;
 
 	// Shore foam: bubbles and streaks in a band along the shore that grows and shrinks with slow
 	// waves running in, broken up by the noise so it is never a clean line.
@@ -313,7 +313,7 @@ WaterLayers Water_Layers(WaterPsIn i, WaterLight l, float3 tint)
 	band *= band;
 	float edgeLine = saturate(1.0 - depth * 3.0);	// a thin wash right at the water's edge
 	float foam = saturate(saturate((pattern + band * 1.3 - 1.0) * 2.5) * band + edgeLine * 0.5 * pattern) * ShoreFoam.y;
-	float3 foamColor = (Ew_To_Linear(AmbientLight.rgb) + sun * (saturate(SunDirection.z) * l.shadow)) * 0.85;
+	float3 foamColor = (To_Linear(AmbientLight.rgb) + sun * (saturate(SunDirection.z) * l.shadow)) * 0.85;
 
 	float3 h = normalize(SunDirection.xyz + toEye);
 	float3 glint = l.specular + sun * (pow(saturate(dot(l.normal, h)), 48.0) * AmbientLight.w * l.shadow);
@@ -329,16 +329,16 @@ WaterLayers Water_Layers(WaterPsIn i, WaterLight l, float3 tint)
 }
 
 // The refraction is already shrouded and fogged in the scene; the rest is shrouded and fogged here.
-// The layers are linear with EwLinearLighting, so the fog mixes in linear space here too.
+// The layers are linear with LinearLighting, so the fog mixes in linear space here too.
 float3 Water_Combine(WaterLayers w, float3 shroud, float fogDistance)
 {
-	float3 surface = w.surface * Ew_To_Linear(shroud);
+	float3 surface = w.surface * To_Linear(shroud);
 	[branch] if (WaterFog.x > 0.5)
 	{
 		float f = saturate((WaterFog.y - fogDistance) * WaterFog.z);
-		surface = lerp(Ew_To_Linear(WaterFogColor.rgb) * w.surfaceCover, surface, f);
+		surface = lerp(To_Linear(WaterFogColor.rgb) * w.surfaceCover, surface, f);
 	}
-	return Ew_To_Gamma(w.refraction * w.behind + surface);
+	return To_Gamma(w.refraction * w.behind + surface);
 }
 
 // The average colour of the classic water texture, tinted by the vertex colour.

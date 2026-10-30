@@ -2,9 +2,9 @@
 
 For every texture the game's W3D models use, writes <name>_nrm.dds (tangent-space normal map,
 DirectX convention) and <name>_spm.dds (SpecMap: R specular, G glow, B house colour), DXT1 with
-all mip levels (the engine does not make mip levels for DDS files), into one archive, EwMaterialMapsZH.big, in the game folder. The game loads every .big in its folder, so
+all mip levels (the engine does not make mip levels for DDS files), into one archive, MaterialMapsZH.big, in the game folder. The game loads every .big in its folder, so
 deleting that file restores the stock look. The DX9 build draws the textures when Options.ini
-has EwPerPixelLighting = yes and EwNormalMaps = yes (EwMeshShader, M3.1b).
+has PerPixelLighting = yes and NormalMaps = yes (MeshShader, M3.1b).
 
 The textures are derived from the diffuse colour, so they are a stand-in until artists make
 real ones: fine surface detail becomes bumps, bright unsaturated paint (metal, glass) becomes
@@ -193,12 +193,12 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('zh', help='Zero Hour folder')
     parser.add_argument('--generals', help='Generals folder (default: next to the Zero Hour folder)')
-    parser.add_argument('--out', help='output archive (default: <Zero Hour folder>/EwMaterialMapsZH.big)')
+    parser.add_argument('--out', help='output archive (default: <Zero Hour folder>/MaterialMapsZH.big)')
     parser.add_argument('--limit', type=int, default=0, help='only the first N textures (testing)')
     args = parser.parse_args()
 
     generals = args.generals or os.path.join(os.path.dirname(os.path.normpath(args.zh)), 'Command and Conquer Generals')
-    out = args.out or os.path.join(args.zh, 'EwMaterialMapsZH.big')
+    out = args.out or os.path.join(args.zh, 'MaterialMapsZH.big')
 
     # Zero Hour archives win over Generals ones, as in the game.
     files = {}

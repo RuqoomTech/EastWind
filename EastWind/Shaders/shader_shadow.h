@@ -1,6 +1,6 @@
-// EastWind DX9: sun shadow map lookup (M3.4, EwShadowMapSize), shared by the lit pixel shaders.
+// EastWind DX9: sun shadow map lookup (M3.4, ShadowMapSize), shared by the lit pixel shaders.
 //
-// EwShadowMap (shadowmap.cpp) draws the depth of the shadow casters (meshes and trees) seen
+// ShadowMap (shadowmap.cpp) draws the depth of the shadow casters (meshes and trees) seen
 // from the sun into an orthographic depth map once a frame, then binds it to s12 and the
 // constants below for the rest of the frame. The terrain does not cast, so it never shadows
 // itself; hills do not throw shadows, as in the classic game.
@@ -14,18 +14,18 @@
 // more where the light is at a grazing angle, and a small constant depth bias. The caster pass
 // adds the slope-scaled depth bias.
 
-#ifndef EW_SHADOW_H
-#define EW_SHADOW_H
+#ifndef SHADER_SHADOW_H
+#define SHADER_SHADOW_H
 
 #include "shader_constants.h"
 
-float4 ShadowMatrix[3] : EW_REG(EW_SHADOW_PS_MATRIX);	// rows: u, v, depth
-float4 ShadowParams    : EW_REG(EW_SHADOW_PS_PARAMS);	// x on, y 1 / size, z radius in texels, w normal offset
-float4 ShadowParams2   : EW_REG(EW_SHADOW_PS_PARAMS2);	// x hardware compare, y depth bias, w strength
+float4 ShadowMatrix[3] : SHADER_REG(SHADOW_PS_MATRIX);	// rows: u, v, depth
+float4 ShadowParams    : SHADER_REG(SHADOW_PS_PARAMS);	// x on, y 1 / size, z radius in texels, w normal offset
+float4 ShadowParams2   : SHADER_REG(SHADOW_PS_PARAMS2);	// x hardware compare, y depth bias, w strength
 sampler2D ShadowMap    : register(s12);
 
-#define EW_SHADOW_TAPS 12
-static const float2 EwShadowPoisson[EW_SHADOW_TAPS] =
+#define SHADOW_TAPS 12
+static const float2 ShadowPoisson[SHADOW_TAPS] =
 {
 	float2(-0.326212, -0.405805), float2(-0.840144, -0.073580), float2(-0.695914,  0.457137),
 	float2(-0.203345,  0.620716), float2( 0.962340, -0.194983), float2( 0.473434, -0.480026),
@@ -35,7 +35,7 @@ static const float2 EwShadowPoisson[EW_SHADOW_TAPS] =
 
 // How much sun reaches world point p with normal n (unit), l the unit direction to the sun:
 // 1 lit, 0 in shadow. 1 when shadow maps are off or p lies outside the map.
-float Ew_Sun_Shadow(float3 p, float3 n, float3 l)
+float Sun_Shadow(float3 p, float3 n, float3 l)
 {
 	[branch] if (ShadowParams.x < 0.5)
 		return 1.0;
@@ -55,16 +55,16 @@ float Ew_Sun_Shadow(float3 p, float3 n, float3 l)
 	float lit = 0.0;
 	[branch] if (ShadowParams2.x > 0.5)
 	{
-		[unroll] for (int k = 0; k < EW_SHADOW_TAPS; ++k)
-			lit += tex2Dlod(ShadowMap, float4(uvz.xy + EwShadowPoisson[k] * radius, z, 0.0)).r;
+		[unroll] for (int k = 0; k < SHADOW_TAPS; ++k)
+			lit += tex2Dlod(ShadowMap, float4(uvz.xy + ShadowPoisson[k] * radius, z, 0.0)).r;
 	}
 	else
 	{
-		[unroll] for (int k = 0; k < EW_SHADOW_TAPS; ++k)
-			lit += (z <= tex2Dlod(ShadowMap, float4(uvz.xy + EwShadowPoisson[k] * radius, 0.0, 0.0)).r) ? 1.0 : 0.0;
+		[unroll] for (int k = 0; k < SHADOW_TAPS; ++k)
+			lit += (z <= tex2Dlod(ShadowMap, float4(uvz.xy + ShadowPoisson[k] * radius, 0.0, 0.0)).r) ? 1.0 : 0.0;
 	}
-	lit *= 1.0 / EW_SHADOW_TAPS;
+	lit *= 1.0 / SHADOW_TAPS;
 	return lerp(1.0, lit, fade * ShadowParams2.w);
 }
 
-#endif // EW_SHADOW_H
+#endif // SHADER_SHADOW_H

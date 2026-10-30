@@ -325,14 +325,14 @@ void W3DSmudgeManager::render(RenderInfoClass &rinfo)
 	}
 
 	// EastWind: copy from the target the scene draws into, which is the post-processing scene
-	// texture (EwPostProcess) rather than the back buffer when a post effect is on.
+	// texture (W3DPostProcess) rather than the back buffer when a post effect is on.
 	SurfaceClass *backBuffer = nullptr;
 	{
 		IDirect3DSurface9 *current = nullptr;
 		DX9Wrapper::_Get_D3D_Device9()->GetRenderTarget(0, &current);
 		if (current)
 		{
-			// The copy cannot convert formats, and the scene texture can be 16-bit float (EwHdr), so
+			// The copy cannot convert formats, and the scene texture can be 16-bit float (Hdr), so
 			// the background texture follows the target's format.
 			D3DSURFACE_DESC target_desc;
 			D3DSURFACE_DESC background_desc;

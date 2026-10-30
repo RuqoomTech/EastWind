@@ -337,26 +337,26 @@ public:
 
 	virtual TextureClass* As_TextureClass() override { return this; }
 
-	// EastWind M3.1b: the RA3-style material maps found beside this texture by EwMeshShader.
+	// EastWind M3.1b: the RA3-style material maps found beside this texture by MeshShader.
 	// The texture holds a reference to each, so they are released with it.
-	struct EwMaterialMapsStruct
+	struct MaterialMapsStruct
 	{
-		EwMaterialMapsStruct() : Normal(nullptr), Spec(nullptr), Resolved(false), Recolored(false) {}
-		~EwMaterialMapsStruct();
-		EwMaterialMapsStruct(const EwMaterialMapsStruct &) = delete;
-		EwMaterialMapsStruct &operator=(const EwMaterialMapsStruct &) = delete;
+		MaterialMapsStruct() : Normal(nullptr), Spec(nullptr), Resolved(false), Recolored(false) {}
+		~MaterialMapsStruct();
+		MaterialMapsStruct(const MaterialMapsStruct &) = delete;
+		MaterialMapsStruct &operator=(const MaterialMapsStruct &) = delete;
 
 		TextureClass *Normal;	// <name>_nrm, or null
 		TextureClass *Spec;		// <name>_spm, or null
 		bool Resolved;			// looked up already
 		bool Recolored;			// recoloured by the game on the CPU, so the SpecMap's house mask is not used
 	};
-	EwMaterialMapsStruct &Ew_Material_Maps() { return EwMaterialMaps; }
+	MaterialMapsStruct &Material_Maps() { return MaterialMaps; }
 
 protected:
 
 	WW3DFormat				TextureFormat;
-	EwMaterialMapsStruct	EwMaterialMaps;
+	MaterialMapsStruct	MaterialMaps;
 
 	// legacy
 	TextureFilterClass	Filter;

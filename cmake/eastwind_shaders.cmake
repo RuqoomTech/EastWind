@@ -1,35 +1,35 @@
 # EastWind DX9 renderer: HLSL shaders compiled with fxc at build time.
 #
 # Sources are EastWind/Shaders/*.hlsl. Each entry below compiles to
-# ${CMAKE_BINARY_DIR}/ew_shaders/<name>.h, a BYTE array g_ew_<name> that shaderlibrary.cpp
+# ${CMAKE_BINARY_DIR}/hlsl_shaders/<name>.h, a BYTE array g_shader_<name> that shaderlibrary.cpp
 # embeds in the exe, so the game needs no shader files and no D3DCompiler/D3DX at runtime.
 # corei_ww3d2 and corei_gameenginedevice_private, whose files include these headers, get the
-# ew_shaders dependency and include folder in their CMakeLists.txt.
+# hlsl_shaders dependency and include folder in their CMakeLists.txt.
 
-set(EW_SHADER_SOURCE_DIR "${CMAKE_SOURCE_DIR}/EastWind/Shaders")
-set(EW_SHADER_OUTPUT_DIR "${CMAKE_BINARY_DIR}/ew_shaders")
+set(SHADER_SOURCE_DIR "${CMAKE_SOURCE_DIR}/EastWind/Shaders")
+set(SHADER_OUTPUT_DIR "${CMAKE_BINARY_DIR}/hlsl_shaders")
 
 # fxc ships with the Windows SDK. The vcvars environment puts it on PATH; otherwise take the newest SDK.
-file(GLOB _ew_fxc_dirs LIST_DIRECTORIES true "$ENV{ProgramFiles\(x86\)}/Windows Kits/10/bin/10.*/x64")
-list(SORT _ew_fxc_dirs COMPARE NATURAL ORDER DESCENDING)
-find_program(EW_FXC_EXECUTABLE NAMES fxc HINTS "$ENV{WindowsSdkVerBinPath}/x64" ${_ew_fxc_dirs}
+file(GLOB _fxc_dirs LIST_DIRECTORIES true "$ENV{ProgramFiles\(x86\)}/Windows Kits/10/bin/10.*/x64")
+list(SORT _fxc_dirs COMPARE NATURAL ORDER DESCENDING)
+find_program(FXC_EXECUTABLE NAMES fxc HINTS "$ENV{WindowsSdkVerBinPath}/x64" ${_fxc_dirs}
     DOC "fxc.exe from the Windows SDK, used to compile the EastWind HLSL shaders")
-unset(_ew_fxc_dirs)
-if(NOT EW_FXC_EXECUTABLE)
-    message(FATAL_ERROR "EastWind needs fxc.exe from the Windows 10/11 SDK. Set EW_FXC_EXECUTABLE to its path.")
+unset(_fxc_dirs)
+if(NOT FXC_EXECUTABLE)
+    message(FATAL_ERROR "EastWind needs fxc.exe from the Windows 10/11 SDK. Set FXC_EXECUTABLE to its path.")
 endif()
 
-option(EW_SHADER_DEBUG "Compile the EastWind shaders without optimisation and with debug info." OFF)
-if(EW_SHADER_DEBUG)
-    set(_ew_fxc_flags /Zi /Od)
+option(SHADER_DEBUG "Compile the EastWind shaders without optimisation and with debug info." OFF)
+if(SHADER_DEBUG)
+    set(_fxc_flags /Zi /Od)
 else()
-    set(_ew_fxc_flags /O3)
+    set(_fxc_flags /O3)
 endif()
 
 # <name> <source file> <entry point> <profile>
 # M3.0 parity ports use the 2_0 profiles: they run beside fixed-function vertex processing and
 # fixed-function fog, which vs_3_0/ps_3_0 cannot mix with. New M3.1+ shaders use 3_0.
-set(EW_SHADERS
+set(HLSL_SHADERS
     trees_vs                trees.hlsl       TreesVS              vs_2_0
     wave_vs                 wave.hlsl        WaveVS               vs_2_0
     wave_ps                 wave.hlsl        WavePS               ps_2_0
@@ -101,39 +101,39 @@ set(EW_SHADERS
     water_river_hq_ps       water.hlsl       WaterRiverHqPS       ps_3_0
 )
 
-file(GLOB _ew_shader_includes CONFIGURE_DEPENDS "${EW_SHADER_SOURCE_DIR}/*.h")
-file(GLOB _ew_shader_sources CONFIGURE_DEPENDS "${EW_SHADER_SOURCE_DIR}/*.hlsl")
-set(_ew_shader_outputs "")
-list(LENGTH EW_SHADERS _n)
+file(GLOB _shader_includes CONFIGURE_DEPENDS "${SHADER_SOURCE_DIR}/*.h")
+file(GLOB _shader_sources CONFIGURE_DEPENDS "${SHADER_SOURCE_DIR}/*.hlsl")
+set(_shader_outputs "")
+list(LENGTH HLSL_SHADERS _n)
 math(EXPR _last "${_n} - 1")
 foreach(_i RANGE 0 ${_last} 4)
     math(EXPR _i1 "${_i} + 1")
     math(EXPR _i2 "${_i} + 2")
     math(EXPR _i3 "${_i} + 3")
-    list(GET EW_SHADERS ${_i} _name)
-    list(GET EW_SHADERS ${_i1} _file)
-    list(GET EW_SHADERS ${_i2} _entry)
-    list(GET EW_SHADERS ${_i3} _profile)
-    set(_src "${EW_SHADER_SOURCE_DIR}/${_file}")
-    set(_out "${EW_SHADER_OUTPUT_DIR}/${_name}.h")
+    list(GET HLSL_SHADERS ${_i} _name)
+    list(GET HLSL_SHADERS ${_i1} _file)
+    list(GET HLSL_SHADERS ${_i2} _entry)
+    list(GET HLSL_SHADERS ${_i3} _profile)
+    set(_src "${SHADER_SOURCE_DIR}/${_file}")
+    set(_out "${SHADER_OUTPUT_DIR}/${_name}.h")
     add_custom_command(
         OUTPUT "${_out}"
-        COMMAND "${EW_FXC_EXECUTABLE}" /nologo /T ${_profile} /E ${_entry} /WX ${_ew_fxc_flags}
-                /Vn g_ew_${_name} /Fh "${_out}" "${_src}"
-        DEPENDS "${_src}" ${_ew_shader_includes}
+        COMMAND "${FXC_EXECUTABLE}" /nologo /T ${_profile} /E ${_entry} /WX ${_fxc_flags}
+                /Vn g_shader_${_name} /Fh "${_out}" "${_src}"
+        DEPENDS "${_src}" ${_shader_includes}
         COMMENT "fxc ${_file}:${_entry} (${_profile})"
         VERBATIM
     )
-    list(APPEND _ew_shader_outputs "${_out}")
+    list(APPEND _shader_outputs "${_out}")
 endforeach()
 
 # SOURCES only lists the files in IDEs.
-add_custom_target(ew_shaders DEPENDS ${_ew_shader_outputs} SOURCES ${_ew_shader_sources} ${_ew_shader_includes})
-unset(_ew_shader_outputs)
-unset(_ew_shader_includes)
-unset(_ew_shader_sources)
-unset(_ew_fxc_flags)
+add_custom_target(hlsl_shaders DEPENDS ${_shader_outputs} SOURCES ${_shader_sources} ${_shader_includes})
+unset(_shader_outputs)
+unset(_shader_includes)
+unset(_shader_sources)
+unset(_fxc_flags)
 
 # shader_constants.h holds the register numbers for both the HLSL and the C++ side.
 # Directory scope, so every target added after this (all of them) can include it.
-include_directories("${EW_SHADER_SOURCE_DIR}")
+include_directories("${SHADER_SOURCE_DIR}")
