@@ -39,23 +39,11 @@
 #include "rinfo.h"
 #include "predlod.h"
 #include "WWMath/v3_rnd.h"
-#ifdef EW_RENDERER_DX9
-#include "texture_dx9.h"
-#else
 #include "texture.h"
-#endif
 #include "coltest.h"
 #include "w3d_file.h"
-#ifdef EW_RENDERER_DX9
-#include "texture_dx9.h"
-#else
 #include "texture.h"
-#endif
-#ifdef EW_RENDERER_DX9
 #include "dx9wrapper.h"
-#else
-#include "dx8wrapper.h"
-#endif
 #include "WWMath/vp.h"
 #include "WWMath/Vector3i.h"
 #include "sortingrenderer.h"

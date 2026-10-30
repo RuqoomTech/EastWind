@@ -57,7 +57,6 @@
 #include <WW3D2/coltest.h>
 #include <WW3D2/rinfo.h>
 #include <WW3D2/camera.h>
-#include <d3dx8core.h>
 #include "Common/GlobalData.h"
 #include "Common/PerfTimer.h"
 
@@ -79,10 +78,11 @@
 #include "W3DDevice/GameClient/W3DWaypointBuffer.h"
 #include "W3DDevice/GameClient/WorldHeightMap.h"
 #include "W3DDevice/GameClient/W3DShaderManager.h"
+#include "W3DDevice/GameClient/W3DTerrainLighting.h"
 #include "W3DDevice/GameClient/W3DShadow.h"
 #include "W3DDevice/GameClient/W3DWater.h"
 #include "W3DDevice/GameClient/W3DShroud.h"
-#include "WW3D2/dx8wrapper.h"
+#include "WW3D2/dx9wrapper.h"
 #include "WW3D2/Renderer.h"
 #include "WW3D2/light.h"
 #include "WW3D2/scene.h"
@@ -2027,6 +2027,7 @@ void HeightMapRenderObjClass::Render(RenderInfoClass & rinfo)
  	for (pass=0; pass<devicePasses; pass++) {
 #ifdef TIMING_TESTS
 #endif
+		Bool ewLit = false;	// EastWind M3.1c: the pass is lit per pixel
 		if (!doMultiPassWireFrame)	//multi-pass wireframe doesn't use regular shaders.
 		{
  			if (m_disableTextures ) {
@@ -2034,6 +2035,7 @@ void HeightMapRenderObjClass::Render(RenderInfoClass & rinfo)
  				DX8Wrapper::Set_Texture(0,nullptr);
    			} else {
  				W3DShaderManager::setShader(st, pass);
+				ewLit = EwTerrainLighting::Begin(m_map);
 			}
 		}
 
@@ -2045,17 +2047,18 @@ void HeightMapRenderObjClass::Render(RenderInfoClass & rinfo)
 				if (m_xformedVertexBuffer && pass==0) {
 					// Note - m_xformedVertexBuffer should only be used for non T&L hardware.  jba.
 					DX8Wrapper::Apply_Render_State_Changes();
-					int code = DX8Wrapper::_Get_D3D_Device8()->ProcessVertices(0, 0, numVertex, m_xformedVertexBuffer[j*m_numVBTilesX+i], 0);
+					int code = DX8Wrapper::_Get_D3D_Device9()->ProcessVertices(0, 0, numVertex, m_xformedVertexBuffer[j*m_numVBTilesX+i], 0);
 					::OutputDebugString("did process vertex\n");
 				}
 				if (m_xformedVertexBuffer) {
 					// Note - m_xformedVertexBuffer should only be used for non T&L hardware.  jba.
 					DX8Wrapper::Apply_Render_State_Changes();
-					DX8Wrapper::_Get_D3D_Device8()->SetStreamSource(
+					DX8Wrapper::_Get_D3D_Device9()->SetStreamSource(
 						0,
 						m_xformedVertexBuffer[j*m_numVBTilesX+i],
-						D3DXGetFVFVertexSize(D3DFVF_XYZRHW |D3DFVF_DIFFUSE|D3DFVF_TEX2));
-					DX8Wrapper::_Get_D3D_Device8()->SetVertexShader(D3DFVF_XYZRHW |D3DFVF_DIFFUSE|D3DFVF_TEX2);
+						0,
+						Get_FVF_Vertex_Size(D3DFVF_XYZRHW |D3DFVF_DIFFUSE|D3DFVF_TEX2));
+					DX8Wrapper::_Get_D3D_Device9()->SetFVF(D3DFVF_XYZRHW |D3DFVF_DIFFUSE|D3DFVF_TEX2);
 				}
 #endif
 				if (Is_Hidden() == 0) {
@@ -2063,6 +2066,8 @@ void HeightMapRenderObjClass::Render(RenderInfoClass & rinfo)
 				}
 
 			}
+		if (ewLit)
+			EwTerrainLighting::End();
 	}
 
 	if (!doMultiPassWireFrame)
@@ -2163,17 +2168,18 @@ void HeightMapRenderObjClass::renderTerrainPass(CameraClass *pCamera)
 			if (m_xformedVertexBuffer && pass==0) {
 				// Note - m_xformedVertexBuffer should only be used for non T&L hardware.  jba.
 				DX8Wrapper::Apply_Render_State_Changes();
-				int code = DX8Wrapper::_Get_D3D_Device8()->ProcessVertices(0, 0, numVertex, m_xformedVertexBuffer[j*m_numVBTilesX+i], 0);
+				int code = DX8Wrapper::_Get_D3D_Device9()->ProcessVertices(0, 0, numVertex, m_xformedVertexBuffer[j*m_numVBTilesX+i], 0);
 				::OutputDebugString("did process vertex\n");
 			}
 			if (m_xformedVertexBuffer) {
 				// Note - m_xformedVertexBuffer should only be used for non T&L hardware.  jba.
 				DX8Wrapper::Apply_Render_State_Changes();
-				DX8Wrapper::_Get_D3D_Device8()->SetStreamSource(
+				DX8Wrapper::_Get_D3D_Device9()->SetStreamSource(
 					0,
 					m_xformedVertexBuffer[j*m_numVBTilesX+i],
-					D3DXGetFVFVertexSize(D3DFVF_XYZRHW |D3DFVF_DIFFUSE|D3DFVF_TEX2));
-				DX8Wrapper::_Get_D3D_Device8()->SetVertexShader(D3DFVF_XYZRHW |D3DFVF_DIFFUSE|D3DFVF_TEX2);
+					0,
+						Get_FVF_Vertex_Size(D3DFVF_XYZRHW |D3DFVF_DIFFUSE|D3DFVF_TEX2));
+				DX8Wrapper::_Get_D3D_Device9()->SetFVF(D3DFVF_XYZRHW |D3DFVF_DIFFUSE|D3DFVF_TEX2);
 			}
 #endif
 			if (Is_Hidden() == 0) {
@@ -2386,9 +2392,16 @@ void HeightMapRenderObjClass::renderExtraBlendTiles()
 			for (Int pass=0; pass < devicePasses; pass++)
 			{
 				W3DShaderManager::setShader(st, pass);
+				// EastWind M3.1d: per-pixel light, drawn in one pass (EwPerPixelLighting).
+				const Bool ewLit = (pass == 0) && EwTerrainLighting::Begin_Road(m_map,
+					(st == W3DShaderManager::ST_ROAD_BASE) ? 0 : ((st == W3DShaderManager::ST_ROAD_BASE_NOISE12) ? 2 : 1), devicePasses);
 				if (Is_Hidden() == 0) {
 					DX8Wrapper::Draw_Triangles(	0,indexCount/3, 0,	vertexCount);	//draw a quad, 2 triangles, 4 verts
 					m_numVisibleExtraBlendTiles += indexCount/6;
+				}
+				if (ewLit) {
+					EwTerrainLighting::End();
+					break;
 				}
 			}
 			W3DShaderManager::resetShader(st);

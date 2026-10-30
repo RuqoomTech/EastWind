@@ -38,7 +38,7 @@
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 #include "texturefilter.h"
-#include "dx8wrapper.h"
+#include "dx9wrapper.h"
 
 const char* const TextureFilterClass::TextureFilterModeString[] = {
 	"None",
@@ -88,29 +88,29 @@ TextureFilterClass::TextureFilterClass(MipCountType mip_level_count)
 */
 void TextureFilterClass::Apply(unsigned int stage)
 {
-	DX8Wrapper::Set_DX8_Texture_Stage_State(stage,D3DTSS_MINFILTER,_MinTextureFilters[stage][TextureMinFilter]);
-	DX8Wrapper::Set_DX8_Texture_Stage_State(stage,D3DTSS_MAGFILTER,_MagTextureFilters[stage][TextureMagFilter]);
-	DX8Wrapper::Set_DX8_Texture_Stage_State(stage,D3DTSS_MIPFILTER,_MipMapFilters[stage][MipMapFilter]);
+	DX8Wrapper::Set_DX8_Sampler_State(stage,D3DSAMP_MINFILTER,_MinTextureFilters[stage][TextureMinFilter]);
+	DX8Wrapper::Set_DX8_Sampler_State(stage,D3DSAMP_MAGFILTER,_MagTextureFilters[stage][TextureMagFilter]);
+	DX8Wrapper::Set_DX8_Sampler_State(stage,D3DSAMP_MIPFILTER,_MipMapFilters[stage][MipMapFilter]);
 
 	switch (Get_U_Addr_Mode())
 	{
 	case TEXTURE_ADDRESS_REPEAT:
-		DX8Wrapper::Set_DX8_Texture_Stage_State(stage, D3DTSS_ADDRESSU, D3DTADDRESS_WRAP);
+		DX8Wrapper::Set_DX8_Sampler_State(stage, D3DSAMP_ADDRESSU, D3DTADDRESS_WRAP);
 		break;
 
 	case TEXTURE_ADDRESS_CLAMP:
-		DX8Wrapper::Set_DX8_Texture_Stage_State(stage, D3DTSS_ADDRESSU, D3DTADDRESS_CLAMP);
+		DX8Wrapper::Set_DX8_Sampler_State(stage, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP);
 		break;
 	}
 
 	switch (Get_V_Addr_Mode())
 	{
 	case TEXTURE_ADDRESS_REPEAT:
-		DX8Wrapper::Set_DX8_Texture_Stage_State(stage, D3DTSS_ADDRESSV, D3DTADDRESS_WRAP);
+		DX8Wrapper::Set_DX8_Sampler_State(stage, D3DSAMP_ADDRESSV, D3DTADDRESS_WRAP);
 		break;
 
 	case TEXTURE_ADDRESS_CLAMP:
-		DX8Wrapper::Set_DX8_Texture_Stage_State(stage, D3DTSS_ADDRESSV, D3DTADDRESS_CLAMP);
+		DX8Wrapper::Set_DX8_Sampler_State(stage, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP);
 		break;
 	}
 }
@@ -121,7 +121,7 @@ void TextureFilterClass::Apply(unsigned int stage)
 */
 void TextureFilterClass::_Init_Filters(TextureFilterMode texture_filter, AnisotropicFilterMode anisotropy_level)
 {
-	const D3DCAPS8& dx8caps=DX8Wrapper::Get_Current_Caps()->Get_DX8_Caps();
+	const D3DCAPS9& dx8caps=DX8Wrapper::Get_Current_Caps()->Get_DX8_Caps();
 
 	// TheSuperHackers @info Init zero stage filter defaults, point filtering is the lowest type for non mip filtering
 	_MinTextureFilters[0][FILTER_TYPE_NONE]=D3DTEXF_POINT;
@@ -312,7 +312,7 @@ void TextureFilterClass::Set_Mip_Mapping(FilterType mipmap)
 void TextureFilterClass::_Set_Max_Anisotropy(AnisotropicFilterMode mode)
 {
 	for (int stage = 0; stage < MAX_TEXTURE_STAGES; ++stage)
-		DX8Wrapper::Set_DX8_Texture_Stage_State(stage, D3DTSS_MAXANISOTROPY, mode);
+		DX8Wrapper::Set_DX8_Sampler_State(stage, D3DSAMP_MAXANISOTROPY, mode);
 }
 
 //**********************************************************************************************

@@ -35,11 +35,7 @@
 #include "mapobjectprops.h"
 #include "ObjectOptions.h"
 #include "BuildList.h"
-#ifdef EW_RENDERER_DX9
-#include "wbview3d_dx9.h"
-#else
 #include "wbview3d.h"
-#endif
 #include "LayersList.h"
 #include "Common/WellKnownKeys.h"
 #include "WorldBuilder.h"	// for MAX_OBJECTS_IN_MAP

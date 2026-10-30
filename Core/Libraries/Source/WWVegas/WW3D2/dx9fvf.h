@@ -22,7 +22,7 @@
  *                                                                                             *
  *                 Project Name : ww3d                                                         *
  *                                                                                             *
- *                     $Archive:: /Commando/Code/ww3d2/dx8fvf.h                               $*
+ *                     $Archive:: /Commando/Code/ww3d2/dx9fvf.h                               $*
  *                                                                                             *
  *              Original Author:: Jani Penttinen                                               *
  *                                                                                             *

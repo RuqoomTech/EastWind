@@ -18,23 +18,11 @@
 
 #include "texturethumbnail.h"
 #include "WWLib/hashtemplate.h"
-#ifdef EW_RENDERER_DX9
-#include "missingtexture_dx9.h"
-#else
 #include "missingtexture.h"
-#endif
 #include "WWLib/TARGA.h"
 #include "ww3dformat.h"
-#ifdef EW_RENDERER_DX9
-#include "ddsfile_dx9.h"
-#else
 #include "ddsfile.h"
-#endif
-#ifdef EW_RENDERER_DX9
-#include "textureloader_dx9.h"
-#else
 #include "textureloader.h"
-#endif
 #include "bitmaphandler.h"
 #include "WWLib/ffactory.h"
 #include "WWLib/RAWFILE.h"

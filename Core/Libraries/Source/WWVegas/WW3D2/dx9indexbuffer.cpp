@@ -22,7 +22,7 @@
  *                                                                                             *
  *                 Project Name : ww3d                                                         *
  *                                                                                             *
- *                     $Archive:: /Commando/Code/ww3d2/dx8indexbuffer.cpp                     $*
+ *                     $Archive:: /Commando/Code/ww3d2/dx9indexbuffer.cpp                     $*
  *                                                                                             *
  *              Original Author:: Jani Penttinen                                               *
  *                                                                                             *

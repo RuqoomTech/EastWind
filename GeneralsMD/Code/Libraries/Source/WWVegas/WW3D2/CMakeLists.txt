@@ -43,27 +43,27 @@ set(WW3D2_SRC
     #distlod.cpp
     #distlod.h
     #dllist.h
-#    dx8caps.cpp
-#    dx8caps.h
-#    dx8fvf.cpp
-#    dx8fvf.h
-#    dx8indexbuffer.cpp
-#    dx8indexbuffer.h
-    #dx8list.h
-    #dx8polygonrenderer.cpp
-    #dx8polygonrenderer.h
-#    dx8renderer.cpp
-#    dx8renderer.h
-#    dx8rendererdebugger.cpp
-#    dx8rendererdebugger.h
-    #dx8texman.cpp
-    #dx8texman.h
-#    dx8vertexbuffer.cpp
-#    dx8vertexbuffer.h
-    #dx8webbrowser.cpp
-    #dx8webbrowser.h
-#    dx8wrapper.cpp
-#    dx8wrapper.h
+#    dx9caps.cpp
+#    dx9caps.h
+#    dx9fvf.cpp
+#    dx9fvf.h
+#    dx9indexbuffer.cpp
+#    dx9indexbuffer.h
+    #dx9list.h
+    #dx9polygonrenderer.cpp
+    #dx9polygonrenderer.h
+#    dx9renderer.cpp
+#    dx9renderer.h
+#    dx9rendererdebugger.cpp
+#    dx9rendererdebugger.h
+    #dx9texman.cpp
+    #dx9texman.h
+#    dx9vertexbuffer.cpp
+#    dx9vertexbuffer.h
+    #dx9webbrowser.cpp
+    #dx9webbrowser.h
+#    dx9wrapper.cpp
+#    dx9wrapper.h
     #dynamesh.cpp
     #dynamesh.h
     #font3d.cpp
@@ -248,7 +248,7 @@ target_compile_definitions(z_ww3d2 PRIVATE
 
 target_precompile_headers(z_ww3d2 PRIVATE
     [["Precompiled/BasePrecomp.h"]] # Must be first
-    [["dx8wrapper.h"]]
+    [["dx9wrapper.h"]]
     [["WWLib/always.h"]]
     [["Utility/STLUtils.h"]]
     [["WWLib/win.h"]]

@@ -29,16 +29,8 @@
 
 #pragma once
 
-#ifdef EW_RENDERER_DX9
 #include "WW3D2/dx9vertexbuffer.h"
-#else
-#include "WW3D2/dx8vertexbuffer.h"
-#endif
-#ifdef EW_RENDERER_DX9
 #include "WW3D2/dx9indexbuffer.h"
-#else
-#include "WW3D2/dx8indexbuffer.h"
-#endif
 
 // TheSuperHackers @info The max sizes correspond to a number of vertices and indices of a mesh casting shadows
 // in the scene. The more vertices the meshes are supposed to have, the higher these limits need to be.

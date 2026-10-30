@@ -56,7 +56,6 @@
 #include <WW3D2/coltest.h>
 #include <WW3D2/rinfo.h>
 #include <WW3D2/camera.h>
-#include <d3dx8core.h>
 #include "Common/GlobalData.h"
 #include "Common/PerfTimer.h"
 
@@ -81,7 +80,7 @@
 #include "W3DDevice/GameClient/W3DShadow.h"
 #include "W3DDevice/GameClient/W3DWater.h"
 #include "W3DDevice/GameClient/W3DShroud.h"
-#include "WW3D2/dx8wrapper.h"
+#include "WW3D2/dx9wrapper.h"
 #include "WW3D2/Renderer.h"
 #include "WW3D2/light.h"
 #include "WW3D2/scene.h"

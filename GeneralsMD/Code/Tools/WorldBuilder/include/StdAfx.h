@@ -27,9 +27,6 @@
 
 
 // TheSuperHackers @build xezon 24/03/2025 Prevent afxwin.h from loading d3d9types.h, colliding with our own DirectX library.
-#ifndef EW_RENDERER_DX9	// The DX9 build uses the real d3d9types.h.
-#define _d3d9TYPES_H_
-#endif
 
 #include <afxwin.h>         // MFC core and standard components
 #include <afxext.h>         // MFC extensions

@@ -26,11 +26,7 @@
 #include "Globals.h"
 #include "GraphicView.h"
 #include "Utils.h"
-#ifdef EW_RENDERER_DX9
-#include "WW3D2/rddesc_dx9.h"
-#else
 #include "WW3D2/rddesc.h"
-#endif
 
 
 

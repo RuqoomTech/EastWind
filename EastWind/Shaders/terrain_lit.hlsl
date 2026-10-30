@@ -1,7 +1,7 @@
 // EastWind DX9: per-pixel terrain lighting (M3.1c/M3.1d, EwPerPixelLighting).
 //
 // Replaces the terrain base pass shaders of terrain.hlsl (TerrainPS, TerrainNoise1PS,
-// TerrainNoise2PS) for the main heightmap. EwTerrainLighting (EwTerrainLighting_dx9.cpp) binds it
+// TerrainNoise2PS) for the main heightmap. EwTerrainLighting (W3DTerrainLighting.cpp) binds it
 // right after TerrainShaderPixelShader::set has set the textures, so the samplers are the same:
 // s0/s1 the two blended terrain tiles, s2/s3 the cloud and light-map textures.
 //
@@ -27,12 +27,12 @@
 // road or blend texture, s1/s2 the textures of stages 1 and 2 (cloud and light map), with the
 // stage 1 and 2 texture matrices in TexMatrix[0..3] and [4..7].
 //
-// M3.4: the first sun light is darkened by the sun shadow map (ew_shadow.h), so units, buildings
+// M3.4: the first sun light is darkened by the sun shadow map (shader_shadow.h), so units, buildings
 // and trees cast on the terrain and roads. The terrain itself does not cast.
 
-#include "ew_constants.h"
-#include "ew_shadow.h"
-#include "ew_linear.h"
+#include "shader_constants.h"
+#include "shader_shadow.h"
+#include "shader_linear.h"
 
 float4 WorldViewProj[4]                : EW_REG(EW_TERRAIN_VS_WVP);
 float4 World[3]                        : EW_REG(EW_TERRAIN_VS_WORLD);
@@ -62,7 +62,7 @@ float3 Grid_Normal(float4 texel)
 }
 
 // shadow scales the first light, the sun the shadow map is drawn from. linearLight (pixel
-// shaders only) adds the colours up in linear space (ew_linear.h).
+// shaders only) adds the colours up in linear space (shader_linear.h).
 float3 Sun_Colour(int k, uniform bool linearLight)
 {
 	return linearLight ? Ew_To_Linear(Sun[k].rgb) : Sun[k].rgb;

@@ -1,8 +1,8 @@
 # EastWind DX9 renderer: source swap.
 #
 # Our DX9 files sit beside the DX8 files they replace, under DX9 names:
-#   dx8wrapper.cpp -> dx9wrapper.cpp, DX8Backend.cpp -> DX9Backend.cpp,
-#   texture.h -> texture_dx9.h, W3DWater.cpp -> W3DWater_dx9.cpp
+#   dx9wrapper.cpp -> dx9wrapper.cpp, DX9Backend.cpp -> DX9Backend.cpp,
+#   texture.h -> texture.h, W3DWater.cpp -> W3DWater.cpp
 # EastWind/dx9_files.txt lists every pair. In the DX9 build this file swaps each
 # DX8 file for its DX9 file in every target, after all targets exist
 # (cmake_language DEFER), so no upstream CMakeLists.txt is edited.

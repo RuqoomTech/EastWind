@@ -53,11 +53,7 @@
 #include "Win32Device/GameClient/Win32DIMouse.h"
 #include "Win32Device/GameClient/Win32Mouse.h"
 #include "W3DDevice/GameClient/W3DMouse.h"
-#ifdef EW_RENDERER_DX9
-#include "W3DDevice/GameClient/W3DSnow_dx9.h"
-#else
 #include "W3DDevice/GameClient/W3DSnow.h"
-#endif
 
 class ThingTemplate;
 

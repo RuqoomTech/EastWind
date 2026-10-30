@@ -1,7 +1,7 @@
 // EastWind DX9: lit-mesh shader (M3.1a, EwPerPixelLighting).
 //
 // Draws W3D meshes that fixed-function would light per vertex, with the same result except that
-// the D3D9 lighting equation runs per pixel. EwMeshShader (ewmeshshader_dx9.cpp) binds it at draw
+// the D3D9 lighting equation runs per pixel. EwMeshShader (meshshader.cpp) binds it at draw
 // time and fills the constants from the device and wrapper state:
 //   - the D3D9 lights, material, material colour sources and global ambient;
 //   - texture coordinate generation and texture matrices, expanded as D3D does:
@@ -15,7 +15,7 @@
 // T = texcoord sets), and MeshVS_<|D|S|DS>_T<n> without a normal, for unlit draws.
 //
 // Two pixel shaders: MeshPS reproduces fixed-function, MeshMaterialPS (M3.1b, EwNormalMaps) adds
-// the RA3 material maps that sit beside the diffuse texture (see ewmeshshader_dx9.cpp):
+// the RA3 material maps that sit beside the diffuse texture (see meshshader.cpp):
 //   - <diffuse>_nrm: tangent-space normal map, DirectX convention (green = +v, down the image).
 //     The tangent frame comes from screen-space derivatives, so meshes need no tangent data.
 //   - <diffuse>_spm: SpecMap. R specular strength, G glow (self-illumination), B house colour.
@@ -25,9 +25,9 @@
 // UnlitPS draws what fixed function draws with lighting off (lasers, lines, decals, unlit
 // meshes, particles without the soft fade), with the same result.
 
-#include "ew_constants.h"
-#include "ew_shadow.h"
-#include "ew_linear.h"
+#include "shader_constants.h"
+#include "shader_shadow.h"
+#include "shader_linear.h"
 
 // D3DTEXTUREOP values
 #define OP_DISABLE                    1
@@ -398,7 +398,7 @@ float4 ShadeMesh(PsIn i, uniform bool material)
 		tex0.rgb = lerp(base, saturate(tinted), spm.b * MaterialOptions.z);
 	}
 
-	// Light sums run in linear space (ew_linear.h); the stages and fog below stay gamma.
+	// Light sums run in linear space (shader_linear.h); the stages and fog below stay gamma.
 	// EwMeshShader decodes the light, material and ambient colours once a draw; only the vertex
 	// colours are decoded here.
 	float4 vertexDiffuse = float4(Ew_To_Linear(i.diffuse.rgb), i.diffuse.a);

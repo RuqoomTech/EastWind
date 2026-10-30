@@ -40,7 +40,7 @@ float4 TrapezoidPS(PsIn i) : COLOR
 }
 
 // ------------------------------------------------------------------------------------------------
-// M3.3a water shader (Options.ini EwWaterQuality = 1), bound by EwWater_dx9.cpp over the pass the
+// M3.3a water shader (Options.ini EwWaterQuality = 1), bound by W3DWaterShader.cpp over the pass the
 // parity shaders above would draw. It keeps their textures and adds:
 // - waves: two layers of a tiling normal map (s4) scrolling in different directions;
 // - Fresnel: the water reflects more where the view is flat to it;
@@ -50,7 +50,7 @@ float4 TrapezoidPS(PsIn i) : COLOR
 // ps_3_0 has no fixed-function fog, so the pixel shader fogs itself.
 // ------------------------------------------------------------------------------------------------
 
-#include "ew_constants.h"
+#include "shader_constants.h"
 
 float4 WaterWorldViewProj[4] : EW_REG(EW_WATER_VS_WVP);
 float4 WaterWorld[3]         : EW_REG(EW_WATER_VS_WORLD);
@@ -77,8 +77,8 @@ sampler2D Reflection  : register(s5);
 
 // M3.4: shadows of units, buildings and trees on the water take away the sun's highlights and
 // some of the sunlit wave shading.
-#include "ew_shadow.h"
-#include "ew_linear.h"
+#include "shader_shadow.h"
+#include "shader_linear.h"
 
 // The water vertices are VertexFormatXYZNDUV2.
 struct WaterVsIn
@@ -140,7 +140,7 @@ struct WaterPsIn
 struct WaterLight
 {
 	float3 normal;		// the wave normal
-	float3 reflection;	// what the water mirrors, linear with EwLinearLighting (ew_linear.h)
+	float3 reflection;	// what the water mirrors, linear with EwLinearLighting (shader_linear.h)
 	float3 specular;	// the sun on the waves, linear with EwLinearLighting
 	float fresnel;		// how much of the reflection shows
 	float shade;		// sun light on the wave relative to flat water, 1 on average

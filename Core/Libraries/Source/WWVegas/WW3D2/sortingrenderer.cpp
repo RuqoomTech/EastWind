@@ -39,13 +39,14 @@
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 #include "sortingrenderer.h"
-#include "dx8vertexbuffer.h"
-#include "dx8indexbuffer.h"
-#include "dx8wrapper.h"
+#include "dx9vertexbuffer.h"
+#include "dx9indexbuffer.h"
+#include "dx9wrapper.h"
+#include "meshshader.h"
 #include "vertmaterial.h"
 #include "texture.h"
-#include "d3d8.h"
-#include "d3dx8math.h"
+#include <d3d9.h>
+#include "WWMath/d3dmath.h"
 #include "statistics.h"
 #include <WWDebug/wwprofile.h>
 #include <algorithm>
@@ -242,10 +243,10 @@ void SortingRendererClass::Insert_Triangles(
 
 	if (bounding_sphere.Is_Valid())
 	{
-		D3DXMATRIX mtx=(D3DXMATRIX&)state->sorting_state.world*(D3DXMATRIX&)state->sorting_state.view;
-		D3DXVECTOR3 vec=(D3DXVECTOR3&)bounding_sphere.Center;
-		D3DXVECTOR4 transformed_vec;
-		D3DXVec3Transform(
+		EwD3DMatrix mtx=(EwD3DMatrix&)state->sorting_state.world*(EwD3DMatrix&)state->sorting_state.view;
+		EwD3DVector3 vec=(EwD3DVector3&)bounding_sphere.Center;
+		EwD3DVector4 transformed_vec;
+		EwD3DVec3Transform(
 			&transformed_vec,
 			&vec,
 			&mtx);
@@ -365,6 +366,8 @@ void SortingRendererClass::Insert_To_Sorting_Pool(SortingNodeStruct* state)
 static void Apply_Render_State(RenderStateStruct& render_state)
 {
 	DX8Wrapper::Set_Shader(render_state.shader);
+	DX8Wrapper::Set_Ew_House_Color(render_state.EwHouseColor);
+	DX8Wrapper::Set_Ew_Soft_Particle(render_state.EwSoftParticle);
 
 	DX8Wrapper::Set_Material(render_state.material);
 
@@ -450,7 +453,7 @@ void SortingRendererClass::Flush_Sorting_Pool()
 			memcpy(dest_verts, src_verts, sizeof(VertexFormatXYZNDUV2)*state->vertex_count);
 			dest_verts += state->vertex_count;
 
-			D3DXMATRIX d3d_mtx=(D3DXMATRIX&)state->sorting_state.world*(D3DXMATRIX&)state->sorting_state.view;
+			EwD3DMatrix d3d_mtx=(EwD3DMatrix&)state->sorting_state.world*(EwD3DMatrix&)state->sorting_state.view;
 			const Matrix4x4& mtx=(const Matrix4x4&)d3d_mtx;
 
 			unsigned short* indices=nullptr;
@@ -614,6 +617,7 @@ void SortingRendererClass::Flush()
 	}
 	sorted_list.splice(node, unsorted_list);
 
+	EwMeshShader::Begin_Batch();	// EastWind: every draw below goes through DX8Wrapper
 	while (!sorted_list.empty()) {
 		SortingNodeStruct* state = sorted_list.front();
 		sorted_list.pop_front();
@@ -635,6 +639,8 @@ void SortingRendererClass::Flush()
 	DX8Wrapper::_Enable_Triangle_Draw(_EnableTriangleDraw);
 	Flush_Sorting_Pool();
 	DX8Wrapper::_Enable_Triangle_Draw(old_enable);
+	EwMeshShader::End_Batch();
+	DX8Wrapper::Set_Ew_Soft_Particle(false);	// EastWind: the replay left the last node's flag set
 
 	DX8Wrapper::Set_Index_Buffer(nullptr,0);
 	DX8Wrapper::Set_Vertex_Buffer(nullptr);

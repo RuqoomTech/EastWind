@@ -34,7 +34,7 @@
 #include "W3DDevice/GameClient/HeightMap.h"
 #include "W3DDevice/GameClient/W3DAssetManager.h"
 #include "W3DDevice/GameClient/W3DWater.h"
-#include "WW3D2/dx8wrapper.h"
+#include "WW3D2/dx9wrapper.h"
 #include "WW3D2/mesh.h"
 #include "WW3D2/meshmdl.h"
 #include "WW3D2/shader.h"

@@ -2,7 +2,7 @@
 // The vertex shader projects the reflection texture onto the screen. The pixel shader offsets the
 // reflection lookup by a bump map, which replaces ps.1.1 texbem (not in ps_2_0).
 
-#include "ew_constants.h"
+#include "shader_constants.h"
 
 float4 WorldViewProj[4] : EW_REG(EW_WAVE_VS_WVP);
 float4 TexProj          : EW_REG(EW_WAVE_VS_TEXPROJ);

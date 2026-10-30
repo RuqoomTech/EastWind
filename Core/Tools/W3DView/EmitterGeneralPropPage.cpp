@@ -25,11 +25,7 @@
 #include "EmitterPropertySheet.h"
 #include "WW3D2/part_emt.h"
 #include "Utils.h"
-#ifdef EW_RENDERER_DX9
-#include "WW3D2/texture_dx9.h"
-#else
 #include "WW3D2/texture.h"
-#endif
 #include "WW3D2/shader.h"
 #include "EmitterInstanceList.h"
 

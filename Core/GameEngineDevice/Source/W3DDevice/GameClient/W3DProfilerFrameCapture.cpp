@@ -20,14 +20,14 @@
 
 #include "../../../Include/W3DDevice/GameClient/W3DProfilerFrameCapture.h"
 
-#include "WW3D2/dx8wrapper.h"
+#include "WW3D2/dx9wrapper.h"
+#include "WW3D2/shaderlibrary.h"
 #include "WW3D2/surfaceclass.h"
 #include "WW3D2/texture.h"
 #include "WW3D2/ww3d.h"
 #include "WW3D2/ww3dformat.h"
 #include "WWMath/wwmath.h"
 #include <cstring>
-#include <d3dx8core.h>
 
 W3DProfilerFrameCapture::W3DProfilerFrameCapture()
 {
@@ -37,7 +37,7 @@ W3DProfilerFrameCapture::~W3DProfilerFrameCapture()
 {
 	if (m_swizzleShader)
 	{
-		DX8Wrapper::_Get_D3D_Device8()->DeletePixelShader(m_swizzleShader);
+		m_swizzleShader->Release();
 		m_swizzleShader = 0;
 	}
 }
@@ -62,31 +62,12 @@ void W3DProfilerFrameCapture::Capture(UnsignedInt displayWidth, UnsignedInt disp
 		return;
 	}
 
-	// compile swizzle shader convert BGRA to RGBA
-	// TheSuperHackers @todo In DX9 with ps2.0 this shader will be much simpler
+	// EastWind: DX8 assembled the BGRA to RGBA swizzle from ps.1.4 text here; now it is embedded
+	// HLSL (EastWind/Shaders/profiler.hlsl).
 	if (!m_swizzleShader)
-	{
-		ID3DXBuffer *compiledShader = nullptr;
-		const char *shader =
-			"ps.1.4\n"
-			"texld r0, t0\n"
-			"mov r1.a, r0.r\n"
-			"mov r2.a, r0.g\n"
-			"mov r3.a, r0.b\n"
-			"mul r0.rgb, r3.a, c0\n"
-			"mad r0.rgb, r2.a, c1, r0\n"
-			"mad r0.rgb, r1.a, c2, r0\n";
-
-		HRESULT hr = D3DXAssembleShader(shader, strlen(shader), 0, nullptr, &compiledShader, nullptr);
-		if (FAILED(hr))
-			return;
-
-		hr = DX8Wrapper::_Get_D3D_Device8()->CreatePixelShader((DWORD *)compiledShader->GetBufferPointer(), &m_swizzleShader);
-		compiledShader->Release();
-
-		if (FAILED(hr))
-			return;
-	}
+		m_swizzleShader = EwShaders::Pixel(EwShaders::PS_PROFILER_SWIZZLE);
+	if (!m_swizzleShader)
+		return;
 
 	// allocate render target
 	TextureClass *renderTarget = DX8Wrapper::Create_Render_Target(PROFILER_FRAME_IMAGE_SIZE, PROFILER_FRAME_IMAGE_SIZE, WW3D_FORMAT_A8R8G8B8);
@@ -112,7 +93,7 @@ void W3DProfilerFrameCapture::Capture(UnsignedInt displayWidth, UnsignedInt disp
 		return;
 	}
 
-	IDirect3DSurface8 *backBufferSurface = backBuffer->Peek_D3D_Surface();
+	IDirect3DSurface9 *backBufferSurface = backBuffer->Peek_D3D_Surface();
 	D3DSURFACE_DESC backBufferSurfaceDesc;
 	HRESULT hr = backBufferSurface->GetDesc(&backBufferSurfaceDesc);
 	if (FAILED(hr))
@@ -124,15 +105,16 @@ void W3DProfilerFrameCapture::Capture(UnsignedInt displayWidth, UnsignedInt disp
 	}
 
 	// allocate intermediate texture
-	IDirect3DTexture8 *intermediateTexture = nullptr;
-	hr = DX8Wrapper::_Get_D3D_Device8()->CreateTexture(
+	IDirect3DTexture9 *intermediateTexture = nullptr;
+	hr = DX8Wrapper::_Get_D3D_Device9()->CreateTexture(
 		backBufferSurfaceDesc.Width,
 		backBufferSurfaceDesc.Height,
 		1,
 		D3DUSAGE_RENDERTARGET,
 		backBufferSurfaceDesc.Format,
 		D3DPOOL_DEFAULT,
-		&intermediateTexture);
+		&intermediateTexture,
+		nullptr);
 	if (FAILED(hr))
 	{
 		REF_PTR_RELEASE(backBuffer);
@@ -142,7 +124,7 @@ void W3DProfilerFrameCapture::Capture(UnsignedInt displayWidth, UnsignedInt disp
 	}
 
 	// draw backbuffer to intermediate texture
-	IDirect3DSurface8 *intermediateTextureSurface;
+	IDirect3DSurface9 *intermediateTextureSurface;
 	hr = intermediateTexture->GetSurfaceLevel(0, &intermediateTextureSurface);
 	if (FAILED(hr))
 	{
@@ -161,19 +143,19 @@ void W3DProfilerFrameCapture::Capture(UnsignedInt displayWidth, UnsignedInt disp
 	REF_PTR_RELEASE(backBuffer);
 
 	// set render target to a small surface
-	IDirect3DSurface8 *smallRenderTargetSurface = renderTarget->Get_D3D_Surface_Level();
+	IDirect3DSurface9 *smallRenderTargetSurface = renderTarget->Get_D3D_Surface_Level();
 	WWASSERT(smallRenderTargetSurface != nullptr);
 	DX8Wrapper::Set_Render_Target(smallRenderTargetSurface, false);
 
 	// set viewport
-	IDirect3DDevice8 *device = DX8Wrapper::_Get_D3D_Device8();
-	D3DVIEWPORT8 restoreViewport;
+	IDirect3DDevice9Ex *device = DX8Wrapper::_Get_D3D_Device9();
+	D3DVIEWPORT9 restoreViewport;
 	device->GetViewport(&restoreViewport);
 
 	SurfaceClass::SurfaceDescription smallRenderDesc;
 	surfaceClass->Get_Description(smallRenderDesc);
 
-	D3DVIEWPORT8 viewport;
+	D3DVIEWPORT9 viewport;
 	viewport.X = 0;
 	viewport.Y = 0;
 	viewport.Width = PROFILER_FRAME_IMAGE_SIZE;
@@ -183,13 +165,8 @@ void W3DProfilerFrameCapture::Capture(UnsignedInt displayWidth, UnsignedInt disp
 	DX8Wrapper::Set_Viewport(&viewport);
 
 	// bind swizzle shader
+	// The ps.1.4 version built the swizzle from mask constants c0-c2; the HLSL one is a plain .bgra.
 	DX8Wrapper::Set_Pixel_Shader(m_swizzleShader);
-	static const Real kMaskR[4] = {1.0f, 0.0f, 0.0f, 0.0f};
-	static const Real kMaskG[4] = {0.0f, 1.0f, 0.0f, 0.0f};
-	static const Real kMaskB[4] = {0.0f, 0.0f, 1.0f, 0.0f};
-	device->SetPixelShaderConstant(0, kMaskR, 1);
-	device->SetPixelShaderConstant(1, kMaskG, 1);
-	device->SetPixelShaderConstant(2, kMaskB, 1);
 
 	// draw texture scaled-down onto a small surface
 	struct QuadVertex
@@ -211,7 +188,7 @@ void W3DProfilerFrameCapture::Capture(UnsignedInt displayWidth, UnsignedInt disp
 	DX8Wrapper::Set_Pixel_Shader(0);
 	DX8Wrapper::Set_DX8_Texture(0, nullptr);
 	DX8Wrapper::Set_Viewport(&restoreViewport);
-	DX8Wrapper::Set_Render_Target(static_cast<IDirect3DSurface8 *>(nullptr));
+	DX8Wrapper::Set_Render_Target(static_cast<IDirect3DSurface9 *>(nullptr));
 
 	// copy the small surface pixels from GPU to CPU
 	RECT srcRect = { 0, 0, PROFILER_FRAME_IMAGE_SIZE, smallRenderDesc.Height };

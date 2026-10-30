@@ -32,7 +32,7 @@
 // The switches are uniform branches, so the off parts cost nothing. Samples inside a
 // branch use tex2Dlod, which needs no screen-space gradients.
 //
-// With linear lighting (EwLinearLighting, ew_linear.h) the bloom levels hold linear light, and
+// With linear lighting (EwLinearLighting, shader_linear.h) the bloom levels hold linear light, and
 // the final pass decodes the scene after the ambient occlusion, adds the bloom (no screen blend:
 // light adds up, the tone curve rolls it off) and tone maps, then encodes before the colour LUT.
 //
@@ -40,8 +40,8 @@
 // brightness contrast, follows each edge to its ends and blends across it, so jagged
 // polygon and alpha-test edges look smooth. It reads only inside the view rectangle (Clamp).
 
-#include "ew_constants.h"
-#include "ew_linear.h"
+#include "shader_constants.h"
+#include "shader_linear.h"
 
 float4 Texel        : EW_REG(EW_POST_PS_TEXEL);
 float4 BloomParams  : EW_REG(EW_POST_PS_BLOOM);

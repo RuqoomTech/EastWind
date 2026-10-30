@@ -6,7 +6,7 @@
 // Vertex format DX8_FVF_XYZNDUV1, with the normal used for tree data:
 //   normal.x = sway type (index into Wave), normal.y = colour scale, normal.z = base z of the tree.
 
-#include "ew_constants.h"
+#include "shader_constants.h"
 
 float4 WorldViewProj[4]                 : EW_REG(EW_TREES_VS_WVP);
 float4 Wave[EW_TREES_MAX_SWAY + 1]      : EW_REG(EW_TREES_VS_WAVE);
@@ -62,14 +62,14 @@ VsOut TreesVS(VsIn i)
 // there is no fog here.
 //
 // M3.4: the first light, the sun the shadow map is drawn from, is darkened by the sun shadow map
-// (ew_shadow.h). The trees are drawn in world space (the terrain's identity transform), so the
+// (shader_shadow.h). The trees are drawn in world space (the terrain's identity transform), so the
 // swayed position is the world position.
 
 float4 TreeLight[EW_TREES_PS_LIGHT_COUNT] : EW_REG(EW_TREES_PS_LIGHT);	// [0] ambient, [1..3] direction to the light, [4..6] diffuse
 float4 TreeOptions                         : EW_REG(EW_TREES_PS_OPTIONS);	// x shroud on, y light only (debug key)
 
-#include "ew_shadow.h"
-#include "ew_linear.h"
+#include "shader_shadow.h"
+#include "shader_linear.h"
 
 sampler2D TreeTexture : register(s0);
 sampler2D TreeShroud  : register(s1);
@@ -118,7 +118,7 @@ LitVsOut TreesLitVS(LitVsIn i)
 float4 TreesLitPS(LitVsOut i) : COLOR0
 {
 	float3 n = normalize(i.normal);
-	// The light adds up in linear space (ew_linear.h).
+	// The light adds up in linear space (shader_linear.h).
 	float3 light = Ew_To_Linear(TreeLight[0].rgb) + Ew_To_Linear(i.emissive);
 	float shadow = Ew_Sun_Shadow(i.world, n, TreeLight[1].xyz);
 	light += shadow * Ew_To_Linear(TreeLight[4].rgb) * saturate(dot(TreeLight[1].xyz, n));

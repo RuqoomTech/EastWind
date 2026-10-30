@@ -26,11 +26,7 @@
 
 #include "WWLib/always.h"
 #include "WW3D2/rendobj.h"
-#ifdef EW_RENDERER_DX9
-#include "WW3D2/vertmaterial_dx9.h"
-#else
 #include "WW3D2/vertmaterial.h"
-#endif
 #include "Lib/BaseType.h"
 
 #if defined(RTS_DEBUG)

@@ -91,36 +91,16 @@
 #include "boxrobj.h"
 #include "w3d_util.h"
 #include "WWDebug/wwdebug.h"
-#ifdef EW_RENDERER_DX9
-#include "vertmaterial_dx9.h"
-#else
 #include "vertmaterial.h"
-#endif
 #include "ww3d.h"
 #include "WWLib/chunkio.h"
 #include "rinfo.h"
 #include "coltest.h"
 #include "inttest.h"
-#ifdef EW_RENDERER_DX9
 #include "dx9wrapper.h"
-#else
-#include "dx8wrapper.h"
-#endif
-#ifdef EW_RENDERER_DX9
 #include "dx9indexbuffer.h"
-#else
-#include "dx8indexbuffer.h"
-#endif
-#ifdef EW_RENDERER_DX9
 #include "dx9vertexbuffer.h"
-#else
-#include "dx8vertexbuffer.h"
-#endif
-#ifdef EW_RENDERER_DX9
 #include "dx9fvf.h"
-#else
-#include "dx8fvf.h"
-#endif
 #include "sortingrenderer.h"
 #include "visrasterizer.h"
 #include "meshgeometry.h"

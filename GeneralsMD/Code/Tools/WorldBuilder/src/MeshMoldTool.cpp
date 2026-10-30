@@ -32,11 +32,7 @@
 #include "WorldBuilderView.h"
 #include "WorldBuilder.h"
 #include "DrawObject.h"
-#ifdef EW_RENDERER_DX9
-#include "wbview3d_dx9.h"
-#else
 #include "wbview3d.h"
-#endif
 #include "WW3D2/mesh.h"
 #include "WW3D2/meshmdl.h"
 #include "W3DDevice/GameClient/HeightMap.h"

@@ -3,14 +3,14 @@
 """
 EastWind DX9 file tool.
 
-Our DX9 files sit beside the DX8 files they replace (dx9wrapper.cpp next to dx8wrapper.cpp)
+Our DX9 files sit beside the DX8 files they replace (dx9wrapper.cpp next to dx9wrapper.cpp)
 and are listed in EastWind/dx9_files.txt. Files that only the DX9 build has (no DX8 original)
 are listed in EastWind/dx9_new_files.txt. Shared files include a replaced header through:
 
     #ifdef EW_RENDERER_DX9
     #include "dx9wrapper.h"
     #else
-    #include "dx8wrapper.h"
+    #include "dx9wrapper.h"
     #endif
 
 Commands:
@@ -57,7 +57,7 @@ ENDIF = re.compile(r"^[ \t]*#[ \t]*endif\b")
 
 
 def dx9_name(name):
-    """dx8wrapper.cpp -> dx9wrapper.cpp, DX8Backend.cpp -> DX9Backend.cpp, texture.h -> texture_dx9.h"""
+    """dx9wrapper.cpp -> dx9wrapper.cpp, DX9Backend.cpp -> DX9Backend.cpp, texture.h -> texture.h"""
     if re.search("dx8", name, re.IGNORECASE):
         return re.sub("dx8", lambda m: m.group(0)[:-1] + "9", name, count=1, flags=re.IGNORECASE)
     stem, ext = os.path.splitext(name)

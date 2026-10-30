@@ -35,34 +35,14 @@
 #include "ScreenCursor.h"
 #include "Utils.h"
 #include "WW3D2/ww3d.h"
-#ifdef EW_RENDERER_DX9
-#include "WW3D2/vertmaterial_dx9.h"
-#else
 #include "WW3D2/vertmaterial.h"
-#endif
 #include "WW3D2/shader.h"
 #include "WW3D2/scene.h"
 #include "WW3D2/rinfo.h"
-#ifdef EW_RENDERER_DX9
-#include "WW3D2/texture_dx9.h"
-#else
 #include "WW3D2/texture.h"
-#endif
-#ifdef EW_RENDERER_DX9
 #include "WW3D2/dx9wrapper.h"
-#else
-#include "WW3D2/dx8wrapper.h"
-#endif
-#ifdef EW_RENDERER_DX9
 #include "WW3D2/dx9vertexbuffer.h"
-#else
-#include "WW3D2/dx8vertexbuffer.h"
-#endif
-#ifdef EW_RENDERER_DX9
 #include "WW3D2/dx9indexbuffer.h"
-#else
-#include "WW3D2/dx8indexbuffer.h"
-#endif
 #include "WW3D2/sortingrenderer.h"
 
 

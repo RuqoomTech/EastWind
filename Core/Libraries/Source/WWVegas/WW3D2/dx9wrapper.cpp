@@ -22,7 +22,7 @@
  *                                                                                             *
  *                 Project Name : WW3D                                                         *
  *                                                                                             *
- *                     $Archive:: /Commando/Code/ww3d2/dx8wrapper.cpp                         $*
+ *                     $Archive:: /Commando/Code/ww3d2/dx9wrapper.cpp                         $*
  *                                                                                             *
  *              Original Author:: Jani Penttinen                                               *
  *                                                                                             *
@@ -55,13 +55,13 @@
 #include "dx9fvf.h"
 #include "dx9vertexbuffer.h"
 #include "dx9indexbuffer.h"
-#include "dx8renderer.h"
+#include "dx9renderer.h"
 #include "ww3d.h"
 #include "camera.h"
 #include "WWLib/wwstring.h"
 #include "WWMath/matrix4.h"
-#include "vertmaterial_dx9.h"
-#include "rddesc_dx9.h"
+#include "vertmaterial.h"
+#include "rddesc.h"
 #include "lightenvironment.h"
 #include "statistics.h"
 #include "WWLib/registry.h"
@@ -72,14 +72,14 @@
 #include "shattersystem.h"
 #include "light.h"
 #include "assetmgr.h"
-#include "textureloader_dx9.h"
-#include "missingtexture_dx9.h"
+#include "textureloader.h"
+#include "missingtexture.h"
 #include "WWLib/thread.h"
 #include "WWMath/pot.h"
 #include "WWDebug/wwprofile.h"
 #include "WWLib/ffactory.h"
 #include "dx9caps.h"
-#include "formconv_dx9.h"
+#include "formconv.h"
 #include "bitmaphandler.h"
 #include "dx9texman.h"
 #include "WWLib/bound.h"
@@ -87,8 +87,8 @@
 #include <Utility/bit_adapter.h>
 
 #include "shdlib.h"
-#include "ewshaders_dx9.h"
-#include "ewmeshshader_dx9.h"
+#include "shaderlibrary.h"
+#include "meshshader.h"
 
 const int DEFAULT_RESOLUTION_WIDTH = 640;
 const int DEFAULT_RESOLUTION_HEIGHT = 480;

@@ -46,7 +46,7 @@
 #include "GameClient/Color.h"
 
 #include "W3DDevice/GameClient/W3DAssetManager.h"
-#include "WW3D2/dx8wrapper.h"
+#include "WW3D2/dx9wrapper.h"
 #include "WWLib/TARGA.h"
 
 /////////////////////////////////////////////////////////////////////////////
@@ -78,18 +78,18 @@ END_MESSAGE_MAP()
 #define PREVIEW_WIDTH 128
 #define PREVIEW_HEIGHT 128
 
-static UnsignedByte * saveSurface(IDirect3DSurface8 *surface)
+static UnsignedByte * saveSurface(IDirect3DSurface9 *surface)
 {
 	D3DSURFACE_DESC desc;
-	IDirect3DSurface8 *tempSurface;
+	IDirect3DSurface9 *tempSurface;
 
 	surface->GetDesc(&desc);
 
-	LPDIRECT3DDEVICE8 m_pDev=DX8Wrapper::_Get_D3D_Device8();
+	LPDIRECT3DDEVICE9EX m_pDev=DX8Wrapper::_Get_D3D_Device9();
 
-	HRESULT hr=m_pDev->CreateImageSurface(  desc.Width,desc.Height,desc.Format, &tempSurface);
+	HRESULT hr=m_pDev->CreateOffscreenPlainSurface(  desc.Width,desc.Height,desc.Format, D3DPOOL_SYSTEMMEM, &tempSurface, nullptr);
 
-	hr=m_pDev->CopyRects(surface,nullptr,0,tempSurface,nullptr);
+	hr=DX8Wrapper::_Copy_DX8_Rects(surface,nullptr,0,tempSurface,nullptr);
 
 	D3DLOCKED_RECT lrect;
 
@@ -250,7 +250,7 @@ static UnsignedByte * generatePreview( const ThingTemplate *tt )
 			}
 
 			// Change the rendertarget back to the main backbuffer
-			DX8Wrapper::Set_Render_Target((IDirect3DSurface8 *)nullptr);
+			DX8Wrapper::Set_Render_Target((IDirect3DSurface9 *)nullptr);
 
 			if (renderResult == WW3D_ERROR_OK)
 			{

@@ -22,7 +22,7 @@
 #include "WWLib/ffactory.h"
 #include "WWLib/bufffile.h"
 #include "formconv.h"
-#include "dx8wrapper.h"
+#include "dx9wrapper.h"
 #include "bitmaphandler.h"
 #include "colorspace.h"
 #include <ddraw.h>
@@ -339,7 +339,7 @@ WWINLINE static unsigned short ARGB8888_To_RGB565(unsigned argb_)
 //
 // ----------------------------------------------------------------------------
 
-void DDSFileClass::Copy_Level_To_Surface(unsigned level,IDirect3DSurface8* d3d_surface,const Vector3& hsv_shift)
+void DDSFileClass::Copy_Level_To_Surface(unsigned level,IDirect3DSurface9* d3d_surface,const Vector3& hsv_shift)
 {
 	WWASSERT(d3d_surface);
 	// Verify that the destination surface size matches the source surface size

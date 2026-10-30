@@ -24,11 +24,7 @@
 
 #pragma once
 
-#ifdef EW_RENDERER_DX9
-#include "Common/BezierSegment_dx9.h"
-#else
 #include "Common/BezierSegment.h"
-#endif
 
 class BezFwdIterator
 {

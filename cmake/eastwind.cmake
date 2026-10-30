@@ -15,7 +15,7 @@ endif()
 
 # Renderer backend. DX8 is the upstream renderer and stays the default.
 # DX9 is the EastWind renderer: our own files beside the DX8 ones (dx9wrapper.cpp next to
-# dx8wrapper.cpp), swapped in by cmake/eastwind_dx9.cmake. Raw DX8 files are never edited.
+# dx9wrapper.cpp), swapped in by cmake/eastwind_dx9.cmake. Raw DX8 files are never edited.
 set(EW_RENDERER "DX8" CACHE STRING "Renderer backend to build: DX8 (upstream) or DX9 (EastWind).")
 set_property(CACHE EW_RENDERER PROPERTY STRINGS DX8 DX9)
 if(NOT EW_RENDERER MATCHES "^(DX8|DX9)$")

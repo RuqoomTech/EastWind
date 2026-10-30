@@ -51,11 +51,7 @@
 #include "Common/GlobalData.h"
 #include "GameLogic/GameLogic.h"
 #include "Common/MapObject.h"
-#ifdef EW_RENDERER_DX9
 #include "WW3D2/dx9wrapper.h"
-#else
-#include "WW3D2/dx8wrapper.h"
-#endif
 
 #if defined(RTS_DEBUG)
 

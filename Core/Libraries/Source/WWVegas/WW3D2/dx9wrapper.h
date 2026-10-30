@@ -22,7 +22,7 @@
  *                                                                                             *
  *                 Project Name : ww3d                                                         *
  *                                                                                             *
- *                     $Archive:: /Commando/Code/ww3d2/dx8wrapper.h                           $*
+ *                     $Archive:: /Commando/Code/ww3d2/dx9wrapper.h                           $*
  *                                                                                             *
  *              Original Author:: Jani Penttinen                                               *
  *                                                                                             *
@@ -54,10 +54,10 @@
 #include "WWLib/cpudetect.h"
 #include "dx9caps.h"
 
-#include "texture_dx9.h"
+#include "texture.h"
 #include "dx9vertexbuffer.h"
 #include "dx9indexbuffer.h"
-#include "WW3D2/vertmaterial_dx9.h"
+#include "WW3D2/vertmaterial.h"
 
 /*
 ** Registry value names

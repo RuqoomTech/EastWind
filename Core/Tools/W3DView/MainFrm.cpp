@@ -71,11 +71,7 @@
 #include "SoundEditDialog.h"
 #include "WWAudio/WWAudio.h"
 #include "WW3D2/soundrobj.h"
-#ifdef EW_RENDERER_DX9
-#include "WW3D2/rddesc_dx9.h"
-#else
 #include "WW3D2/rddesc.h"
-#endif
 #include "ScaleDialog.h"
 #include "GammaDialog.h"
 #include "AnimatedSoundOptionsDialog.h"

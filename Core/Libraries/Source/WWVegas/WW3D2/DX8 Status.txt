@@ -148,7 +148,7 @@ General:
 NOTE: We have three enums/#defines/consts for the number of texture stages:
 RENDERER_MAX_TEX_STAGES, MeshMatDescClass::MAX_TEX_STAGES, MeshBuilderClass::MAX_STAGES.
 We are even explicitly comparing two of them and asserting if they are different in
-dx8renderer.cpp. There is a similar situation with DX8FVFCategoryContainer::MAX_PASSES,
+dx9renderer.cpp. There is a similar situation with DX8FVFCategoryContainer::MAX_PASSES,
 MeshMatDescClass::MAX_PASSES and MeshBuilderClass::MAX_PASSES. We need to clean this up!
 
 Features we are removing support for (will need application changes):

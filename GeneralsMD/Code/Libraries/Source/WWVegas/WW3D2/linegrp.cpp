@@ -39,34 +39,14 @@
 
 #include "WWLib/sharebuf.h"
 #include "linegrp.h"
-#ifdef EW_RENDERER_DX9
-#include "texture_dx9.h"
-#else
 #include "texture.h"
-#endif
-#ifdef EW_RENDERER_DX9
-#include "vertmaterial_dx9.h"
-#else
 #include "vertmaterial.h"
-#endif
-#ifdef EW_RENDERER_DX9
 #include "dx9wrapper.h"
-#else
-#include "dx8wrapper.h"
-#endif
 #include "WWMath/wwmath.h"
 #include "rinfo.h"
 #include "camera.h"
-#ifdef EW_RENDERER_DX9
 #include "dx9indexbuffer.h"
-#else
-#include "dx8indexbuffer.h"
-#endif
-#ifdef EW_RENDERER_DX9
 #include "dx9vertexbuffer.h"
-#else
-#include "dx8vertexbuffer.h"
-#endif
 #include "sortingrenderer.h"
 
 // Line groups are a rendering primitive similar to point groups

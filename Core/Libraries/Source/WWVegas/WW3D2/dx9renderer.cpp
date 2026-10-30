@@ -22,7 +22,7 @@
  *                                                                                             *
  *                 Project Name : ww3d                                                         *
  *                                                                                             *
- *                     $Archive:: /Commando/Code/ww3d2/dx8renderer.cpp                        $*
+ *                     $Archive:: /Commando/Code/ww3d2/dx9renderer.cpp                        $*
  *                                                                                             *
  *              Original Author:: Greg Hjelstrom                                               *
  *                                                                                             *
@@ -40,15 +40,15 @@
 //#define ENABLE_CATEGORY_LOG
 //#define ENABLE_STRIPING
 
-#include "dx8renderer.h"
+#include "dx9renderer.h"
 #include "dx9wrapper.h"
-#include "dx8polygonrenderer.h"
+#include "dx9polygonrenderer.h"
 #include "dx9vertexbuffer.h"
 #include "dx9indexbuffer.h"
 #include "dx9fvf.h"
 #include "dx9caps.h"
-#include "ewmeshshader_dx9.h"
-#include "dx8rendererdebugger.h"
+#include "meshshader.h"
+#include "dx9rendererdebugger.h"
 #include "WWDebug/wwdebug.h"
 #include "WWDebug/wwprofile.h"
 #include "WWDebug/wwmemlog.h"

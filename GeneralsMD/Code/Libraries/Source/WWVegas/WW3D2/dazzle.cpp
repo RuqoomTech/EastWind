@@ -51,37 +51,17 @@
 #include "WWLib/INI.h"
 #include "WWLib/Point.h"
 #include "rinfo.h"
-#ifdef EW_RENDERER_DX9
-#include "vertmaterial_dx9.h"
-#else
 #include "vertmaterial.h"
-#endif
 #include "WWLib/chunkio.h"
 #include "WWLib/WWFILE.h"
 #include "WWLib/inisup.h"
 #include "WWSaveLoad/persistfactory.h"
 #include "ww3dids.h"
-#ifdef EW_RENDERER_DX9
 #include "dx9wrapper.h"
-#else
-#include "dx8wrapper.h"
-#endif
-#ifdef EW_RENDERER_DX9
 #include "dx9vertexbuffer.h"
-#else
-#include "dx8vertexbuffer.h"
-#endif
-#ifdef EW_RENDERER_DX9
 #include "dx9indexbuffer.h"
-#else
-#include "dx8indexbuffer.h"
-#endif
 #include "sortingrenderer.h"
-#ifdef EW_RENDERER_DX9
-#include "texture_dx9.h"
-#else
 #include "texture.h"
-#endif
 #include "scene.h"
 #include "WWDebug/wwprofile.h"
 #include "visrasterizer.h"

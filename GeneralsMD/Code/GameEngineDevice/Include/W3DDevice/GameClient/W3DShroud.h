@@ -25,11 +25,7 @@
 #pragma once
 
 #include "WW3D2/matpass.h"
-#ifdef EW_RENDERER_DX9
 #include "WW3D2/dx9wrapper.h"
-#else
-#include "WW3D2/dx8wrapper.h"
-#endif
 
 class AABoxClass;
 class WorldHeightMap;

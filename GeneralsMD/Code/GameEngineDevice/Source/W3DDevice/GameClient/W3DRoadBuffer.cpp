@@ -61,9 +61,10 @@
 #include "W3DDevice/GameClient/W3DDynamicLight.h"
 #include "W3DDevice/GameClient/WorldHeightMap.h"
 #include "W3DDevice/GameClient/W3DShaderManager.h"
+#include "W3DDevice/GameClient/W3DTerrainLighting.h"
 #include "WW3D2/camera.h"
-#include "WW3D2/dx8wrapper.h"
-#include "WW3D2/dx8renderer.h"
+#include "WW3D2/dx9wrapper.h"
+#include "WW3D2/dx9renderer.h"
 #include "WW3D2/mesh.h"
 #include "WW3D2/meshmdl.h"
 
@@ -3345,11 +3346,18 @@ void W3DRoadBuffer::drawRoads(CameraClass * camera, TextureClass *cloudTexture, 
 			{
 				if (!wireframe)
 		 			W3DShaderManager::setShader(st, pass);
+				// EastWind M3.1d: per-pixel light, drawn in one pass (EwPerPixelLighting).
+				const Bool ewLit = !wireframe && pass == 0 && EwTerrainLighting::Begin_Road(m_map,
+					(st == W3DShaderManager::ST_ROAD_BASE) ? 0 : ((st == W3DShaderManager::ST_ROAD_BASE_NOISE12) ? 2 : 1), devicePasses);
 				//Draw all this road type.
 				DX8Wrapper::Draw_Triangles(	0, m_roadTypes[i].getNumIndices()/3, 0,	m_roadTypes[i].getNumVertices());
 #ifdef LOG_STATS
 				polys += m_roadTypes[i].getNumIndices()/3;
 #endif
+				if (ewLit) {
+					EwTerrainLighting::End();
+					break;
+				}
 			}
 
 			if (!wireframe)	//shader was applied at least once?

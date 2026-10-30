@@ -22,7 +22,7 @@
  *                                                                                             *
  *                 Project Name : WW3D                                                         *
  *                                                                                             *
- *                     $Archive:: /Commando/Code/ww3d2/dx8vertexbuffer.h                      $*
+ *                     $Archive:: /Commando/Code/ww3d2/dx9vertexbuffer.h                      $*
  *                                                                                             *
  *              Original Author:: Jani Penttinen                                               *
  *                                                                                             *

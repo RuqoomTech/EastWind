@@ -28,7 +28,7 @@
  * _bstr_t objects from C strings or converting _bstr_t back to char*.
  *
  * Used indirectly by:
- * - Core/Libraries/Source/WWVegas/WW3D2/dx8webbrowser.cpp (8+ _bstr_t constructions)
+ * - Core/Libraries/Source/WWVegas/WW3D2/dx9webbrowser.cpp (8+ _bstr_t constructions)
  * - Core/GameEngine/Include/GameNetwork/WOLBrowser/FEBDispatch.h (_bstr_t usage)
  *
  * MinGW-w64 provides COM error handling (comdef.h) but lacks the string

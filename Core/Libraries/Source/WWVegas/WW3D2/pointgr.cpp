@@ -80,13 +80,13 @@
 #include "WWLib/Vector.h"
 #include "WWMath/vp.h"
 #include "WWMath/matrix4.h"
-#include "dx8wrapper.h"
-#include "dx8vertexbuffer.h"
-#include "dx8indexbuffer.h"
+#include "dx9wrapper.h"
+#include "dx9vertexbuffer.h"
+#include "dx9indexbuffer.h"
 #include "rinfo.h"
 #include "camera.h"
-#include "dx8fvf.h"
-#include "d3dx8math.h"
+#include "dx9fvf.h"
+#include "WWMath/d3dmath.h"
 #include "sortingrenderer.h"
 
 // Upgraded to DX8 2/2/01 HY
@@ -925,6 +925,7 @@ void PointGroupClass::Render(RenderInfoClass &rinfo)
 	DX8Wrapper::Set_Material(PointMaterial);
 	DX8Wrapper::Set_Shader(Shader);
 	DX8Wrapper::Set_Texture(0,Texture);
+	DX8Wrapper::Set_Ew_Soft_Particle(Billboard);	// EastWind: ground-aligned particles keep hard edges
 
 	// Enable sorting if the primitives are translucent and alpha testing is not enabled.
 	// TheSuperHackers @bugfix stephanmeesters 30/06/2026 However, do not apply sorting to ground-aligned particles.
@@ -995,6 +996,7 @@ void PointGroupClass::Render(RenderInfoClass &rinfo)
 		current+=delta;
 	}
 
+	DX8Wrapper::Set_Ew_Soft_Particle(false);
 	// restore the matrices
 	DX8Wrapper::Set_Transform(D3DTS_VIEW,view);
 }
@@ -1228,7 +1230,7 @@ void PointGroupClass::Update_Arrays(
 					if (!Billboard) {
 						// If we're not billboarding, then the coordinate we have is in screen space.
 						Matrix4x4 rotMat;
-						D3DXMatrixRotationZ(&(D3DXMATRIX&) rotMat, ((float)point_orientation[i] / 255.0f * 2 * D3DX_PI));
+						EwD3DMatrixRotationZ(&(EwD3DMatrix&) rotMat, ((float)point_orientation[i] / 255.0f * 2 * EW_D3D_PI));
 
 						Vector4 orientedVecX = rotMat * GroundMultiplierX;
 						Vector4 orientedVecY = rotMat * GroundMultiplierY;
@@ -1855,6 +1857,7 @@ void PointGroupClass::RenderVolumeParticle(RenderInfoClass &rinfo, unsigned int 
 		DX8Wrapper::Set_Material(PointMaterial);
 		DX8Wrapper::Set_Shader(Shader);
 		DX8Wrapper::Set_Texture(0,Texture);
+		DX8Wrapper::Set_Ew_Soft_Particle(Billboard);
 
 		// Enable sorting if the primitives are translucent and alpha testing is not enabled.
 		// TheSuperHackers @info Volumetric particles, both billboarded and ground-aligned, must have sorting enabled to
@@ -1931,6 +1934,7 @@ void PointGroupClass::RenderVolumeParticle(RenderInfoClass &rinfo, unsigned int 
 
 
 
+	DX8Wrapper::Set_Ew_Soft_Particle(false);
 	// restore the matrices
 	DX8Wrapper::Set_Transform(D3DTS_VIEW,view);
 }

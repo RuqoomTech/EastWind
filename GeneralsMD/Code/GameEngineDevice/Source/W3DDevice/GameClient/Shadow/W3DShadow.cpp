@@ -36,16 +36,11 @@
 #include "GameClient/View.h"
 #include "WW3D2/camera.h"
 #include "WW3D2/light.h"
-#ifdef EW_RENDERER_DX9
 #include "WW3D2/dx9wrapper.h"
-#else
-#include "WW3D2/dx8wrapper.h"
-#endif
 #include "WW3D2/hlod.h"
 #include "WW3D2/mesh.h"
 #include "WW3D2/meshmdl.h"
 #include "W3DDevice/GameClient/HeightMap.h"
-#include "d3dx8math.h"
 #include "Common/GlobalData.h"
 #include "W3DDevice/GameClient/W3DVolumetricShadow.h"
 #include "W3DDevice/GameClient/W3DProjectedShadow.h"
@@ -53,6 +48,7 @@
 #include "WW3D2/statistics.h"
 #include "Common/Debug.h"
 #include "Common/PerfTimer.h"
+#include "WW3D2/shadowmap.h"
 
 #define SUN_DISTANCE_FROM_GROUND	10000.0f	//distance of sun (our only light source).
 
@@ -94,7 +90,8 @@ void DoShadows(RenderInfoClass & rinfo, Bool stencilPass)
 
 			//This function gets called many times by the W3D renderer
 			//so we use this flag to make sure shadows rendered only once per frame.
-			if (TheW3DShadowManager->isShadowScene())
+			// EastWind M3.4: the stencil shadow volumes give way to the sun shadow map.
+			if (TheW3DShadowManager->isShadowScene() && !EwShadowMap::Active())
 				TheW3DVolumetricShadowManager->renderShadows(projectionCount);
 	}
 	if (TheW3DShadowManager && stencilPass)	//reset so no more shadow processing this frame.

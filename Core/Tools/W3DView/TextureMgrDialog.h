@@ -41,11 +41,7 @@
 #include "Utils.h"
 #include "Resource.h"
 #include "DialogToolbar.h"
-#ifdef EW_RENDERER_DX9
-#include "WW3D2/texture_dx9.h"
-#else
 #include "WW3D2/texture.h"
-#endif
 
 // Forward declarations
 class MeshClass;

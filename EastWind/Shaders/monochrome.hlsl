@@ -1,6 +1,6 @@
 // EastWind DX9: black and white screen filter, ported from monochrome.nvp.
 
-#include "ew_constants.h"
+#include "shader_constants.h"
 
 float4 Luminance : EW_REG(EW_MONO_PS_LUMINANCE);
 float4 Color     : EW_REG(EW_MONO_PS_COLOR);

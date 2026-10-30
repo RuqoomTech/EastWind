@@ -22,7 +22,7 @@
  *                                                                                             *
  *                 Project Name : DX8 Caps                                                     *
  *                                                                                             *
- *                     $Archive:: /Commando/Code/ww3d2/dx8caps.h                              $*
+ *                     $Archive:: /Commando/Code/ww3d2/dx9caps.h                              $*
  *                                                                                             *
  *              Original Author:: Hector Yee                                                   *
  *                                                                                             *

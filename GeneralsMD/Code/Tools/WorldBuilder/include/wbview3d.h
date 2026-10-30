@@ -33,7 +33,7 @@
 #include "Common/GameType.h"
 #include "Common/GlobalData.h"
 #include "Common/ModelState.h"
-#include "WW3D2/dx8wrapper.h"
+#include "WW3D2/dx9wrapper.h"
 
 //#include "GameLogic/Module/BodyModule.h" -- Yikes... not necessary to include this! (KM)
 enum BodyDamageType CPP_11(: Int); //Ahhhh much better!
@@ -51,7 +51,14 @@ class DrawObject;
 class CWorldBuilderView;
 class BuildListInfo;
 class TransRenderObj;
-struct ID3DXFont;
+
+// EastWind: the DX8 view drew its labels with an ID3DXFont, and the DX9 build has no D3DX.
+// m3DFont stays null, so the labels draw with GDI.
+struct WB3DFont
+{
+	void Release() {}
+	void DrawText(const char*, int, const RECT*, DWORD, DWORD) {}
+};
 
 /////////////////////////////////////////////////////////////////////////////
 // WbView3d view
@@ -212,7 +219,7 @@ private:
 	Bool										m_showLetterbox;
 
 
-	ID3DXFont*							m3DFont;
+	WB3DFont*							m3DFont;
 	Int											m_pickPixels;
 	Int											m_partialMapSize;
 

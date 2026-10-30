@@ -35,29 +35,13 @@
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 #include "dynamesh.h"
-#ifdef EW_RENDERER_DX9
 #include "dx9vertexbuffer.h"
-#else
-#include "dx8vertexbuffer.h"
-#endif
-#ifdef EW_RENDERER_DX9
 #include "dx9indexbuffer.h"
-#else
-#include "dx8indexbuffer.h"
-#endif
-#ifdef EW_RENDERER_DX9
 #include "dx9wrapper.h"
-#else
-#include "dx8wrapper.h"
-#endif
 #include "sortingrenderer.h"
 #include "rinfo.h"
 #include "camera.h"
-#ifdef EW_RENDERER_DX9
 #include "dx9fvf.h"
-#else
-#include "dx8fvf.h"
-#endif
 
 
 

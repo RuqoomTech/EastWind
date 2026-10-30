@@ -103,18 +103,18 @@
 #include "WWLib/INI.h"
 #include "dazzle.h"
 #include "meshmdl.h"
-#include "dx8renderer.h"
+#include "dx9renderer.h"
 #include "Renderer.h"
 #include "render2d.h"
 #include "WWLib/bound.h"
 #include "rddesc.h"
 #include "WWMath/Vector3i.h"
-#include "dx8wrapper.h"
+#include "dx9wrapper.h"
 #include "WWLib/TARGA.h"
 #include "sortingrenderer.h"
 #include "WWLib/thread.h"
 #include "WWLib/cpudetect.h"
-#include "dx8texman.h"
+#include "dx9texman.h"
 #include "animatedsoundmgr.h"
 #include "static_sort_list.h"
 #include "shdlib.h"
@@ -809,7 +809,7 @@ WW3DErrorType WW3D::Begin_Render(bool clear,bool clearz,const Vector3 & color, f
 	SNAPSHOT_SAY(("========== WW3D::Begin_Render ============"));
 	SNAPSHOT_SAY(("==========================================\n"));
 
-	if (DX8Wrapper::_Get_D3D_Device8() && (hr=DX8Wrapper::_Get_D3D_Device8()->TestCooperativeLevel()) != D3D_OK)
+	if (DX8Wrapper::_Get_D3D_Device9() && (hr=DX8Wrapper::_Get_D3D_Device9()->TestCooperativeLevel()) != D3D_OK)
 	{
         // If the device was lost, do not render until we get it back
         if( D3DERR_DEVICELOST == hr )

@@ -84,7 +84,7 @@
 #include "matpass.h"
 #include "bwrender.h"
 #include "assetmgr.h"
-#include "dx8wrapper.h"
+#include "dx9wrapper.h"
 
 
 // DEBUG DEBUG
@@ -1164,7 +1164,7 @@ bool TexProjectClass::Compute_Texture
 		}
 		WW3D::Activate_Snapshot(snapshot);	// End_Render() ends the shapsnot, so restore the state
 
-		DX8Wrapper::Set_Render_Target((IDirect3DSurface8 *)nullptr);
+		DX8Wrapper::Set_Render_Target((IDirect3DSurface9 *)nullptr);
 		return renderResult == WW3D_ERROR_OK;
 	}
 

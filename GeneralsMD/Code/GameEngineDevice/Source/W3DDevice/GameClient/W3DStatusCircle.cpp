@@ -33,7 +33,7 @@
 #include <WW3D2/coltest.h>
 #include <WW3D2/rinfo.h>
 #include <WW3D2/camera.h>
-#include "WW3D2/dx8wrapper.h"
+#include "WW3D2/dx9wrapper.h"
 #include "WW3D2/shader.h"
 #include "Common/GlobalData.h"
 #include "Common/MapObject.h"

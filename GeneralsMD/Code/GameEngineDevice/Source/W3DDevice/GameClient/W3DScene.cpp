@@ -53,16 +53,19 @@
 #include "W3DDevice/GameClient/W3DStatusCircle.h"
 #include "W3DDevice/GameClient/W3DCustomScene.h"
 #include "W3DDevice/GameClient/W3DShroud.h"
+#include "W3DDevice/GameClient/W3DPostProcess.h"
 #include "WW3D2/camera.h"
-#include "WW3D2/dx8renderer.h"
+#include "WW3D2/dx9renderer.h"
 #include "WW3D2/sortingrenderer.h"
-#include "WW3D2/dx8wrapper.h"
+#include "WW3D2/dx9wrapper.h"
 #include "WW3D2/Renderer.h"
 #include "WW3D2/light.h"
 #include "WW3D2/matpass.h"
 #include "WW3D2/shader.h"
-#include "WW3D2/dx8caps.h"
+#include "WW3D2/dx9caps.h"
 #include "WW3D2/colorspace.h"
+#include "WW3D2/shadowmap.h"
+#include "WW3D2/gputimer.h"
 
 #include "WW3D2/shdlib.h"
 
@@ -865,6 +868,7 @@ void RTS3DScene::Flush(RenderInfoClass & rinfo)
 
 	// (gth) CNC3 Flush the shader meshes
 	SHD_FLUSH;
+	EwGpuTimer::Mark(EwGpuTimer::SCENE_MESHES);
 
 	// Draw the trees last so they alpha blend onto everything correctly.
 	DoTrees(rinfo);
@@ -872,8 +876,10 @@ void RTS3DScene::Flush(RenderInfoClass & rinfo)
 	//don't draw shadows in this mode because they interfere with destination alpha
 	if (m_customPassMode == SCENE_PASS_DEFAULT && Get_Extra_Pass_Polygon_Mode() == EXTRA_PASS_DISABLE)
 		DoShadows(rinfo, true);	//draw all stencil shadows
+	EwGpuTimer::Mark(EwGpuTimer::SCENE_TREES);
 
 	WW3D::Render_And_Clear_Static_Sort_Lists(rinfo);	//draws things like water
+	EwGpuTimer::Mark(EwGpuTimer::SCENE_WATER);
 
 	if (m_customPassMode == SCENE_PASS_DEFAULT && Get_Extra_Pass_Polygon_Mode() == EXTRA_PASS_DISABLE)
 		flushTranslucentObjects(rinfo);	//draw all translucent meshes which don't need per-polygon sorting.
@@ -883,10 +889,15 @@ void RTS3DScene::Flush(RenderInfoClass & rinfo)
 
 		//don't draw transparent in this mode because they interfere with destination alpha
 		if (m_customPassMode == SCENE_PASS_DEFAULT && Get_Extra_Pass_Polygon_Mode() == EXTRA_PASS_DISABLE)
+		{
+			EwPostProcess::Begin_Particles(&rinfo.Camera);	// EastWind: soft particles read the scene depth
 			DoParticles(rinfo);	//queue up particles for rendering.
+		}
 
 		SortingRendererClass::Flush();	//draw sorted translucent polygons like particles.
+		EwPostProcess::End_Particles();
 	}
+	EwGpuTimer::Mark(EwGpuTimer::SCENE_PARTICLES);
 	TheDX8MeshRenderer.Clear_Pending_Delete_Lists();
 }
 
@@ -972,6 +983,56 @@ void RTS3DScene::updatePlayerColorPasses()
 void RTS3DScene::Render(RenderInfoClass & rinfo)
 {
 	//USE_PERF_TIMER(NonTerrainRender)
+
+	// EastWind M3.4: the sun shadow map's caster pass (EwShadowMap::Render). Only depth is drawn:
+	// the opaque units, buildings and props inside the light's box, then the trees. No terrain,
+	// no shadows, no particles; transparent (sorted) triangles are thrown away.
+	if (EwShadowMap::Caster_Pass())
+	{
+		RefRenderObjListIterator it(&RenderList);
+		for (it.First(); !it.Is_Done();)
+		{
+			RenderObjClass *robj = it.Peek_Obj();
+			it.Next();
+
+			const int classId = robj->Class_ID();
+			if (classId != RenderObjClass::CLASSID_MESH && classId != RenderObjClass::CLASSID_HLOD)
+				continue;
+			if (robj->Is_Hidden())
+				continue;
+			// Drawables and ghost objects (a drawInfo without a drawable: buildings seen in the fog)
+			// cast; fluff without a drawInfo does not.
+			DrawableInfo *drawInfo = (DrawableInfo *)robj->Get_User_Data();
+			if (!drawInfo)
+				continue;
+			Drawable *draw = drawInfo->m_drawable;
+			if (draw && (draw->isDrawableEffectivelyHidden() || draw->getFullyObscuredByShroud()
+				|| draw->getEffectiveOpacity() != 1.0f))
+				continue;
+			const SphereClass &sphere = robj->Get_Bounding_Sphere();
+			if (!EwShadowMap::Caster_Visible(sphere.Center, sphere.Radius))
+				continue;
+
+			rinfo.light_environment = &m_foggedLightEnv;
+			robj->Render(rinfo);
+			rinfo.light_environment = nullptr;
+			EwShadowMap::Count_Caster();
+		}
+		TheDX8MeshRenderer.Flush();
+		DoTrees(rinfo);
+
+		// Empty the sorted lists without drawing: both flags, since the sorting pool draws under the
+		// sorting renderer's flag and the other sorted draws under the wrapper's.
+		const bool sortedDraw = SortingRendererClass::_Is_Triangle_Draw_Enabled();
+		const bool wrapperDraw = DX8Wrapper::_Is_Triangle_Draw_Enabled();
+		SortingRendererClass::_Enable_Triangle_Draw(false);
+		DX8Wrapper::_Enable_Triangle_Draw(false);
+		SortingRendererClass::Flush();
+		DX8Wrapper::_Enable_Triangle_Draw(wrapperDraw);
+		SortingRendererClass::_Enable_Triangle_Draw(sortedDraw);
+		TheDX8MeshRenderer.Clear_Pending_Delete_Lists();
+		return;
+	}
 	DX8Wrapper::Set_Fog(FogEnabled, FogColor, FogStart, FogEnd);
 
 	//Override the behind building selection if it's not available on current hardware (needs stencil).
@@ -993,7 +1054,7 @@ void RTS3DScene::Render(RenderInfoClass & rinfo)
 			//wireframe should be visible.
 			///@todo: Clearing to black may not be needed if the scene already did the clear.
 			DX8Wrapper::Set_DX8_Render_State(D3DRS_COLORWRITEENABLE,D3DCOLORWRITEENABLE_ALPHA);
-			DX8Wrapper::Set_DX8_Render_State (D3DRS_ZBIAS, 0);
+			DX8Wrapper::Set_DX8_ZBias(0);
 			//Since all objects will be rendered with same material, disable resetting until all are done.
 			m_maskMaterialPass->setAllowUninstall(FALSE);
 
@@ -1018,7 +1079,7 @@ void RTS3DScene::Render(RenderInfoClass & rinfo)
 			///@todo: Clearing to black may not be needed if the scene already did the clear.
 			Renderer::Clear(true, false, Vector3(0.0f,0.0f,0.0f),1.0f);	// Clear color but not z
 			DX8Wrapper::Set_DX8_Render_State(D3DRS_COLORWRITEENABLE,D3DCOLORWRITEENABLE_ALPHA);
-			DX8Wrapper::Set_DX8_Render_State (D3DRS_ZBIAS, 0);
+			DX8Wrapper::Set_DX8_ZBias(0);
 
 			//We're only filling the z-buffer so ignore normal textures and state changes to speed things up.
 			m_customPassMode = SCENE_PASS_ALPHA_MASK;
@@ -1042,7 +1103,7 @@ void RTS3DScene::Render(RenderInfoClass & rinfo)
 			rinfo.Camera.Set_Zbuffer_Range(nearZ, farZ-ZBias);
 			rinfo.Camera.Apply();
 
-//			DX8Wrapper::Set_DX8_Render_State (D3DRS_ZBIAS, 4);
+//			DX8Wrapper::Set_DX8_ZBias(4);
 			Customized_Render(rinfo);	//render wireframe where z-test passes
 			Flush(rinfo);
 			DX8Wrapper::Set_DX8_Render_State(D3DRS_FILLMODE,D3DFILL_SOLID);
@@ -1050,7 +1111,7 @@ void RTS3DScene::Render(RenderInfoClass & rinfo)
 			rinfo.Camera.Set_Zbuffer_Range(nearZ, farZ);
 			rinfo.Camera.Apply();
 
-//			DX8Wrapper::Set_DX8_Render_State (D3DRS_ZBIAS, 0);
+//			DX8Wrapper::Set_DX8_ZBias(0);
 			WW3D::Enable_Texturing(old_enable);
 			WW3D::Enable_Coloring(0);
 
@@ -1062,7 +1123,7 @@ void RTS3DScene::Render(RenderInfoClass & rinfo)
 
 			//Disable writes to color buffer to save memory bandwidth - we only need Z.
 			DX8Wrapper::Set_DX8_Render_State(D3DRS_COLORWRITEENABLE,0);
-			DX8Wrapper::Set_DX8_Render_State (D3DRS_ZBIAS, 0);
+			DX8Wrapper::Set_DX8_ZBias(0);
 			Customized_Render(rinfo);
 			Flush(rinfo);
 			//Re-enable writes to color buffer.
@@ -1072,7 +1133,7 @@ void RTS3DScene::Render(RenderInfoClass & rinfo)
 			case EXTRA_PASS_LINE:
 				WW3D::Enable_Texturing(false);
 				DX8Wrapper::Set_DX8_Render_State(D3DRS_FILLMODE,D3DFILL_WIREFRAME);
-				DX8Wrapper::Set_DX8_Render_State (D3DRS_ZBIAS, 7);
+				DX8Wrapper::Set_DX8_ZBias(7);
 				Customized_Render(rinfo);
 				break;
 			case EXTRA_PASS_CLEAR_LINE:
@@ -1080,13 +1141,13 @@ void RTS3DScene::Render(RenderInfoClass & rinfo)
 				WW3D::Enable_Texturing(false);
 				WW3D::Enable_Coloring(0xff008000);
 				DX8Wrapper::Set_DX8_Render_State(D3DRS_FILLMODE,D3DFILL_WIREFRAME);
-				DX8Wrapper::Set_DX8_Render_State (D3DRS_ZBIAS, 7);
+				DX8Wrapper::Set_DX8_ZBias(7);
 				Customized_Render(rinfo);
 				break;
 			}
 			Flush(rinfo);
 			DX8Wrapper::Set_DX8_Render_State(D3DRS_FILLMODE,D3DFILL_SOLID);
-			DX8Wrapper::Set_DX8_Render_State (D3DRS_ZBIAS, 0);
+			DX8Wrapper::Set_DX8_ZBias(0);
 			WW3D::Enable_Texturing(old_enable);
 			WW3D::Enable_Coloring(0);
 			ShaderClass::Invalidate();
@@ -1159,6 +1220,7 @@ void RTS3DScene::Customized_Render( RenderInfoClass &rinfo )
 		else
 		robj->Render(rinfo);
 	}
+	EwGpuTimer::Mark(EwGpuTimer::SCENE_TERRAIN);
 
 	if (m_drawTerrainOnly) {
 		return;
@@ -1269,14 +1331,14 @@ void renderStenciledPlayerColor( UnsignedInt color, UnsignedInt stencilRef, Bool
 	REF_PTR_RELEASE(vmat);
 	DX8Wrapper::Apply_Render_State_Changes();	//force update all render states
 
-	LPDIRECT3DDEVICE8 m_pDev=DX8Wrapper::_Get_D3D_Device8();
+	LPDIRECT3DDEVICE9EX m_pDev=DX8Wrapper::_Get_D3D_Device9();
 
 	if (!m_pDev)
 		return;	//need device to render anything.
 
 	//draw polygons like this is very inefficient but for only 2 triangles, it's
 	//not worth bothering with index/vertex buffers.
-	m_pDev->SetVertexShader(D3DFVF_XYZRHW | D3DFVF_DIFFUSE);
+	m_pDev->SetFVF(D3DFVF_XYZRHW | D3DFVF_DIFFUSE);
 
 	// Set stencil states
 	DX8Wrapper::Set_DX8_Render_State(D3DRS_STENCILENABLE, TRUE );
@@ -1298,7 +1360,7 @@ void renderStenciledPlayerColor( UnsignedInt color, UnsignedInt stencilRef, Bool
 		//disable writes to color buffer
 		if (DX8Wrapper::Get_Current_Caps()->Get_DX8_Caps().PrimitiveMiscCaps & D3DPMISCCAPS_COLORWRITEENABLE)
 		{
-			DX8Wrapper::_Get_D3D_Device8()->GetRenderState(D3DRS_COLORWRITEENABLE, &oldColorWriteEnable);
+			DX8Wrapper::_Get_D3D_Device9()->GetRenderState(D3DRS_COLORWRITEENABLE, &oldColorWriteEnable);
 			DX8Wrapper::Set_DX8_Render_State(D3DRS_COLORWRITEENABLE,0);
 		}
 		else

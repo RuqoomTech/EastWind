@@ -29,7 +29,7 @@
 
 #pragma once
 
-#include <d3dx8math.h>
+#include "WWMath/d3dmath.h"
 #include "Common/STLTypedefs.h"
 #include "Lib/BaseDefines.h"
 
@@ -38,7 +38,7 @@
 class BezierMath
 {
 public:
-	static void D3DXVec4Transform(D3DXVECTOR4* out, const D3DXVECTOR4* v, const D3DXMATRIX* m)
+	static void EwD3DVec4Transform(EwD3DVector4* out, const EwD3DVector4* v, const EwD3DMatrix* m)
 	{
 #if USE_DETERMINISTIC_MATH
 		const float x = v->x, y = v->y, z = v->z, w = v->w;
@@ -47,16 +47,16 @@ public:
 		out->z = ((x * m->m[0][2] + y * m->m[1][2]) + z * m->m[2][2]) + w * m->m[3][2];
 		out->w = ((x * m->m[0][3] + y * m->m[1][3]) + z * m->m[2][3]) + w * m->m[3][3];
 #else
-		::D3DXVec4Transform(out, v, m);
+		::EwD3DVec4Transform(out, v, m);
 #endif
 	}
 
-	static float D3DXVec4Dot(const D3DXVECTOR4* a, const D3DXVECTOR4* b)
+	static float EwD3DVec4Dot(const EwD3DVector4* a, const EwD3DVector4* b)
 	{
 #if USE_DETERMINISTIC_MATH
 		return ((a->x * b->x + a->y * b->y) + a->z * b->z) + a->w * b->w;
 #else
-		return ::D3DXVec4Dot(a, b);
+		return ::EwD3DVec4Dot(a, b);
 #endif
 	}
 };
@@ -64,7 +64,7 @@ public:
 class BezierSegment
 {
 	protected:
-		static const D3DXMATRIX s_bezBasisMatrix;
+		static const EwD3DMatrix s_bezBasisMatrix;
 		Coord3D m_controlPoints[4];
 
 	public:	// Constructors

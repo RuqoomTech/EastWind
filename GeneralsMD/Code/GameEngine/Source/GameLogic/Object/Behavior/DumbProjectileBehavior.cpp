@@ -28,11 +28,7 @@
 
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
-#ifdef EW_RENDERER_DX9
-#include "Common/BezierSegment_dx9.h"
-#else
 #include "Common/BezierSegment.h"
-#endif
 #include "Common/GameCommon.h"
 #include "Common/GameState.h"
 #include "Common/Player.h"

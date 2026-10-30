@@ -27,11 +27,7 @@
 #include "resource.h"
 #include "Globals.h"
 #include "Utils.h"
-#ifdef EW_RENDERER_DX9
-#include "WW3D2/rddesc_dx9.h"
-#else
 #include "WW3D2/rddesc.h"
-#endif
 
 #ifdef RTS_DEBUG
 #define new DEBUG_NEW

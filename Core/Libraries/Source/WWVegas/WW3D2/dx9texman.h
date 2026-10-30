@@ -22,7 +22,7 @@
  *                                                                                             *
  *                 Project Name : DX8 Texture Manager                                          *
  *                                                                                             *
- *                     $Archive:: /Commando/Code/ww3d2/dx8texman.h                            $*
+ *                     $Archive:: /Commando/Code/ww3d2/dx9texman.h                            $*
  *                                                                                             *
  *              Original Author:: Hector Yee                                                   *
  *                                                                                             *
@@ -40,10 +40,10 @@
 #pragma once
 
 #include "WWLib/always.h"
-#include "texture_dx9.h"
+#include "texture.h"
 #include "dx9wrapper.h"
 #include "ww3dformat.h"
-#include "dx8list.h"
+#include "dx9list.h"
 #include "WWLib/multilist.h"
 
 class DX8TextureManagerClass;

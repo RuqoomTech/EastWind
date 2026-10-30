@@ -47,11 +47,7 @@
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 #include "metalmap.h"
-#ifdef EW_RENDERER_DX9
-#include "texture_dx9.h"
-#else
 #include "texture.h"
-#endif
 #include "ww3dformat.h"
 #include "ww3d.h"
 #include <WWMath/vp.h>

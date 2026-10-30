@@ -44,11 +44,7 @@
 #include "part_ldr.h"
 #include "w3derr.h"
 #include "scene.h"
-#ifdef EW_RENDERER_DX9
-#include "texture_dx9.h"
-#else
 #include "texture.h"
-#endif
 #include "WWDebug/wwprofile.h"
 #include <limits.h>
 #include <WWLib/gcd_lcm.h>

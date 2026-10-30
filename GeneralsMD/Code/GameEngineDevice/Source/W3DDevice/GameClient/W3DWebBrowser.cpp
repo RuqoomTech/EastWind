@@ -32,13 +32,8 @@
 #include "GameClient/Image.h"
 #include "GameClient/GameWindow.h"
 #include "WWMath/vector2i.h"
-#include <d3dx8.h>
-#ifdef EW_RENDERER_DX9
 #include "WW3D2/dx9wrapper.h"
-#else
-#include "WW3D2/dx8wrapper.h"
-#endif
-#include "WW3D2/dx8webbrowser.h"
+#include "WW3D2/dx9webbrowser.h"
 
 W3DWebBrowser::W3DWebBrowser() : WebBrowser() {
 }

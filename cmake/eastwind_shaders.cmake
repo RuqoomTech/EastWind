@@ -1,7 +1,7 @@
 # EastWind DX9 renderer: HLSL shaders compiled with fxc at build time.
 #
 # Sources are EastWind/Shaders/*.hlsl. Each entry below compiles to
-# ${CMAKE_BINARY_DIR}/ew_shaders/<name>.h, a BYTE array g_ew_<name> that ewshaders_dx9.cpp
+# ${CMAKE_BINARY_DIR}/ew_shaders/<name>.h, a BYTE array g_ew_<name> that shaderlibrary.cpp
 # embeds in the exe, so the game needs no shader files and no D3DCompiler/D3DX at runtime.
 # The files that include these headers get the ew_shaders dependency and include folder
 # from cmake/eastwind_dx9.cmake (see EastWind/dx9_new_files.txt).
@@ -134,6 +134,6 @@ unset(_ew_shader_includes)
 unset(_ew_shader_sources)
 unset(_ew_fxc_flags)
 
-# ew_constants.h holds the register numbers for both the HLSL and the C++ side.
+# shader_constants.h holds the register numbers for both the HLSL and the C++ side.
 # Directory scope, so every target added after this (all of them) can include it.
 include_directories("${EW_SHADER_SOURCE_DIR}")

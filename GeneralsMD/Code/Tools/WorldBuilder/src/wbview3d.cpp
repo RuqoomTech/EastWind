@@ -33,11 +33,11 @@
 #include "WW3D2/agg_def.h"
 #include "WW3D2/part_ldr.h"
 #include "WW3D2/hanim.h"
-#include "WW3D2/dx8wrapper.h"
-#include "WW3D2/dx8indexbuffer.h"
-#include "WW3D2/dx8vertexbuffer.h"
-#include "WW3D2/dx8renderer.h"
-#include "WW3D2/dx8fvf.h"
+#include "WW3D2/dx9wrapper.h"
+#include "WW3D2/dx9indexbuffer.h"
+#include "WW3D2/dx9vertexbuffer.h"
+#include "WW3D2/dx9renderer.h"
+#include "WW3D2/dx9fvf.h"
 #include "WW3D2/vertmaterial.h"
 #include "WW3D2/font3d.h"
 #include "WW3D2/render2d.h"
@@ -94,7 +94,6 @@
 #include "ImpassableOptions.h"
 
 
-#include <d3dx8.h>
 
 
 // ----------------------------------------------------------------------------
@@ -542,7 +541,7 @@ void WbView3d::ReAcquireResources()
 		TheTerrainRenderObject->worldBuilderUpdateBridgeTowers( m_assetManager, m_scene );
 	}
 	m_drawObject->initData();
-	IDirect3DDevice8* pDev = DX8Wrapper::_Get_D3D_Device8();
+	IDirect3DDevice9Ex* pDev = DX8Wrapper::_Get_D3D_Device9();
 	if (pDev) {
 
 //		CDC* pDC = GetDC();
@@ -564,7 +563,7 @@ void WbView3d::ReAcquireResources()
 
 		HFONT hFont = CreateFontIndirect(&logFont);
 		if (hFont) {
-			D3DXCreateFont(pDev, hFont, &m3DFont);
+			m3DFont = nullptr;	// EastWind: no D3DX font, labels draw with GDI (see WB3DFont).
 			DeleteObject(hFont);
 		} else {
 			m3DFont = nullptr;
@@ -2279,7 +2278,7 @@ void WbView3d::initWW3D()
 			}
 		}
 
-		IDirect3DDevice8* pDev = DX8Wrapper::_Get_D3D_Device8();
+		IDirect3DDevice9Ex* pDev = DX8Wrapper::_Get_D3D_Device9();
 		if (pDev) {
 
 //			CDC* pDC = GetDC();
@@ -2301,7 +2300,7 @@ void WbView3d::initWW3D()
 
 			HFONT hFont = CreateFontIndirect(&logFont);
 			if (hFont) {
-				D3DXCreateFont(pDev, hFont, &m3DFont);
+				m3DFont = nullptr;	// EastWind: no D3DX font, labels draw with GDI (see WB3DFont).
 				DeleteObject(hFont);
 			} else {
 				m3DFont = nullptr;

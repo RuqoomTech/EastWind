@@ -20,16 +20,8 @@
 #include "Common/GlobalData.h"
 #include "GameClient/GameText.h"
 #include "GameClient/InGameUI.h"
-#ifdef EW_RENDERER_DX9
 #include "WW3D2/dx9wrapper.h"
-#else
-#include "WW3D2/dx8wrapper.h"
-#endif
-#ifdef EW_RENDERER_DX9
-#include "WW3D2/surfaceclass_dx9.h"
-#else
 #include "WW3D2/surfaceclass.h"
-#endif
 #include "WWLib/mpsc_intrusive_queue.h"
 #include <stb_image_write.h>
 

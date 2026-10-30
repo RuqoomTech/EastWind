@@ -40,11 +40,7 @@
 #include "WWDebug/wwdebug.h"
 #include "assetmgr.h"
 #include "matinfo.h"
-#ifdef EW_RENDERER_DX9
-#include "texture_dx9.h"
-#else
 #include "texture.h"
-#endif
 #include "WWLib/wwstring.h"
 
 #include <windows.h>

@@ -21,7 +21,7 @@
 // Earth And Beyond
 // Copyright (c) 2002 Electronic Arts , Inc.  -  Westwood Studios
 //
-// File Name		: dx8webbrowser.cpp
+// File Name		: dx9webbrowser.cpp
 // Description		: Implementation of D3D Embedded Browser wrapper.
 // Author			: Darren Schueller
 // Date of Creation	: 6/4/2002

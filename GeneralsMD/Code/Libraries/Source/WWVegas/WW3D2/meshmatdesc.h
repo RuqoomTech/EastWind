@@ -45,11 +45,7 @@
 #include "WWMath/vector4.h"
 #include "WWLib/sharebuf.h"
 #include "shader.h"
-#ifdef EW_RENDERER_DX9
-#include "vertmaterial_dx9.h"
-#else
 #include "vertmaterial.h"
-#endif
 
 class MatBufferClass;
 class TexBufferClass;

@@ -43,10 +43,10 @@
 #include "htree.h"
 #include "WWMath/vp.h"
 #include "visrasterizer.h"
-#include "dx8polygonrenderer.h"
+#include "dx9polygonrenderer.h"
 #include "bwrender.h"
 #include "camera.h"
-#include "dx8renderer.h"
+#include "dx9renderer.h"
 #include "WWLib/hashtemplate.h"
 #include <Utility/bit_adapter.h>
 

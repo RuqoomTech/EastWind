@@ -41,7 +41,7 @@
 #include "WWLib/chunkio.h"
 #include "w3derr.h"
 #include "meshmatdesc.h"
-#include "dx8wrapper.h"
+#include "dx9wrapper.h"
 #include "WWDebug/wwdebug.h"
 #include "matinfo.h"
 #include "rendobj.h"

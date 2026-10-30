@@ -38,11 +38,7 @@
 #include "matinfo.h"
 #include "WWDebug/wwdebug.h"
 #include "meshmdl.h"
-#ifdef EW_RENDERER_DX9
-#include "texture_dx9.h"
-#else
 #include "texture.h"
-#endif
 
 MaterialInfoClass::MaterialInfoClass()
 {

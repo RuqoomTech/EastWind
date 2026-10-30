@@ -47,11 +47,7 @@
 #include "WWMath/Vector3i.h"
 #include "WWMath/vector4.h"
 #include "shader.h"
-#ifdef EW_RENDERER_DX9
-#include "vertmaterial_dx9.h"
-#else
 #include "vertmaterial.h"
-#endif
 #include "meshgeometry.h"
 
 class MeshClass;

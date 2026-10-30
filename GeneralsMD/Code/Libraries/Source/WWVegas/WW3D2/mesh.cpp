@@ -92,11 +92,7 @@
 #include "assetmgr.h"
 #include "w3derr.h"
 #include "WWDebug/wwdebug.h"
-#ifdef EW_RENDERER_DX9
-#include "vertmaterial_dx9.h"
-#else
 #include "vertmaterial.h"
-#endif
 #include "shader.h"
 #include "matinfo.h"
 #include "htree.h"
@@ -110,26 +106,18 @@
 #include "meshgeometry.h"
 #include "ww3d.h"
 #include "camera.h"
-#ifdef EW_RENDERER_DX9
-#include "texture_dx9.h"
-#else
 #include "texture.h"
-#endif
 #include "rinfo.h"
 #include "coltest.h"
 #include "inttest.h"
 #include "decalmsh.h"
 #include "decalsys.h"
-#include "dx8polygonrenderer.h"
-#ifdef EW_RENDERER_DX9
+#include "dx9polygonrenderer.h"
 #include "dx9indexbuffer.h"
-#else
-#include "dx8indexbuffer.h"
-#endif
-#include "dx8renderer.h"
+#include "dx9renderer.h"
 #include "visrasterizer.h"
 #include "WWDebug/wwmemlog.h"
-#include "dx8rendererdebugger.h"
+#include "dx9rendererdebugger.h"
 #include <WWDebug/wwprofile.h>
 
 static unsigned MeshDebugIdCount;

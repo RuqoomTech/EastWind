@@ -41,13 +41,9 @@
 #include "WWMath/vector4.h"
 #include "WWDebug/wwdebug.h"
 #include "WWLib/TARGA.h"
-#ifdef EW_RENDERER_DX9
 #include "dx9wrapper.h"
-#else
-#include "dx8wrapper.h"
-#endif
-#include "dx8caps.h"
-#include <d3d8.h>
+#include "dx9caps.h"
+#include <d3d9.h>
 
  /*
 	WW3D_FORMAT_UNKNOWN=0,

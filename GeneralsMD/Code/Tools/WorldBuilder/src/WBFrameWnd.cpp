@@ -25,11 +25,7 @@
 #include "WBFrameWnd.h"
 #include "WorldBuilderDoc.h"
 #include "WHeightMapEdit.h"
-#ifdef EW_RENDERER_DX9
-#include "wbview3d_dx9.h"
-#else
 #include "wbview3d.h"
-#endif
 
 /////////////////////////////////////////////////////////////////////////////
 // CWBFrameWnd

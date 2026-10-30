@@ -25,11 +25,7 @@
 #include "GlobalLightOptions.h"
 #include "WorldBuilderDoc.h"
 #include "Common/GlobalData.h"
-#ifdef EW_RENDERER_DX9
-#include "wbview3d_dx9.h"
-#else
 #include "wbview3d.h"
-#endif
 
 /////////////////////////////////////////////////////////////////////////////
 /// GlobalLightOptions dialog trivial constructor - Create does the real work.

@@ -22,7 +22,7 @@
  *                                                                                             *
  *                 Project Name : dx8 caps                                                     *
  *                                                                                             *
- *                     $Archive:: /Commando/Code/ww3d2/dx8caps.cpp                            $*
+ *                     $Archive:: /Commando/Code/ww3d2/dx9caps.cpp                            $*
  *                                                                                             *
  *              Original Author:: Hector Yee                                                   *
  *                                                                                             *
@@ -40,7 +40,7 @@
 #include "WWLib/always.h"
 #include "dx9caps.h"
 #include "dx9wrapper.h"
-#include "formconv_dx9.h"
+#include "formconv.h"
 #pragma warning (disable : 4201)		// nonstandard extension - nameless struct
 #include <windows.h>
 #include <mmsystem.h>

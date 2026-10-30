@@ -51,8 +51,8 @@
 #include "WW3D2/rendobj.h"
 #include "WW3D2/w3d_file.h"
 #include "WW3D2/texture.h"
-#include "WW3D2/dx8vertexbuffer.h"
-#include "WW3D2/dx8indexbuffer.h"
+#include "WW3D2/dx9vertexbuffer.h"
+#include "WW3D2/dx9indexbuffer.h"
 #include "WW3D2/shader.h"
 #include "WW3D2/vertmaterial.h"
 #include "Lib/BaseType.h"
@@ -198,6 +198,8 @@ public:
 	void setBounds(const Region2D &bounds) {m_bounds = bounds;}
 	/// Draws the trees.  Uses camera for culling.
 	void drawTrees(CameraClass * camera, RefRenderObjListIterator *pDynamicLightsIterator);
+	/// EastWind M3.4: draws the trees into the sun shadow map (depth only, alpha tested).
+	void drawTreeCasters();
 	/// Called when the view changes, and sort key needs to be recalculated.
 	/// Normally sortKey gets calculated when a tree becomes visible.
 	void doFullUpdate() {m_updateAllKeys = true;};
@@ -222,8 +224,9 @@ private:
 	enum {PARTITION_WIDTH_HEIGHT = 100};
 	DX8VertexBufferClass	*m_vertexTree[MAX_BUFFERS];	///<Tree vertex buffer.
 	DX8IndexBufferClass			*m_indexTree[MAX_BUFFERS];	///<indices defining a triangles for the tree drawing.
-	DWORD					m_dwTreePixelShader;	///<handle to D3D pixel shader
-	DWORD					m_dwTreeVertexShader;	///<handle to D3D vertex shader
+	IDirect3DPixelShader9*					m_dwTreePixelShader;	///<handle to D3D pixel shader
+	IDirect3DVertexShader9*					m_dwTreeVertexShader;	///<handle to D3D vertex shader
+	Bool		m_ewLitFormat;	///< EastWind M3.1d: the vertex buffers are DX8_FVF_XYZNDUV1TG3, with the inputs of TreesLitPS.
 
 	Short		m_areaPartition[PARTITION_WIDTH_HEIGHT*PARTITION_WIDTH_HEIGHT];
 	Region2D m_bounds;
@@ -253,6 +256,7 @@ private:
 	Real		m_curSwayOffset[MAX_SWAY_TYPES];
 	Real		m_curSwayStep[MAX_SWAY_TYPES];
 	Real		m_curSwayFactor[MAX_SWAY_TYPES];
+	Vector3	m_ewLastSway[MAX_SWAY_TYPES];	///< EastWind M3.4: the sway drawTrees used last, for the shadow map's caster pass.
 
 	W3DProjectedShadow *m_shadow;
 

@@ -29,11 +29,7 @@
 #include "MainFrm.h"
 #include "DataTreeView.h"
 #include "Utils.h"
-#ifdef EW_RENDERER_DX9
-#include "WW3D2/texture_dx9.h"
-#else
 #include "WW3D2/texture.h"
-#endif
 #include "WW3D2/assetmgr.h"
 #include "WW3D2/agg_def.h"
 #include "WW3D2/hlod.h"

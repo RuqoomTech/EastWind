@@ -58,32 +58,12 @@
 #include "meshmdl.h"
 #include "WWMath/plane.h"
 #include "statistics.h"
-#ifdef EW_RENDERER_DX9
 #include "dx9vertexbuffer.h"
-#else
-#include "dx8vertexbuffer.h"
-#endif
-#ifdef EW_RENDERER_DX9
 #include "dx9indexbuffer.h"
-#else
-#include "dx8indexbuffer.h"
-#endif
 #include "WWLib/simplevec.h"
-#ifdef EW_RENDERER_DX9
-#include "texture_dx9.h"
-#else
 #include "texture.h"
-#endif
-#ifdef EW_RENDERER_DX9
 #include "dx9wrapper.h"
-#else
-#include "dx8wrapper.h"
-#endif
-#ifdef EW_RENDERER_DX9
 #include "dx9caps.h"
-#else
-#include "dx8caps.h"
-#endif
 
 #define DISABLE_CLIPPING	0
 

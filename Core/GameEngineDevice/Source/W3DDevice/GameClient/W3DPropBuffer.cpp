@@ -57,12 +57,8 @@
 #include "WW3D2/camera.h"
 #include "WW3D2/rinfo.h"
 #include "WW3D2/light.h"
-#ifdef EW_RENDERER_DX9
 #include "WW3D2/dx9wrapper.h"
-#else
-#include "WW3D2/dx8wrapper.h"
-#endif
-#include "WW3D2/dx8renderer.h"
+#include "WW3D2/dx9renderer.h"
 #include "W3DDevice/GameClient/Module/W3DPropDraw.h"
 #include "W3DDevice/GameClient/W3DShroud.h"
 #include "W3DDevice/GameClient/BaseHeightMap.h"

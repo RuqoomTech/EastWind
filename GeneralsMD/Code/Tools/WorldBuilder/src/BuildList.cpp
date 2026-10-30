@@ -35,11 +35,7 @@
 #include "Common/ThingFactory.h"
 #include "Common/ThingTemplate.h"
 #include "Common/WellKnownKeys.h"
-#ifdef EW_RENDERER_DX9
-#include "wbview3d_dx9.h"
-#else
 #include "wbview3d.h"
-#endif
 
 BuildList *BuildList::m_staticThis = nullptr;
 Bool BuildList::m_updating = false;
