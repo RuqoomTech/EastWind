@@ -18,4 +18,9 @@ if(NOT MSVC)
     message(FATAL_ERROR "EastWind builds with MSVC only.")
 endif()
 
+# GameMath instead of the CRT/x87 math, so the win32 and win64 game logic computes the same bits
+# and replays stay in sync between them. Breaks CRC compatibility with retail (already lost with VS2022).
+# Directory wide, so every target sees the same inline math (one-definition rule).
+add_compile_definitions(FORCE_DETERMINISTIC_MATH=1)
+
 include(cmake/eastwind_shaders.cmake)
