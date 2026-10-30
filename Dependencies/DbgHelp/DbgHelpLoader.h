@@ -63,51 +63,51 @@ BOOL WINAPI SymInitialize(
 BOOL WINAPI SymCleanup(
 	HANDLE hProcess);
 
-DWORD WINAPI SymLoadModule(
+DWORD64 WINAPI SymLoadModule64(
 	HANDLE hProcess,
 	HANDLE hFile,
 	PCSTR ImageName,
 	PCSTR ModuleName,
-	DWORD BaseOfDll,
+	DWORD64 BaseOfDll,
 	DWORD SizeOfDll);
 
-DWORD WINAPI SymGetModuleBase(
+DWORD64 WINAPI SymGetModuleBase64(
 	HANDLE hProcess,
-	DWORD dwAddr);
+	DWORD64 dwAddr);
 
-BOOL WINAPI SymUnloadModule(
+BOOL WINAPI SymUnloadModule64(
 	HANDLE hProcess,
-	DWORD BaseOfDll);
+	DWORD64 BaseOfDll);
 
-BOOL WINAPI SymGetSymFromAddr(
+BOOL WINAPI SymGetSymFromAddr64(
 	HANDLE hProcess,
-	DWORD dwAddr,
+	DWORD64 dwAddr,
+	PDWORD64 pdwDisplacement,
+	PIMAGEHLP_SYMBOL64 Symbol);
+
+BOOL WINAPI SymGetLineFromAddr64(
+	HANDLE hProcess,
+	DWORD64 dwAddr,
 	PDWORD pdwDisplacement,
-	PIMAGEHLP_SYMBOL Symbol);
-
-BOOL WINAPI SymGetLineFromAddr(
-	HANDLE hProcess,
-	DWORD dwAddr,
-	PDWORD pdwDisplacement,
-	PIMAGEHLP_LINE Line);
+	PIMAGEHLP_LINE64 Line);
 
 DWORD WINAPI SymSetOptions(
 	DWORD SymOptions);
 
-PVOID WINAPI SymFunctionTableAccess(
+PVOID WINAPI SymFunctionTableAccess64(
 	HANDLE hProcess,
-	DWORD AddrBase);
+	DWORD64 AddrBase);
 
-BOOL WINAPI StackWalk(
+BOOL WINAPI StackWalk64(
 	DWORD MachineType,
 	HANDLE hProcess,
 	HANDLE hThread,
-	LPSTACKFRAME StackFrame,
+	LPSTACKFRAME64 StackFrame,
 	PVOID ContextRecord,
-	PREAD_PROCESS_MEMORY_ROUTINE ReadMemoryRoutine,
-	PFUNCTION_TABLE_ACCESS_ROUTINE FunctionTableAccessRoutine,
-	PGET_MODULE_BASE_ROUTINE GetModuleBaseRoutine,
-	PTRANSLATE_ADDRESS_ROUTINE TranslateAddress);
+	PREAD_PROCESS_MEMORY_ROUTINE64 ReadMemoryRoutine,
+	PFUNCTION_TABLE_ACCESS_ROUTINE64 FunctionTableAccessRoutine,
+	PGET_MODULE_BASE_ROUTINE64 GetModuleBaseRoutine,
+	PTRANSLATE_ADDRESS_ROUTINE64 TranslateAddress);
 
 BOOL WINAPI MiniDumpWriteDump(
 	HANDLE hProcess,

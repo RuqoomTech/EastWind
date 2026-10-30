@@ -35,6 +35,7 @@
 #include <windows.h>
 #include <Utility/stdio_adapter.h>
 #include <Utility/stringex.h>
+#include <intrin.h>
 #include <new>      // needed for placement new prototype
 
 // a little dummy variable that makes the linker actually include
@@ -74,7 +75,7 @@ Debug::LogDescription::LogDescription(const char *fileOrGroup, const char *descr
 Debug Debug::Instance;
 
 // more class static members
-unsigned Debug::curStackFrame;
+uintptr_t Debug::curStackFrame;
 
 // this constructor is empty on purpose because all construction
 // work is done in PreStaticInit (and some in PostStaticInit)
@@ -304,27 +305,13 @@ bool Debug::SkipNext()
   if (Instance.disableAssertsEtc)
     return true;
 
-  // do not implement this function inline, we do need
-  // a valid frame pointer here!
-  unsigned help;
+  // do not implement this function inline, the return address
+  // identifies the calling assert/check/log site!
 #if defined(_MSC_VER)
-  __asm
-  {
-    mov eax,[ebp+4]   // return address
-    mov help,eax
-  };
-#elif (defined(__GNUC__) || defined(__clang__)) && (defined(__i386__) || defined(_M_IX86))
-  // GCC/Clang inline assembly for x86-32
-  __asm__ __volatile__(
-    "mov 4(%%ebp), %0"
-    : "=r"(help)
-    :
-    : "memory"
-  );
+  curStackFrame=(uintptr_t)_ReturnAddress();
 #else
-  #error "Unsupported compiler or architecture for inline assembly"
+  curStackFrame=(uintptr_t)__builtin_return_address(0);
 #endif
-  curStackFrame=help;
 
   // do we know if to skip the following code?
   FrameHashEntry *e=Instance.LookupFrame(curStackFrame);
@@ -436,10 +423,7 @@ bool Debug::AssertDone()
           break;
         case IDRETRY:
 #if defined(_MSC_VER)
-          __asm
-          {
-            int 0x03
-          }
+          __debugbreak();
 #elif defined(__GNUC__)
           __builtin_trap();
 #else
@@ -713,10 +697,7 @@ bool Debug::CrashDone(bool die)
             break;
           case IDRETRY:
 #if defined(_MSC_VER)
-            __asm
-            {
-              int 0x03
-            }
+            __debugbreak();
 #elif defined(__GNUC__)
             __builtin_trap();
 #else
@@ -1017,9 +998,9 @@ bool Debug::IsLogEnabled(const char *fileOrGroup)
   // to be used from the D_ISLOG macros only and those guarantee
   // that we are having real static strings let's use
   // that strings address as frame address...
-  FrameHashEntry *e=Instance.LookupFrame((unsigned)fileOrGroup);
+  FrameHashEntry *e=Instance.LookupFrame((uintptr_t)fileOrGroup);
   if (!e)
-    e=Instance.AddFrameEntry((unsigned)fileOrGroup,FrameTypeLog,fileOrGroup,0);
+    e=Instance.AddFrameEntry((uintptr_t)fileOrGroup,FrameTypeLog,fileOrGroup,0);
   if (e->status==Unknown)
     Instance.UpdateFrameStatus(*e);
   return e->status==NoSkip;
@@ -1202,7 +1183,7 @@ void Debug::Update()
   }
 }
 
-Debug::FrameHashEntry* Debug::AddFrameEntry(unsigned addr, unsigned type,
+Debug::FrameHashEntry* Debug::AddFrameEntry(uintptr_t addr, unsigned type,
                                             const char *fileOrGroup, int line)
 {
   __ASSERT(LookupFrame(addr)==nullptr);

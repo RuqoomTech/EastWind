@@ -31,31 +31,31 @@ DBGHELP(SymSetOptions,
         DWORD,
         (DWORD SymOptions))
 
-DBGHELP(StackWalk,
+DBGHELP(StackWalk64,
         BOOL,
-        (DWORD MachineType, HANDLE hProcess, HANDLE hThread, LPSTACKFRAME StackFrame,
-        LPVOID ContextRecord, PREAD_PROCESS_MEMORY_ROUTINE ReadMemoryRoutine,
-        PFUNCTION_TABLE_ACCESS_ROUTINE FunctionTableAccessRoutine,
-        PGET_MODULE_BASE_ROUTINE GetModuleBaseRoutine,
-        PTRANSLATE_ADDRESS_ROUTINE TranslateAddress))
+        (DWORD MachineType, HANDLE hProcess, HANDLE hThread, LPSTACKFRAME64 StackFrame,
+        LPVOID ContextRecord, PREAD_PROCESS_MEMORY_ROUTINE64 ReadMemoryRoutine,
+        PFUNCTION_TABLE_ACCESS_ROUTINE64 FunctionTableAccessRoutine,
+        PGET_MODULE_BASE_ROUTINE64 GetModuleBaseRoutine,
+        PTRANSLATE_ADDRESS_ROUTINE64 TranslateAddress))
 
-DBGHELP(SymFunctionTableAccess,
+DBGHELP(SymFunctionTableAccess64,
         LPVOID,
-        (HANDLE hProcess, DWORD AddrBase))
+        (HANDLE hProcess, DWORD64 AddrBase))
 
-DBGHELP(SymGetModuleBase,
-        DWORD,
-        (HANDLE hProcess, DWORD dwAddr))
+DBGHELP(SymGetModuleBase64,
+        DWORD64,
+        (HANDLE hProcess, DWORD64 dwAddr))
 
-DBGHELP(SymGetSymFromAddr,
+DBGHELP(SymGetSymFromAddr64,
         BOOL,
-        (HANDLE hProcess, DWORD Address, LPDWORD Displacement,
-        PIMAGEHLP_SYMBOL Symbol))
+        (HANDLE hProcess, DWORD64 Address, PDWORD64 Displacement,
+        PIMAGEHLP_SYMBOL64 Symbol))
 
-DBGHELP(SymGetLineFromAddr,
+DBGHELP(SymGetLineFromAddr64,
         BOOL,
-        (HANDLE hProcess, DWORD dwAddr, PDWORD pdwDisplacement,
-        PIMAGEHLP_LINE Line))
+        (HANDLE hProcess, DWORD64 dwAddr, PDWORD pdwDisplacement,
+        PIMAGEHLP_LINE64 Line))
 
 // keep this always as last entry
 DBGHELP(SymCleanup,
