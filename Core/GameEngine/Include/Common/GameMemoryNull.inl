@@ -37,10 +37,10 @@ class DynamicMemoryAllocator
 public:
 
 	/// allocate bytes from this pool. (don't call directly; use allocateBytes() macro)
-	void *allocateBytesImplementation(Int numBytes);
+	void *allocateBytesImplementation(size_t numBytes);
 
 	/// like allocateBytesImplementation, but zeroes the memory before returning
-	void *allocateBytesDoNotZeroImplementation(Int numBytes);
+	void *allocateBytesDoNotZeroImplementation(size_t numBytes);
 
 #ifdef MEMORYPOOL_DEBUG
 	void debugIgnoreLeaksForThisBlock(void* pBlockPtr);

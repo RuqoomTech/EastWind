@@ -2166,8 +2166,13 @@ void DynamicMemoryAllocator::debugIgnoreLeaksForThisBlock(void* pBlockPtr)
 
   added code to make sure we're on a DWord boundary, throw exception if not
 */
-void *DynamicMemoryAllocator::allocateBytesDoNotZeroImplementation(Int numBytes DECLARE_LITERALSTRING_ARG2)
+void *DynamicMemoryAllocator::allocateBytesDoNotZeroImplementation(size_t requestedBytes DECLARE_LITERALSTRING_ARG2)
 {
+	// shortcut: pools and block headers count bytes in Int, so one allocation is capped at 2 GB; widen them if the mod ever needs more
+	if (requestedBytes > INT_MAX)
+		throw ERROR_OUT_OF_MEMORY;
+	const Int numBytes = static_cast<Int>(requestedBytes);
+
 	ScopedCriticalSection scopedCriticalSection(TheDmaCriticalSection);
 
 	void *result = nullptr;
@@ -2268,7 +2273,7 @@ void *DynamicMemoryAllocator::allocateBytesDoNotZeroImplementation(Int numBytes 
 	if unable to allocate, throw ERROR_OUT_OF_MEMORY.
 	this function will never return null.
 */
-void *DynamicMemoryAllocator::allocateBytesImplementation(Int numBytes DECLARE_LITERALSTRING_ARG2)
+void *DynamicMemoryAllocator::allocateBytesImplementation(size_t numBytes DECLARE_LITERALSTRING_ARG2)
 {
 	void* p = allocateBytesDoNotZeroImplementation(numBytes PASS_LITERALSTRING_ARG2);	// throws on failure
 	memset(p, 0, numBytes);

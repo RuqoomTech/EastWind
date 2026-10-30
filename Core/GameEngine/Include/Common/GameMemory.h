@@ -439,10 +439,10 @@ public:
 	~DynamicMemoryAllocator();
 
 	/// allocate bytes from this pool. (don't call directly; use allocateBytes() macro)
-	void *allocateBytesImplementation(Int numBytes DECLARE_LITERALSTRING_ARG2);
+	void *allocateBytesImplementation(size_t numBytes DECLARE_LITERALSTRING_ARG2);
 
 	/// like allocateBytesImplementation, but zeroes the memory before returning
-	void *allocateBytesDoNotZeroImplementation(Int numBytes DECLARE_LITERALSTRING_ARG2);
+	void *allocateBytesDoNotZeroImplementation(size_t numBytes DECLARE_LITERALSTRING_ARG2);
 
 #ifdef MEMORYPOOL_DEBUG
 	void debugIgnoreLeaksForThisBlock(void* pBlockPtr);

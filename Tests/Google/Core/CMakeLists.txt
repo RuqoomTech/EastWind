@@ -4,6 +4,7 @@ set(COREI_GOOGLETEST_SRC
     GameEngine/Common/AsciiStringTest.cpp
     GameEngine/Common/FileSystemTest.cpp
     GameEngine/Common/FileSystemTestFixture.h
+    GameEngine/Common/GameMemoryTest.cpp
     GameEngine/Common/INITest.cpp
     GameEngine/GameClient/DisplayStringDummyTest.cpp
     GameEngineDevice/StdDevice/Common/StdLocalFileSystemTest.cpp

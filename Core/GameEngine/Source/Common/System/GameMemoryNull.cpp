@@ -44,7 +44,7 @@ DynamicMemoryAllocator *TheDynamicMemoryAllocator = nullptr;
 
   added code to make sure we're on a DWord boundary, throw exception if not
 */
-void *DynamicMemoryAllocator::allocateBytesDoNotZeroImplementation(Int numBytes)
+void *DynamicMemoryAllocator::allocateBytesDoNotZeroImplementation(size_t numBytes)
 {
 	void *p = malloc(numBytes);
 	if (p == nullptr)
@@ -57,7 +57,7 @@ void *DynamicMemoryAllocator::allocateBytesDoNotZeroImplementation(Int numBytes)
 	if unable to allocate, throw ERROR_OUT_OF_MEMORY.
 	this function will never return null.
 */
-void *DynamicMemoryAllocator::allocateBytesImplementation(Int numBytes)
+void *DynamicMemoryAllocator::allocateBytesImplementation(size_t numBytes)
 {
 	void* p = allocateBytesDoNotZeroImplementation(numBytes);	// throws on failure
 	memset(p, 0, numBytes);
