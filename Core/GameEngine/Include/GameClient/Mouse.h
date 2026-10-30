@@ -255,7 +255,7 @@ public:
 		RM_WINDOWS=0,	//default Windows cursor - very fast.
 		RM_W3D,				//W3D model tied to frame rate.
 		RM_POLYGON,		//alpha blended polygon tied to frame rate.
-		RM_DX8,			//hardware cursor independent of frame rate.
+		RM_DX9,			//hardware cursor independent of frame rate.
 
 		RM_MAX
 	};

@@ -52,7 +52,7 @@ public:
 	FlatHeightMapRenderObjClass();
 	virtual ~FlatHeightMapRenderObjClass() override;
 
-	// DX8_CleanupHook methods
+	// DX9_CleanupHook methods
 	virtual void ReleaseResources() override;	///< Release all dx8 resources so the device can be reset.
 	virtual void ReAcquireResources() override;  ///< Reacquire all resources after device reset.
 

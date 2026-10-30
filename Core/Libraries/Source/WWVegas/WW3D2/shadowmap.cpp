@@ -189,7 +189,7 @@ namespace
 
 	void Turn_Off(const char *why_not)
 	{
-		IDirect3DDevice9Ex *device = DX8Wrapper::_Get_D3D_Device9();
+		IDirect3DDevice9Ex *device = DX9Wrapper::_Get_D3D_Device9();
 		if (device != nullptr)
 		{
 			Set_Constants(device, nullptr, 1.0f, 1.0f);
@@ -284,13 +284,13 @@ void EwShadowMap::Render(SceneClass *scene, CameraClass *view, const Vector3 &su
 		Turn_Off(options.ShadowMapSize <= 0 ? "off in Options.ini" : "off (debug key or the lit shaders are off)");
 		return;
 	}
-	IDirect3DDevice9Ex *device = DX8Wrapper::_Get_D3D_Device9();
+	IDirect3DDevice9Ex *device = DX9Wrapper::_Get_D3D_Device9();
 	if (device == nullptr || scene == nullptr || view == nullptr)
 	{
 		Turn_Off("no scene");
 		return;
 	}
-	const D3DCAPS9 &caps = DX8Wrapper::Get_Current_Caps()->Get_DX8_Caps();
+	const D3DCAPS9 &caps = DX9Wrapper::Get_Current_Caps()->Get_DX9_Caps();
 	if (caps.PixelShaderVersion < D3DPS_VERSION(3, 0))
 	{
 		Turn_Off("the card has no ps_3_0");
@@ -399,32 +399,32 @@ void EwShadowMap::Render(SceneClass *scene, CameraClass *view, const Vector3 &su
 
 	// The caster pass: depth only, into our depth texture.
 	Bind(device, false);
-	DX8Wrapper::Set_Render_Target(ColorSurface, DepthSurface);
+	DX9Wrapper::Set_Render_Target(ColorSurface, DepthSurface);
 	if (WW3D::Begin_Render(false, true, Vector3(0, 0, 0)) != WW3D_ERROR_OK)
 	{
-		DX8Wrapper::Set_Render_Target((IDirect3DSurface9 *)nullptr);
+		DX9Wrapper::Set_Render_Target((IDirect3DSurface9 *)nullptr);
 		Turn_Off("WW3D::Begin_Render failed");
 		return;
 	}
 	const bool slope_bias = (caps.RasterCaps & D3DPRASTERCAPS_SLOPESCALEDEPTHBIAS) != 0;
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_COLORWRITEENABLE, 0);
+	DX9Wrapper::Set_DX9_Render_State(D3DRS_COLORWRITEENABLE, 0);
 	if (slope_bias)
 	{
 		const float bias = SLOPE_BIAS;
 		DWORD bits;
 		memcpy(&bits, &bias, sizeof(bits));
-		DX8Wrapper::Set_DX8_Render_State(D3DRS_SLOPESCALEDEPTHBIAS, bits);
+		DX9Wrapper::Set_DX9_Render_State(D3DRS_SLOPESCALEDEPTHBIAS, bits);
 	}
 
 	InCasterPass = true;
 	WW3D::Render(scene, LightCamera);
 	InCasterPass = false;
 
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_COLORWRITEENABLE, 0x0000000f);
+	DX9Wrapper::Set_DX9_Render_State(D3DRS_COLORWRITEENABLE, 0x0000000f);
 	if (slope_bias)
-		DX8Wrapper::Set_DX8_Render_State(D3DRS_SLOPESCALEDEPTHBIAS, 0);
+		DX9Wrapper::Set_DX9_Render_State(D3DRS_SLOPESCALEDEPTHBIAS, 0);
 	WW3D::End_Render(false);
-	DX8Wrapper::Set_Render_Target((IDirect3DSurface9 *)nullptr);
+	DX9Wrapper::Set_Render_Target((IDirect3DSurface9 *)nullptr);
 	view->Apply();
 
 	// World to map u, v and depth. D3D9 puts texel centres half a texel in.

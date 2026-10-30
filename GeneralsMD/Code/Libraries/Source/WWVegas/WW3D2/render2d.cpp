@@ -609,8 +609,8 @@ void Render2DClass::Render()
 	Matrix4x4 view,proj;
 	Matrix4x4 identity(true);
 
-	DX8Wrapper::Get_Transform(D3DTS_VIEW,view);
-	DX8Wrapper::Get_Transform(D3DTS_PROJECTION,proj);
+	DX9Wrapper::Get_Transform(D3DTS_VIEW,view);
+	DX9Wrapper::Get_Transform(D3DTS_PROJECTION,proj);
 
 	//
 	//	Configure the viewport for entire screen
@@ -626,17 +626,17 @@ void Render2DClass::Render()
 	vp.min_z		= 0;
 	vp.max_z		= 1;
 	Renderer::Set_Viewport(vp);
-	DX8Wrapper::Set_Texture(0,Texture);
+	DX9Wrapper::Set_Texture(0,Texture);
 
 	VertexMaterialClass *vm=VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE);
-	DX8Wrapper::Set_Material(vm);
+	DX9Wrapper::Set_Material(vm);
 	REF_PTR_RELEASE(vm);
 
-	DX8Wrapper::Set_World_Identity();
-	DX8Wrapper::Set_View_Identity();
-	DX8Wrapper::Set_Transform(D3DTS_PROJECTION,identity);
+	DX9Wrapper::Set_World_Identity();
+	DX9Wrapper::Set_View_Identity();
+	DX9Wrapper::Set_Transform(D3DTS_PROJECTION,identity);
 
-	DynamicVBAccessClass vb(BUFFER_TYPE_DYNAMIC_DX8,dynamic_fvf_type,Vertices.Count());
+	DynamicVBAccessClass vb(BUFFER_TYPE_DYNAMIC_DX9,dynamic_fvf_type,Vertices.Count());
 	{
 		DynamicVBAccessClass::WriteLockClass Lock(&vb);
 		const FVFInfoClass &fi=vb.FVF_Info();
@@ -653,7 +653,7 @@ void Render2DClass::Render()
 		}
 	}
 
-	DynamicIBAccessClass ib(BUFFER_TYPE_DYNAMIC_DX8,Indices.Count());
+	DynamicIBAccessClass ib(BUFFER_TYPE_DYNAMIC_DX9,Indices.Count());
 	{
 		DynamicIBAccessClass::WriteLockClass Lock(&ib);
 		unsigned short *mem=Lock.Get_Index_Array();
@@ -661,45 +661,45 @@ void Render2DClass::Render()
 			mem[i]=Indices[i];
 	}
 
-	DX8Wrapper::Set_Vertex_Buffer(vb);
-	DX8Wrapper::Set_Index_Buffer(ib,0);
+	DX9Wrapper::Set_Vertex_Buffer(vb);
+	DX9Wrapper::Set_Index_Buffer(ib,0);
 
 	if (IsGrayScale)
 	{
 		//special case added to draw grayscale non-alpha blended images.
-		DX8Wrapper::Set_Shader(ShaderClass::_PresetOpaqueShader);
-		DX8Wrapper::Apply_Render_State_Changes();	//force update of all regular W3D states.
-		if (DX8Wrapper::Get_Current_Caps()->Support_Dot3())
+		DX9Wrapper::Set_Shader(ShaderClass::_PresetOpaqueShader);
+		DX9Wrapper::Apply_Render_State_Changes();	//force update of all regular W3D states.
+		if (DX9Wrapper::Get_Current_Caps()->Support_Dot3())
 		{
 			//Override W3D states with customizations for grayscale
-			DX8Wrapper::Set_DX8_Render_State(D3DRS_TEXTUREFACTOR, 0x80A5CA8E);
-			DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_COLORARG0, D3DTA_TFACTOR | D3DTA_ALPHAREPLICATE);
-			DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
-			DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_COLORARG2, D3DTA_TFACTOR | D3DTA_ALPHAREPLICATE);
-			DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_COLOROP, D3DTOP_MULTIPLYADD);
+			DX9Wrapper::Set_DX9_Render_State(D3DRS_TEXTUREFACTOR, 0x80A5CA8E);
+			DX9Wrapper::Set_DX9_Texture_Stage_State( 0, D3DTSS_COLORARG0, D3DTA_TFACTOR | D3DTA_ALPHAREPLICATE);
+			DX9Wrapper::Set_DX9_Texture_Stage_State( 0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
+			DX9Wrapper::Set_DX9_Texture_Stage_State( 0, D3DTSS_COLORARG2, D3DTA_TFACTOR | D3DTA_ALPHAREPLICATE);
+			DX9Wrapper::Set_DX9_Texture_Stage_State( 0, D3DTSS_COLOROP, D3DTOP_MULTIPLYADD);
 
-			DX8Wrapper::Set_DX8_Texture_Stage_State( 1, D3DTSS_COLORARG1, D3DTA_CURRENT);
-			DX8Wrapper::Set_DX8_Texture_Stage_State( 1, D3DTSS_COLORARG2, D3DTA_TFACTOR);
-			DX8Wrapper::Set_DX8_Texture_Stage_State( 1, D3DTSS_COLOROP, D3DTOP_DOTPRODUCT3);
+			DX9Wrapper::Set_DX9_Texture_Stage_State( 1, D3DTSS_COLORARG1, D3DTA_CURRENT);
+			DX9Wrapper::Set_DX9_Texture_Stage_State( 1, D3DTSS_COLORARG2, D3DTA_TFACTOR);
+			DX9Wrapper::Set_DX9_Texture_Stage_State( 1, D3DTSS_COLOROP, D3DTOP_DOTPRODUCT3);
 		}
 		else
 		{
 			//doesn't have DOT3 blend mode so fake it another way.
-			DX8Wrapper::Set_DX8_Render_State(D3DRS_TEXTUREFACTOR, 0x60606060);
-			DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
-			DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_COLORARG2, D3DTA_TFACTOR);
-			DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_COLOROP, D3DTOP_MODULATE);
+			DX9Wrapper::Set_DX9_Render_State(D3DRS_TEXTUREFACTOR, 0x60606060);
+			DX9Wrapper::Set_DX9_Texture_Stage_State( 0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
+			DX9Wrapper::Set_DX9_Texture_Stage_State( 0, D3DTSS_COLORARG2, D3DTA_TFACTOR);
+			DX9Wrapper::Set_DX9_Texture_Stage_State( 0, D3DTSS_COLOROP, D3DTOP_MODULATE);
 
 			// TheSuperHackers @bugfix Stubbjax 08/01/2026 Fix possible greyscale rendering issues on hardware without DOT3 support.
-			DX8Wrapper::Set_DX8_Texture_Stage_State( 1, D3DTSS_COLOROP, D3DTOP_DISABLE);
+			DX9Wrapper::Set_DX9_Texture_Stage_State( 1, D3DTSS_COLOROP, D3DTOP_DISABLE);
 		}
 	}
 	else
-		DX8Wrapper::Set_Shader(Shader);
-	DX8Wrapper::Draw_Triangles(0,Indices.Count()/3,0,Vertices.Count());
+		DX9Wrapper::Set_Shader(Shader);
+	DX9Wrapper::Draw_Triangles(0,Indices.Count()/3,0,Vertices.Count());
 
-	DX8Wrapper::Set_Transform(D3DTS_VIEW,view);
-	DX8Wrapper::Set_Transform(D3DTS_PROJECTION,proj);
+	DX9Wrapper::Set_Transform(D3DTS_VIEW,view);
+	DX9Wrapper::Set_Transform(D3DTS_PROJECTION,proj);
 	if (IsGrayScale)
 		ShaderClass::Invalidate();	//force both stages to be reset.
 

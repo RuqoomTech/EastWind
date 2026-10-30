@@ -44,10 +44,10 @@
 
 // ----------------------------------------------------------------------------
 
-DX8PolygonRendererClass::DX8PolygonRendererClass(
+DX9PolygonRendererClass::DX9PolygonRendererClass(
 	unsigned index_count_,
 	MeshModelClass* mmc_,
-	DX8TextureCategoryClass* tex_cat,
+	DX9TextureCategoryClass* tex_cat,
 	unsigned vertex_offset_,
 	unsigned index_offset_,
 	bool strip_,
@@ -67,7 +67,7 @@ DX8PolygonRendererClass::DX8PolygonRendererClass(
 	mmc->PolygonRendererList.Add_Tail(this);
 }
 
-DX8PolygonRendererClass::DX8PolygonRendererClass(const DX8PolygonRendererClass& src,MeshModelClass* mmc_)
+DX9PolygonRendererClass::DX9PolygonRendererClass(const DX9PolygonRendererClass& src,MeshModelClass* mmc_)
 	:
 	mmc(mmc_),
 	texture_category(src.texture_category),
@@ -82,14 +82,14 @@ DX8PolygonRendererClass::DX8PolygonRendererClass(const DX8PolygonRendererClass& 
 	mmc->PolygonRendererList.Add_Tail(this);
 }
 
-DX8PolygonRendererClass::~DX8PolygonRendererClass()
+DX9PolygonRendererClass::~DX9PolygonRendererClass()
 {
 	if (texture_category) texture_category->Remove_Polygon_Renderer(this);
 }
 
 // ----------------------------------------------------------------------------
 
-void DX8PolygonRendererClass::Log()
+void DX9PolygonRendererClass::Log()
 {
 	WWDEBUG_SAY(("\t%8d %8d %6d %6d %6d %s\n",
 		index_count,

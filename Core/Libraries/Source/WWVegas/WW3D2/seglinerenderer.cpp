@@ -218,11 +218,11 @@ void SegLineRendererClass::Render
 )
 {
 	Matrix4x4 view;
-	DX8Wrapper::Get_Transform(D3DTS_VIEW,view);
+	DX9Wrapper::Get_Transform(D3DTS_VIEW,view);
 
 	Matrix4x4 identity(true);
-	DX8Wrapper::Set_Transform(D3DTS_WORLD,identity);
-	DX8Wrapper::Set_Transform(D3DTS_VIEW,identity);
+	DX9Wrapper::Set_Transform(D3DTS_WORLD,identity);
+	DX9Wrapper::Set_Transform(D3DTS_VIEW,identity);
 
 	/*
 	** Handle texture UV offset animation (done once for entire line).
@@ -943,14 +943,14 @@ void SegLineRendererClass::Render
 		vArray[vidx].x = top.X;
 		vArray[vidx].y = top.Y;
 		vArray[vidx].z = top.Z;
-		vArray[vidx].diffuse = DX8Wrapper::Convert_Color(intersection[1][TOP_EDGE].RGBA);
+		vArray[vidx].diffuse = DX9Wrapper::Convert_Color(intersection[1][TOP_EDGE].RGBA);
 		vArray[vidx].u1 = u_values[0] + uv_offset.X;
 		vArray[vidx].v1 = intersection[1][TOP_EDGE].TexV + uv_offset.Y;
 		vidx++;
 		vArray[vidx].x = bottom.X;
 		vArray[vidx].y = bottom.Y;
 		vArray[vidx].z = bottom.Z;
-		vArray[vidx].diffuse = DX8Wrapper::Convert_Color(intersection[1][BOTTOM_EDGE].RGBA);
+		vArray[vidx].diffuse = DX9Wrapper::Convert_Color(intersection[1][BOTTOM_EDGE].RGBA);
 		vArray[vidx].u1 = u_values[1] + uv_offset.X;
 		vArray[vidx].v1 = intersection[1][BOTTOM_EDGE].TexV + uv_offset.Y;
 		vidx++;
@@ -1004,14 +1004,14 @@ void SegLineRendererClass::Render
 				vArray[vidx].x = top.X;
 				vArray[vidx].y = top.Y;
 				vArray[vidx].z = top.Z;
-				vArray[vidx].diffuse = DX8Wrapper::Convert_Color(intersection[top_int_idx][TOP_EDGE].RGBA);
+				vArray[vidx].diffuse = DX9Wrapper::Convert_Color(intersection[top_int_idx][TOP_EDGE].RGBA);
 				vArray[vidx].u1 = u_values[0] + uv_offset.X;
 				vArray[vidx].v1 = intersection[top_int_idx][TOP_EDGE].TexV + uv_offset.Y;
 				vidx++;
 				vArray[vidx].x = bottom.X;
 				vArray[vidx].y = bottom.Y;
 				vArray[vidx].z = bottom.Z;
-				vArray[vidx].diffuse = DX8Wrapper::Convert_Color(intersection[bottom_int_idx][BOTTOM_EDGE].RGBA);
+				vArray[vidx].diffuse = DX9Wrapper::Convert_Color(intersection[bottom_int_idx][BOTTOM_EDGE].RGBA);
 				vArray[vidx].u1 = u_values[1] + uv_offset.X;
 				vArray[vidx].v1 = intersection[bottom_int_idx][BOTTOM_EDGE].TexV + uv_offset.Y;
 				vidx++;
@@ -1040,7 +1040,7 @@ void SegLineRendererClass::Render
 					vArray[vidx].x = bottom.X;
 					vArray[vidx].y = bottom.Y;
 					vArray[vidx].z = bottom.Z;
-					vArray[vidx].diffuse = DX8Wrapper::Convert_Color(intersection[bottom_int_idx][BOTTOM_EDGE].RGBA);
+					vArray[vidx].diffuse = DX9Wrapper::Convert_Color(intersection[bottom_int_idx][BOTTOM_EDGE].RGBA);
 					vArray[vidx].u1 = u_values[1] + uv_offset.X;
 					vArray[vidx].v1 = intersection[bottom_int_idx][BOTTOM_EDGE].TexV + uv_offset.Y;
 					vidx++;
@@ -1069,7 +1069,7 @@ void SegLineRendererClass::Render
 					vArray[vidx].x = top.X;
 					vArray[vidx].y = top.Y;
 					vArray[vidx].z = top.Z;
-					vArray[vidx].diffuse = DX8Wrapper::Convert_Color(intersection[top_int_idx][TOP_EDGE].RGBA);
+					vArray[vidx].diffuse = DX9Wrapper::Convert_Color(intersection[top_int_idx][TOP_EDGE].RGBA);
 					vArray[vidx].u1 = u_values[0] + uv_offset.X;
 					vArray[vidx].v1 = intersection[top_int_idx][TOP_EDGE].TexV + uv_offset.Y;
 					vidx++;
@@ -1100,7 +1100,7 @@ void SegLineRendererClass::Render
 
 		// If color is not white or opacity not 100%, enable gradient in shader and in renderer - otherwise disable.
 		unsigned int rgba;
-		rgba=DX8Wrapper::Convert_Color(Color,Opacity);
+		rgba=DX9Wrapper::Convert_Color(Color,Opacity);
 		bool rgba_all=(rgba==0xFFFFFFFF);
 
 		// Enable sorting if sorting has not been disabled and line is translucent and alpha testing is not enabled.
@@ -1133,7 +1133,7 @@ void SegLineRendererClass::Render
 		** Render
 		*/
 
-		DynamicVBAccessClass Verts((sorting?BUFFER_TYPE_DYNAMIC_SORTING:BUFFER_TYPE_DYNAMIC_DX8),dynamic_fvf_type,vnum);
+		DynamicVBAccessClass Verts((sorting?BUFFER_TYPE_DYNAMIC_SORTING:BUFFER_TYPE_DYNAMIC_DX9),dynamic_fvf_type,vnum);
 		// Copy in the data to the  VB
 		{
 			DynamicVBAccessClass::WriteLockClass Lock(&Verts);
@@ -1161,7 +1161,7 @@ void SegLineRendererClass::Render
 			}
 		}
 
-		DynamicIBAccessClass ib_access((sorting?BUFFER_TYPE_DYNAMIC_SORTING:BUFFER_TYPE_DYNAMIC_DX8),tidx*3);
+		DynamicIBAccessClass ib_access((sorting?BUFFER_TYPE_DYNAMIC_SORTING:BUFFER_TYPE_DYNAMIC_DX9),tidx*3);
 		{
 			unsigned int i;
 			DynamicIBAccessClass::WriteLockClass lock(&ib_access);
@@ -1175,23 +1175,23 @@ void SegLineRendererClass::Render
 			}
 		}
 
-		DX8Wrapper::Set_Index_Buffer(ib_access,0);
-		DX8Wrapper::Set_Vertex_Buffer(Verts);
-		DX8Wrapper::Set_Material(mat);
-		DX8Wrapper::Set_Texture(0,Texture);
-		DX8Wrapper::Set_Shader(shader);
+		DX9Wrapper::Set_Index_Buffer(ib_access,0);
+		DX9Wrapper::Set_Vertex_Buffer(Verts);
+		DX9Wrapper::Set_Material(mat);
+		DX9Wrapper::Set_Texture(0,Texture);
+		DX9Wrapper::Set_Shader(shader);
 
 		if (sorting) {
 			SortingRendererClass::Insert_Triangles(obj_sphere,0,tidx,0,vnum);
 		} else {
-			DX8Wrapper::Draw_Triangles(0,tidx,0,vnum);
+			DX9Wrapper::Draw_Triangles(0,tidx,0,vnum);
 		}
 
 		REF_PTR_RELEASE(mat);
 
 	}
 
-	DX8Wrapper::Set_Transform(D3DTS_VIEW,view);
+	DX9Wrapper::Set_Transform(D3DTS_VIEW,view);
 
 }
 

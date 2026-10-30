@@ -215,13 +215,13 @@ void W3DDebugIcons::Render(RenderInfoClass & rinfo)
 	//
 	Bool anyVanished = false;
 	if (m_numDebugIcons==0) return;
-	DX8Wrapper::Apply_Render_State_Changes();
+	DX9Wrapper::Apply_Render_State_Changes();
 
-	DX8Wrapper::Set_Material(m_vertexMaterialClass);
-	DX8Wrapper::Set_Texture(0, nullptr);
-	DX8Wrapper::Apply_Render_State_Changes();
+	DX9Wrapper::Set_Material(m_vertexMaterialClass);
+	DX9Wrapper::Set_Texture(0, nullptr);
+	DX9Wrapper::Apply_Render_State_Changes();
 
-	DX8Wrapper::Set_Transform(D3DTS_WORLD,Transform);
+	DX9Wrapper::Set_Transform(D3DTS_WORLD,Transform);
 
 	Int numRect = m_numDebugIcons;
 	static Real offset = 30;
@@ -232,8 +232,8 @@ void W3DDebugIcons::Render(RenderInfoClass & rinfo)
 	for (k=0; k<m_numDebugIcons;) {
 		Int curIndex = 0;
 		Int	numVertex = 0;
-		DynamicVBAccessClass vb_access(BUFFER_TYPE_DYNAMIC_DX8,DX8_FVF_XYZNDUV2,numRect*4);
-		DynamicIBAccessClass ib_access(BUFFER_TYPE_DYNAMIC_DX8,numRect*6);
+		DynamicVBAccessClass vb_access(BUFFER_TYPE_DYNAMIC_DX9,DX9_FVF_XYZNDUV2,numRect*4);
+		DynamicIBAccessClass ib_access(BUFFER_TYPE_DYNAMIC_DX9,numRect*6);
 		{
 		DynamicVBAccessClass::WriteLockClass lock(&vb_access);
 		VertexFormatXYZNDUV2* vb= lock.Get_Formatted_Vertex_Array();
@@ -302,10 +302,10 @@ void W3DDebugIcons::Render(RenderInfoClass & rinfo)
 		}
 		}
 		if (numVertex == 0) break;
-		DX8Wrapper::Set_Shader(ShaderClass(SC_ALPHA));
-		DX8Wrapper::Set_Index_Buffer(ib_access,0);
-		DX8Wrapper::Set_Vertex_Buffer(vb_access);
-		DX8Wrapper::Draw_Triangles(	0,curIndex/3, 0,	numVertex);	//draw a quad, 2 triangles, 4 verts
+		DX9Wrapper::Set_Shader(ShaderClass(SC_ALPHA));
+		DX9Wrapper::Set_Index_Buffer(ib_access,0);
+		DX9Wrapper::Set_Vertex_Buffer(vb_access);
+		DX9Wrapper::Draw_Triangles(	0,curIndex/3, 0,	numVertex);	//draw a quad, 2 triangles, 4 verts
 	}
 
 	if (anyVanished) {

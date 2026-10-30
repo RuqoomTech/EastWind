@@ -389,7 +389,7 @@ void LensflareTypeClass::Generate_Vertex_Buffers(
 		if (col[0]>1.0f) col[0]=1.0f;
 		if (col[1]>1.0f) col[1]=1.0f;
 		if (col[2]>1.0f) col[2]=1.0f;
-		unsigned color=DX8Wrapper::Convert_Color(col,1.0f);
+		unsigned color=DX9Wrapper::Convert_Color(col,1.0f);
 
 		vertex->x=x+ix;
 		vertex->y=y-iy;
@@ -919,7 +919,7 @@ void DazzleRenderObjClass::Render(RenderInfoClass & rinfo)
 
 	if (	Is_Not_Hidden_At_All() &&
 			_dazzle_rendering_enabled &&
-			!DX8Wrapper::Is_Render_To_Texture()	)
+			!DX9Wrapper::Is_Render_To_Texture()	)
 	{
 		// First check if the dazzle is blinking and is "off"
 		bool is_on = true;
@@ -944,8 +944,8 @@ void DazzleRenderObjClass::Render(RenderInfoClass & rinfo)
 //			visibility = _VisibilityHandler->Compute_Dazzle_Visibility(rinfo,this,position);
 
 			Matrix4x4 view_transform,projection_transform;
-			DX8Wrapper::Get_Transform(D3DTS_VIEW,view_transform);
-			DX8Wrapper::Get_Transform(D3DTS_PROJECTION,projection_transform);
+			DX9Wrapper::Get_Transform(D3DTS_VIEW,view_transform);
+			DX9Wrapper::Get_Transform(D3DTS_PROJECTION,projection_transform);
 			Vector3 camera_loc(rinfo.Camera.Get_Position());
 			Vector3 camera_dir(-view_transform[2][0],-view_transform[2][1],-view_transform[2][2]);
 //			const Matrix3D& cam = rinfo.Camera.Get_Transform();
@@ -1021,9 +1021,9 @@ void DazzleRenderObjClass::Render_Dazzle(CameraClass* camera)
 	Matrix4x4 view_transform;
 	Matrix4x4 world_transform;
 	Matrix4x4 projection_transform;
-	DX8Wrapper::Get_Transform(D3DTS_VIEW,view_transform);
-	DX8Wrapper::Get_Transform(D3DTS_WORLD,world_transform);
-	DX8Wrapper::Get_Transform(D3DTS_PROJECTION,projection_transform);
+	DX9Wrapper::Get_Transform(D3DTS_VIEW,view_transform);
+	DX9Wrapper::Get_Transform(D3DTS_WORLD,world_transform);
+	DX9Wrapper::Get_Transform(D3DTS_PROJECTION,projection_transform);
 	old_view_transform=view_transform;
 	old_world_transform=world_transform;
 	old_projection_transform=projection_transform;
@@ -1070,7 +1070,7 @@ void DazzleRenderObjClass::Render_Dazzle(CameraClass* camera)
 		lens_max_verts=4*lensflare->lic.flare_count;
 	}
 
-	DynamicVBAccessClass vb_access(BUFFER_TYPE_DYNAMIC_DX8,dynamic_fvf_type,vertex_count*2+lens_max_verts);
+	DynamicVBAccessClass vb_access(BUFFER_TYPE_DYNAMIC_DX9,dynamic_fvf_type,vertex_count*2+lens_max_verts);
 	{
 		DynamicVBAccessClass::WriteLockClass lock(&vb_access);
 		VertexFormatXYZNDUV2* verts=lock.Get_Formatted_Vertex_Array();
@@ -1099,7 +1099,7 @@ void DazzleRenderObjClass::Render_Dazzle(CameraClass* camera)
 			if (col[1]>1.0f) col[1]=1.0f;
 			if (col[2]>1.0f) col[2]=1.0f;
 
-			unsigned color=DX8Wrapper::Convert_Color(col,1.0f);
+			unsigned color=DX9Wrapper::Convert_Color(col,1.0f);
 
 			dl=current_vloc+(dazzle_dxt-dazzle_dyt)*current_dazzle_size;
 			reinterpret_cast<Vector3&>(vertex->x)=dl;
@@ -1142,7 +1142,7 @@ void DazzleRenderObjClass::Render_Dazzle(CameraClass* camera)
 			if (col[1]>1.0f) col[1]=1.0f;
 			if (col[2]>1.0f) col[2]=1.0f;
 
-			unsigned color=DX8Wrapper::Convert_Color(col,1.0f);
+			unsigned color=DX9Wrapper::Convert_Color(col,1.0f);
 
 			Vector3 offset;
 
@@ -1201,9 +1201,9 @@ void DazzleRenderObjClass::Render_Dazzle(CameraClass* camera)
 		return;
 	}
 
-	DX8Wrapper::Set_Vertex_Buffer(vb_access);
+	DX9Wrapper::Set_Vertex_Buffer(vb_access);
 
-	DynamicIBAccessClass ib_access(BUFFER_TYPE_DYNAMIC_DX8,poly_count*3);
+	DynamicIBAccessClass ib_access(BUFFER_TYPE_DYNAMIC_DX9,poly_count*3);
 	{
 		DynamicIBAccessClass::WriteLockClass lock(&ib_access);
 		unsigned short* inds=lock.Get_Index_Array();
@@ -1219,34 +1219,34 @@ void DazzleRenderObjClass::Render_Dazzle(CameraClass* camera)
 		}
 	}
 
-	DX8Wrapper::Set_World_Identity();
-	DX8Wrapper::Set_View_Identity();
-	DX8Wrapper::Set_Transform(D3DTS_PROJECTION,Matrix4x4(true));
+	DX9Wrapper::Set_World_Identity();
+	DX9Wrapper::Set_View_Identity();
+	DX9Wrapper::Set_Transform(D3DTS_PROJECTION,Matrix4x4(true));
 
 	if (halo_poly_count) {
-		DX8Wrapper::Set_Index_Buffer(ib_access,dazzle_vertex_count);
-		DX8Wrapper::Set_Shader(default_halo_shader);
-		DX8Wrapper::Set_Texture(0,types[type]->Get_Halo_Texture());
-		DX8Wrapper::Draw_Triangles(0,halo_poly_count,0,vertex_count);
+		DX9Wrapper::Set_Index_Buffer(ib_access,dazzle_vertex_count);
+		DX9Wrapper::Set_Shader(default_halo_shader);
+		DX9Wrapper::Set_Texture(0,types[type]->Get_Halo_Texture());
+		DX9Wrapper::Draw_Triangles(0,halo_poly_count,0,vertex_count);
 	}
 
 	if (dazzle_poly_count) {
-		DX8Wrapper::Set_Index_Buffer(ib_access,0);
-		DX8Wrapper::Set_Shader(default_dazzle_shader);
-		DX8Wrapper::Set_Texture(0,types[type]->Get_Dazzle_Texture());
-		DX8Wrapper::Draw_Triangles(0,dazzle_poly_count,0,vertex_count);
+		DX9Wrapper::Set_Index_Buffer(ib_access,0);
+		DX9Wrapper::Set_Shader(default_dazzle_shader);
+		DX9Wrapper::Set_Texture(0,types[type]->Get_Dazzle_Texture());
+		DX9Wrapper::Draw_Triangles(0,dazzle_poly_count,0,vertex_count);
 	}
 
 	if (lensflare_poly_count) {
-		DX8Wrapper::Set_Index_Buffer(ib_access,dazzle_vertex_count+halo_vertex_count);
-		DX8Wrapper::Set_Shader(default_dazzle_shader);
-		DX8Wrapper::Set_Texture(0,lensflare->Get_Texture());
-		DX8Wrapper::Draw_Triangles(0,lensflare_poly_count,0,vertex_count);
+		DX9Wrapper::Set_Index_Buffer(ib_access,dazzle_vertex_count+halo_vertex_count);
+		DX9Wrapper::Set_Shader(default_dazzle_shader);
+		DX9Wrapper::Set_Texture(0,lensflare->Get_Texture());
+		DX9Wrapper::Draw_Triangles(0,lensflare_poly_count,0,vertex_count);
 	}
 
-	DX8Wrapper::Set_Transform(D3DTS_PROJECTION,old_projection_transform);
-	DX8Wrapper::Set_Transform(D3DTS_VIEW,old_view_transform);
-	DX8Wrapper::Set_Transform(D3DTS_WORLD,old_world_transform);
+	DX9Wrapper::Set_Transform(D3DTS_PROJECTION,old_projection_transform);
+	DX9Wrapper::Set_Transform(D3DTS_VIEW,old_view_transform);
+	DX9Wrapper::Set_Transform(D3DTS_WORLD,old_world_transform);
 }
 
 // ----------------------------------------------------------------------------
@@ -1576,7 +1576,7 @@ void DazzleLayerClass::Render(CameraClass* camera)
 
 	camera->Apply();
 
-	DX8Wrapper::Set_Material(nullptr);
+	DX9Wrapper::Set_Material(nullptr);
 
 	for (unsigned type=0;type<type_count;++type) {
 		if (!types[type]) continue;

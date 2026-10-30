@@ -73,9 +73,9 @@ class HTreeClass;
 class DecalGeneratorClass;
 class LightEnvironmentClass;
 
-class DX8MeshRendererClass;
-class DX8PolygonRendererAttachClass;
-class DX8SkinFVFCategoryContainer;
+class DX9MeshRendererClass;
+class DX9PolygonRendererAttachClass;
+class DX9SkinFVFCategoryContainer;
 class GapFillerClass;
 
 struct VertexFormatXYZNDUV2;
@@ -242,7 +242,7 @@ public:
 //	void							Process_Texture_Reduction();
 
 	// FVF category container will be null if the mesh hasn't been registered to the rendering system
-	DX8FVFCategoryContainer* Peek_FVF_Category_Container();
+	DX9FVFCategoryContainer* Peek_FVF_Category_Container();
 
 	// Determine whether any rendering feature used by this mesh requires vertex normals
 	bool							Needs_Vertex_Normals();
@@ -326,7 +326,7 @@ protected:
 	MaterialInfoClass	*									MatInfo;
 
 	// DX8 Mesh rendering system data
-	DX8PolygonRendererList								PolygonRendererList;
+	DX9PolygonRendererList								PolygonRendererList;
 
 	// Jani: Adding this here temporarily... must fine better place
 	GapFillerClass *										GapFiller;
@@ -336,7 +336,7 @@ protected:
 	friend class MeshDeformSetClass;
 	friend class MeshDeformClass;
 	friend class MeshLoadContextClass;
-	friend class DX8SkinFVFCategoryContainer;
-	friend class DX8MeshRendererClass;
-	friend class DX8PolygonRendererClass;
+	friend class DX9SkinFVFCategoryContainer;
+	friend class DX9MeshRendererClass;
+	friend class DX9PolygonRendererClass;
 };

@@ -46,7 +46,7 @@
 #include "dx9list.h"
 #include "WWLib/multilist.h"
 
-class DX8TextureManagerClass;
+class DX9TextureManagerClass;
 
 class TextureTrackerClass : public MultiListObjectClass
 {
@@ -83,10 +83,10 @@ protected:
 	TextureBaseClass *Texture;
 };
 
-class DX8TextureTrackerClass : public TextureTrackerClass
+class DX9TextureTrackerClass : public TextureTrackerClass
 {
 public:
-	DX8TextureTrackerClass
+	DX9TextureTrackerClass
 	(
 		unsigned int w,
 		unsigned int h,
@@ -104,7 +104,7 @@ public:
 		WWASSERT(Texture->Peek_D3D_Base_Texture()==nullptr);
 		Texture->Poke_Texture
 		(
-			DX8Wrapper::_Create_DX8_Texture
+			DX9Wrapper::_Create_DX9_Texture
 			(
 				Width,
 				Height,
@@ -121,10 +121,10 @@ private:
 	bool RenderTarget;
 };
 
-class DX8ZTextureTrackerClass : public TextureTrackerClass
+class DX9ZTextureTrackerClass : public TextureTrackerClass
 {
 public:
-	DX8ZTextureTrackerClass
+	DX9ZTextureTrackerClass
 	(
 		unsigned int w,
 		unsigned int h,
@@ -141,7 +141,7 @@ public:
 		WWASSERT(Texture->Peek_D3D_Base_Texture()==nullptr);
 		Texture->Poke_Texture
 		(
-			DX8Wrapper::_Create_DX8_ZTexture
+			DX9Wrapper::_Create_DX9_ZTexture
 			(
 				Width,
 				Height,
@@ -158,7 +158,7 @@ private:
 };
 
 
-class DX8TextureManagerClass
+class DX9TextureManagerClass
 {
 public:
 	static void Shutdown();

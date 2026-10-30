@@ -462,7 +462,7 @@ void W3DShroud::render(CameraClass *cam)
 	if (!m_shroudData)
 		return; //nothing to update from.  Must be in reset state.
 
-	if (DX8Wrapper::_Get_D3D_Device9() && (DX8Wrapper::_Get_D3D_Device9()->TestCooperativeLevel()) != D3D_OK)
+	if (DX9Wrapper::_Get_D3D_Device9() && (DX9Wrapper::_Get_D3D_Device9()->TestCooperativeLevel()) != D3D_OK)
 		return;	//device not ready to render anything
 
 #if defined(RTS_DEBUG)

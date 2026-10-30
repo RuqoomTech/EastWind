@@ -165,8 +165,8 @@ public:
 					MAX_BRIDGE_INDEX=2*MAX_BRIDGE_VERTEX,	//make sure it stays under 65535
 					MAX_BRIDGES=200};
 protected:
-	DX8VertexBufferClass	*m_vertexBridge;	///<Bridge vertex buffer.
-	DX8IndexBufferClass			*m_indexBridge;	///<indices defining a triangles for the bridge drawing.
+	DX9VertexBufferClass	*m_vertexBridge;	///<Bridge vertex buffer.
+	DX9IndexBufferClass			*m_indexBridge;	///<indices defining a triangles for the bridge drawing.
 	VertexMaterialClass *m_vertexMaterial;
 	TextureClass *m_bridgeTexture;	///<Bridges texture
 	Int			m_curNumBridgeVertices; ///<Number of vertices used in m_vertexBridge.

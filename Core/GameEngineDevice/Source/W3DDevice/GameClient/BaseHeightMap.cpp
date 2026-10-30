@@ -305,7 +305,7 @@ BaseHeightMapRenderObjClass::BaseHeightMapRenderObjClass()
 #else
 	m_shroud = NEW W3DShroud;
 #endif
-	DX8Wrapper::SetCleanupHook(this);
+	DX9Wrapper::SetCleanupHook(this);
 }
 
 void BaseHeightMapRenderObjClass::scheduleFullUpdate()
@@ -1450,7 +1450,7 @@ RenderObjClass *	 BaseHeightMapRenderObjClass::Clone() const
 //=============================================================================
 void BaseHeightMapRenderObjClass::loadRoadsAndBridges(W3DTerrainLogic *pTerrainLogic, Bool saveGame)
 {
-	if (DX8Wrapper::_Get_D3D_Device9() && (DX8Wrapper::_Get_D3D_Device9()->TestCooperativeLevel()) != D3D_OK)
+	if (DX9Wrapper::_Get_D3D_Device9() && (DX9Wrapper::_Get_D3D_Device9()->TestCooperativeLevel()) != D3D_OK)
 		return;	//device not ready to render anything
 
 #ifdef DO_ROADS
@@ -2312,21 +2312,21 @@ void BaseHeightMapRenderObjClass::renderShoreLines(CameraClass *pCamera)
 
 	ShaderClass unlitShader=ShaderClass::_PresetOpaque2DShader;
 	unlitShader.Set_Depth_Compare(ShaderClass::PASS_LEQUAL);
-	DX8Wrapper::Set_Shader(unlitShader);
+	DX9Wrapper::Set_Shader(unlitShader);
 	VertexMaterialClass *vmat=VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE);
-	DX8Wrapper::Set_Material(vmat);
+	DX9Wrapper::Set_Material(vmat);
 	REF_PTR_RELEASE(vmat);
-	DX8Wrapper::Set_Texture(0,m_destAlphaTexture);
-	DX8Wrapper::Set_Transform(D3DTS_WORLD,Matrix3D(true));
+	DX9Wrapper::Set_Texture(0,m_destAlphaTexture);
+	DX9Wrapper::Set_Transform(D3DTS_WORLD,Matrix3D(true));
 	//Enabled writes to destination alpha only
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_COLORWRITEENABLE,D3DCOLORWRITEENABLE_ALPHA);
-	DX8Wrapper::Set_DX8_Texture_Stage_State(0,  D3DTSS_TEXCOORDINDEX, 0);
+	DX9Wrapper::Set_DX9_Render_State(D3DRS_COLORWRITEENABLE,D3DCOLORWRITEENABLE_ALPHA);
+	DX9Wrapper::Set_DX9_Texture_Stage_State(0,  D3DTSS_TEXCOORDINDEX, 0);
 
 
 	while (j != m_numShoreLineTiles)
 	{
-		DynamicVBAccessClass vb_access(BUFFER_TYPE_DYNAMIC_DX8,dynamic_fvf_type,DEFAULT_MAX_BATCH_SHORELINE_TILES*4);
-		DynamicIBAccessClass ib_access(BUFFER_TYPE_DYNAMIC_DX8,DEFAULT_MAX_BATCH_SHORELINE_TILES*6);
+		DynamicVBAccessClass vb_access(BUFFER_TYPE_DYNAMIC_DX9,dynamic_fvf_type,DEFAULT_MAX_BATCH_SHORELINE_TILES*4);
+		DynamicIBAccessClass ib_access(BUFFER_TYPE_DYNAMIC_DX9,DEFAULT_MAX_BATCH_SHORELINE_TILES*6);
 
 		{
 			//Need to put this in another code block so vb/ib gets automatically locked/unlocked by destructors
@@ -2335,7 +2335,7 @@ void BaseHeightMapRenderObjClass::renderShoreLines(CameraClass *pCamera)
 			DynamicIBAccessClass::WriteLockClass lockib(&ib_access);
 			UnsignedShort *ib=lockib.Get_Index_Array();
 			if (!ib || !vb)
-			{	DX8Wrapper::Set_DX8_Render_State(D3DRS_COLORWRITEENABLE,D3DCOLORWRITEENABLE_BLUE|D3DCOLORWRITEENABLE_GREEN|D3DCOLORWRITEENABLE_RED);
+			{	DX9Wrapper::Set_DX9_Render_State(D3DRS_COLORWRITEENABLE,D3DCOLORWRITEENABLE_BLUE|D3DCOLORWRITEENABLE_GREEN|D3DCOLORWRITEENABLE_RED);
 				return;
 			}
 
@@ -2433,9 +2433,9 @@ void BaseHeightMapRenderObjClass::renderShoreLines(CameraClass *pCamera)
 
 		if (indexCount > 0 && vertexCount > 0)
 		{
-			DX8Wrapper::Set_Index_Buffer(ib_access,0);
-			DX8Wrapper::Set_Vertex_Buffer(vb_access);
-			DX8Wrapper::Draw_Triangles(	0,indexCount/3, 0,	vertexCount);	//draw a quad, 2 triangles, 4 verts
+			DX9Wrapper::Set_Index_Buffer(ib_access,0);
+			DX9Wrapper::Set_Vertex_Buffer(vb_access);
+			DX9Wrapper::Draw_Triangles(	0,indexCount/3, 0,	vertexCount);	//draw a quad, 2 triangles, 4 verts
 			m_numVisibleShoreLineTiles += indexCount/6;
 		}
 
@@ -2444,7 +2444,7 @@ void BaseHeightMapRenderObjClass::renderShoreLines(CameraClass *pCamera)
 	}
 
 	//Disable writes to destination alpha
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_COLORWRITEENABLE,D3DCOLORWRITEENABLE_BLUE|D3DCOLORWRITEENABLE_GREEN|D3DCOLORWRITEENABLE_RED);
+	DX9Wrapper::Set_DX9_Render_State(D3DRS_COLORWRITEENABLE,D3DCOLORWRITEENABLE_BLUE|D3DCOLORWRITEENABLE_GREEN|D3DCOLORWRITEENABLE_RED);
 	ShaderClass::Invalidate();
 }
 
@@ -2498,23 +2498,23 @@ void BaseHeightMapRenderObjClass::renderShoreLinesSorted(CameraClass *pCamera)
 
 	ShaderClass unlitShader=ShaderClass::_PresetOpaque2DShader;
 	unlitShader.Set_Depth_Compare(ShaderClass::PASS_LEQUAL);
-	DX8Wrapper::Set_Shader(unlitShader);
+	DX9Wrapper::Set_Shader(unlitShader);
 	VertexMaterialClass *vmat=VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE);
-	DX8Wrapper::Set_Material(vmat);
+	DX9Wrapper::Set_Material(vmat);
 	REF_PTR_RELEASE(vmat);
-	DX8Wrapper::Set_Texture(0,m_destAlphaTexture);
-	DX8Wrapper::Set_Transform(D3DTS_WORLD,Matrix3D(true));
+	DX9Wrapper::Set_Texture(0,m_destAlphaTexture);
+	DX9Wrapper::Set_Transform(D3DTS_WORLD,Matrix3D(true));
 	//Enabled writes to destination alpha only
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_COLORWRITEENABLE,D3DCOLORWRITEENABLE_ALPHA);
-	DX8Wrapper::Set_DX8_Texture_Stage_State(0,  D3DTSS_TEXCOORDINDEX, 0);
+	DX9Wrapper::Set_DX9_Render_State(D3DRS_COLORWRITEENABLE,D3DCOLORWRITEENABLE_ALPHA);
+	DX9Wrapper::Set_DX9_Texture_Stage_State(0,  D3DTSS_TEXCOORDINDEX, 0);
 
 	Bool isDone=FALSE;
 	Int lastRenderedTile=0;
 
 	while (!isDone)
 	{
-		DynamicVBAccessClass vb_access(BUFFER_TYPE_DYNAMIC_DX8,dynamic_fvf_type,DEFAULT_MAX_BATCH_SHORELINE_TILES*4);
-		DynamicIBAccessClass ib_access(BUFFER_TYPE_DYNAMIC_DX8,DEFAULT_MAX_BATCH_SHORELINE_TILES*6);
+		DynamicVBAccessClass vb_access(BUFFER_TYPE_DYNAMIC_DX9,dynamic_fvf_type,DEFAULT_MAX_BATCH_SHORELINE_TILES*4);
+		DynamicIBAccessClass ib_access(BUFFER_TYPE_DYNAMIC_DX9,DEFAULT_MAX_BATCH_SHORELINE_TILES*6);
 
 		{
 			//Need to put this in another code block so vb/ib gets automatically locked/unlocked by destructors
@@ -2523,7 +2523,7 @@ void BaseHeightMapRenderObjClass::renderShoreLinesSorted(CameraClass *pCamera)
 			DynamicIBAccessClass::WriteLockClass lockib(&ib_access);
 			UnsignedShort *ib=lockib.Get_Index_Array();
 			if (!ib || !vb)
-			{	DX8Wrapper::Set_DX8_Render_State(D3DRS_COLORWRITEENABLE,D3DCOLORWRITEENABLE_BLUE|D3DCOLORWRITEENABLE_GREEN|D3DCOLORWRITEENABLE_RED);
+			{	DX9Wrapper::Set_DX9_Render_State(D3DRS_COLORWRITEENABLE,D3DCOLORWRITEENABLE_BLUE|D3DCOLORWRITEENABLE_GREEN|D3DCOLORWRITEENABLE_RED);
 				return;
 			}
 
@@ -2776,9 +2776,9 @@ flushVertexBuffer1:
 
 		if (indexCount > 0 && vertexCount > 0)
 		{
-			DX8Wrapper::Set_Index_Buffer(ib_access,0);
-			DX8Wrapper::Set_Vertex_Buffer(vb_access);
-			DX8Wrapper::Draw_Triangles(	0,indexCount/3, 0,	vertexCount);	//draw a quad, 2 triangles, 4 verts
+			DX9Wrapper::Set_Index_Buffer(ib_access,0);
+			DX9Wrapper::Set_Vertex_Buffer(vb_access);
+			DX9Wrapper::Draw_Triangles(	0,indexCount/3, 0,	vertexCount);	//draw a quad, 2 triangles, 4 verts
 			m_numVisibleShoreLineTiles += indexCount/6;
 		}
 
@@ -2787,7 +2787,7 @@ flushVertexBuffer1:
 	}
 
 	//Disable writes to destination alpha
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_COLORWRITEENABLE,D3DCOLORWRITEENABLE_BLUE|D3DCOLORWRITEENABLE_GREEN|D3DCOLORWRITEENABLE_RED);
+	DX9Wrapper::Set_DX9_Render_State(D3DRS_COLORWRITEENABLE,D3DCOLORWRITEENABLE_BLUE|D3DCOLORWRITEENABLE_GREEN|D3DCOLORWRITEENABLE_RED);
 	ShaderClass::Invalidate();
 }
 
@@ -2800,15 +2800,15 @@ called after flush. */
 void BaseHeightMapRenderObjClass::renderTrees(CameraClass * camera)
 {
 #ifdef EXTENDED_STATS
-	if (DX8Wrapper::stats.m_disableObjects) {
+	if (DX9Wrapper::stats.m_disableObjects) {
 		return;
 	}
 #endif
 	if (m_map==nullptr) return;
 	if (Scene==nullptr) return;
 	if (m_treeBuffer) {
-		DX8Wrapper::Set_Transform(D3DTS_WORLD,Transform);
-		DX8Wrapper::Set_Material(m_vertexMaterialClass);
+		DX9Wrapper::Set_Transform(D3DTS_WORLD,Transform);
+		DX9Wrapper::Set_Material(m_vertexMaterialClass);
 		RTS3DScene *pMyScene = (RTS3DScene *)Scene;
 		RefRenderObjListIterator pDynamicLightsIterator(pMyScene->getDynamicLights());
 		m_treeBuffer->drawTrees(camera, &pDynamicLightsIterator);

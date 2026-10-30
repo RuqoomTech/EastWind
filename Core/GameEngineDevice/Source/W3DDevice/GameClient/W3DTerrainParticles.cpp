@@ -87,7 +87,7 @@ W3DTerrainParticles::W3DTerrainParticles()
   , m_defaultPointAlpha(1.0f)
   , m_defaultPointOrientation(0)
 {
-	m_defaultDiffuse = DX8Wrapper::Convert_Color_Clamp(Vector4(m_defaultPointColor.X, m_defaultPointColor.Y, m_defaultPointColor.Z, m_defaultPointAlpha));
+	m_defaultDiffuse = DX9Wrapper::Convert_Color_Clamp(Vector4(m_defaultPointColor.X, m_defaultPointColor.Y, m_defaultPointColor.Z, m_defaultPointAlpha));
 }
 
 void W3DTerrainParticles::render()
@@ -118,7 +118,7 @@ void W3DTerrainParticles::render()
 		if (bounds.width() < 2 || bounds.height() < 2)
 			continue;
 		
-		const UnsignedInt diffuse = m_pointDiffuse ? DX8Wrapper::Convert_Color_Clamp(m_pointDiffuse->Get_Array()[p]) : m_defaultDiffuse;
+		const UnsignedInt diffuse = m_pointDiffuse ? DX9Wrapper::Convert_Color_Clamp(m_pointDiffuse->Get_Array()[p]) : m_defaultDiffuse;
 
 		ParticleContext particle;
 		particle.loc = loc;
@@ -239,7 +239,7 @@ void W3DTerrainParticles::flushBatch()
 {
 	if (m_numIndices > 0 && m_numVertices > 0)
 	{
-		DynamicVBAccessClass vertexAccess(BUFFER_TYPE_DYNAMIC_DX8, dynamic_fvf_type, m_numVertices);
+		DynamicVBAccessClass vertexAccess(BUFFER_TYPE_DYNAMIC_DX9, dynamic_fvf_type, m_numVertices);
 		{
 			DynamicVBAccessClass::WriteLockClass vertexLock(&vertexAccess);
 			memcpy(vertexLock.Get_Formatted_Vertex_Array(),
@@ -247,7 +247,7 @@ void W3DTerrainParticles::flushBatch()
 			       m_numVertices * sizeof(VertexFormatXYZNDUV2));
 		}
 
-		DynamicIBAccessClass indexAccess(BUFFER_TYPE_DYNAMIC_DX8, m_numIndices);
+		DynamicIBAccessClass indexAccess(BUFFER_TYPE_DYNAMIC_DX9, m_numIndices);
 		{
 			DynamicIBAccessClass::WriteLockClass indexLock(&indexAccess);
 			memcpy(indexLock.Get_Index_Array(),
@@ -255,10 +255,10 @@ void W3DTerrainParticles::flushBatch()
 			       m_numIndices * sizeof(UnsignedShort));
 		}
 
-		DX8Wrapper::Set_Index_Buffer(indexAccess, 0);
-		DX8Wrapper::Set_Vertex_Buffer(vertexAccess);
-		DX8_RECORD_TERRAIN_PARTICLE_BATCH(m_numIndices / 3);
-		DX8Wrapper::Draw_Triangles(0,
+		DX9Wrapper::Set_Index_Buffer(indexAccess, 0);
+		DX9Wrapper::Set_Vertex_Buffer(vertexAccess);
+		DX9_RECORD_TERRAIN_PARTICLE_BATCH(m_numIndices / 3);
+		DX9Wrapper::Draw_Triangles(0,
 		                           m_numIndices / 3,
 		                           0,
 		                           m_numVertices);
@@ -318,20 +318,20 @@ void W3DTerrainParticles::updateSettings()
 	}
 	m_shader.Set_Cull_Mode(ShaderClass::CULL_MODE_ENABLE);
 
-	DX8Wrapper::Set_World_Identity();
+	DX9Wrapper::Set_World_Identity();
 	RefCountPtr<VertexMaterialClass> material;
 	material.Assign_No_Add_Ref(VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE));
-	DX8Wrapper::Set_Material(material.Peek());
-	DX8Wrapper::Set_Shader(m_shader);
-	DX8Wrapper::Set_Texture(0, m_texture.Peek());
+	DX9Wrapper::Set_Material(material.Peek());
+	DX9Wrapper::Set_Shader(m_shader);
+	DX9Wrapper::Set_Texture(0, m_texture.Peek());
 
 	// To prevent visual glitches on overdraw, we clamp the texture to a transparent black pixel.
 	if (m_texture)
 	{
-		DX8Wrapper::Apply_Render_State_Changes();
-		DX8Wrapper::Set_DX8_Sampler_State(0, D3DSAMP_ADDRESSU, D3DTADDRESS_BORDER);
-		DX8Wrapper::Set_DX8_Sampler_State(0, D3DSAMP_ADDRESSV, D3DTADDRESS_BORDER);
-		DX8Wrapper::Set_DX8_Sampler_State(0, D3DSAMP_BORDERCOLOR, 0x00000000);
+		DX9Wrapper::Apply_Render_State_Changes();
+		DX9Wrapper::Set_DX9_Sampler_State(0, D3DSAMP_ADDRESSU, D3DTADDRESS_BORDER);
+		DX9Wrapper::Set_DX9_Sampler_State(0, D3DSAMP_ADDRESSV, D3DTADDRESS_BORDER);
+		DX9Wrapper::Set_DX9_Sampler_State(0, D3DSAMP_BORDERCOLOR, 0x00000000);
 	}
 }
 

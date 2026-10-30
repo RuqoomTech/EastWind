@@ -76,9 +76,9 @@ Bool W3DSnowManager::ReAcquireResources()
 	if (!TheWeatherSetting->m_snowEnabled)
 		return TRUE;	//no need for resources if snow is disabled.
 
-	if (TheWeatherSetting->m_usePointSprites && DX8Wrapper::Get_Current_Caps()->Support_PointSprites())
+	if (TheWeatherSetting->m_usePointSprites && DX9Wrapper::Get_Current_Caps()->Support_PointSprites())
 	{
-		LPDIRECT3DDEVICE9EX m_pDev=DX8Wrapper::_Get_D3D_Device9();
+		LPDIRECT3DDEVICE9EX m_pDev=DX9Wrapper::_Get_D3D_Device9();
 
 		DEBUG_ASSERTCRASH(m_pDev, ("Trying to ReAcquireResources on W3DSnowManager without device"));
 
@@ -100,11 +100,11 @@ Bool W3DSnowManager::ReAcquireResources()
 	}
 	else
 	{
-		m_indexBuffer=NEW_REF(DX8IndexBufferClass,(SNOW_BATCH_SIZE *6));	//allocate 2 triangles per flake, each with 3 indices.
+		m_indexBuffer=NEW_REF(DX9IndexBufferClass,(SNOW_BATCH_SIZE *6));	//allocate 2 triangles per flake, each with 3 indices.
 
 		// Fill up the IB with static vertex indices that will be used for all smudges.
 		{
-			DX8IndexBufferClass::WriteLockClass lockIdxBuffer(m_indexBuffer);
+			DX9IndexBufferClass::WriteLockClass lockIdxBuffer(m_indexBuffer);
 			UnsignedShort *ib=lockIdxBuffer.Get_Index_Array();
 			//quad of 4 triangles:
 			//	0-----3
@@ -315,8 +315,8 @@ flush_particles:
 		//Render any particles that may be queued up.
 		if (numberInBatch)
 		{
-			Debug_Statistics::Record_DX8_Polys_And_Vertices(numberInBatch*2,numberInBatch*4,ShaderClass::_PresetOpaqueShader);
-			DX8Wrapper::_Get_D3D_Device9()->DrawPrimitive( D3DPT_POINTLIST, m_dwBase, numberInBatch);
+			Debug_Statistics::Record_DX9_Polys_And_Vertices(numberInBatch*2,numberInBatch*4,ShaderClass::_PresetOpaqueShader);
+			DX9Wrapper::_Get_D3D_Device9()->DrawPrimitive( D3DPT_POINTLIST, m_dwBase, numberInBatch);
 			totalPart -= numberInBatch;
 			m_dwBase += numberInBatch;
 		}
@@ -328,7 +328,7 @@ void W3DSnowManager::render(RenderInfoClass &rinfo)
 	if (!TheWeatherSetting->m_snowEnabled || !m_isVisible)
 		return;
 
-	Int usePointSprites = DX8Wrapper::Get_Current_Caps()->Support_PointSprites() && TheWeatherSetting->m_usePointSprites;
+	Int usePointSprites = DX9Wrapper::Get_Current_Caps()->Support_PointSprites() && TheWeatherSetting->m_usePointSprites;
 
 	//make sure the noise table is powers of 2 in dimensions.
 	WWASSERT(ISPOW2(SNOW_NOISE_X) && ISPOW2(SNOW_NOISE_Y));
@@ -395,12 +395,12 @@ void W3DSnowManager::render(RenderInfoClass &rinfo)
 	m_heightTraveled=m_time*m_velocity+cameraOffset;	//height that snow flake traveled this frame.
 
 	Matrix4x4 identity(true);
-	DX8Wrapper::Set_Transform(D3DTS_WORLD,identity);
+	DX9Wrapper::Set_Transform(D3DTS_WORLD,identity);
 
-	DX8Wrapper::Set_Shader(ShaderClass::_PresetAlphaShader);
+	DX9Wrapper::Set_Shader(ShaderClass::_PresetAlphaShader);
 
 	VertexMaterialClass *vmat=VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE);
-	DX8Wrapper::Set_Material(vmat);
+	DX9Wrapper::Set_Material(vmat);
 	REF_PTR_RELEASE(vmat);
 
 	//make sure we have all the resources we need
@@ -410,7 +410,7 @@ void W3DSnowManager::render(RenderInfoClass &rinfo)
 	if (!usePointSprites && !m_indexBuffer)
 		ReAcquireResources();
 
-	DX8Wrapper::Set_Texture(0,m_snowTexture);
+	DX9Wrapper::Set_Texture(0,m_snowTexture);
 
 	if (!usePointSprites)
 	{
@@ -420,20 +420,20 @@ void W3DSnowManager::render(RenderInfoClass &rinfo)
 
 	Vector3 snowCenter;
 
-	DX8Wrapper::Apply_Render_State_Changes();
+	DX9Wrapper::Apply_Render_State_Changes();
 
     // Set the render states for using point sprites
-	DX8Wrapper::Set_DX8_Render_State( D3DRS_POINTSPRITEENABLE, TRUE );
-    DX8Wrapper::Set_DX8_Render_State( D3DRS_POINTSCALEENABLE,  TRUE );
-    DX8Wrapper::Set_DX8_Render_State( D3DRS_POINTSIZE,     F2DW(m_pointSize) );
-    DX8Wrapper::Set_DX8_Render_State( D3DRS_POINTSIZE_MIN, F2DW(m_minPointSize) );
-    DX8Wrapper::Set_DX8_Render_State( D3DRS_POINTSIZE_MAX, F2DW(m_maxPointSize) );
-    DX8Wrapper::Set_DX8_Render_State( D3DRS_POINTSCALE_A,  F2DW(0.00f) );
-    DX8Wrapper::Set_DX8_Render_State( D3DRS_POINTSCALE_B,  F2DW(0.00f) );
-    DX8Wrapper::Set_DX8_Render_State( D3DRS_POINTSCALE_C,  F2DW(1.00f) );
+	DX9Wrapper::Set_DX9_Render_State( D3DRS_POINTSPRITEENABLE, TRUE );
+    DX9Wrapper::Set_DX9_Render_State( D3DRS_POINTSCALEENABLE,  TRUE );
+    DX9Wrapper::Set_DX9_Render_State( D3DRS_POINTSIZE,     F2DW(m_pointSize) );
+    DX9Wrapper::Set_DX9_Render_State( D3DRS_POINTSIZE_MIN, F2DW(m_minPointSize) );
+    DX9Wrapper::Set_DX9_Render_State( D3DRS_POINTSIZE_MAX, F2DW(m_maxPointSize) );
+    DX9Wrapper::Set_DX9_Render_State( D3DRS_POINTSCALE_A,  F2DW(0.00f) );
+    DX9Wrapper::Set_DX9_Render_State( D3DRS_POINTSCALE_B,  F2DW(0.00f) );
+    DX9Wrapper::Set_DX9_Render_State( D3DRS_POINTSCALE_C,  F2DW(1.00f) );
 
-	DX8Wrapper::_Get_D3D_Device9()->SetStreamSource( 0, m_VertexBufferD3D, 0, sizeof(POINTVERTEX) );
-    DX8Wrapper::_Get_D3D_Device9()->SetFVF( D3DFVF_POINTVERTEX );
+	DX9Wrapper::_Get_D3D_Device9()->SetStreamSource( 0, m_VertexBufferD3D, 0, sizeof(POINTVERTEX) );
+    DX9Wrapper::_Get_D3D_Device9()->SetFVF( D3DFVF_POINTVERTEX );
 	m_dwBase = SNOW_BUFFER_SIZE;	//start with a new vertex buffer each frame.
 
 	m_leafDim = 45;	//cull boxes that are 20x20 emitters in size. Making them much smaller will result in too many draw calls.
@@ -445,8 +445,8 @@ void W3DSnowManager::render(RenderInfoClass &rinfo)
 	renderSubBox(rinfo,cubeOriginX,cubeOriginY,cubeDimX,cubeDimY);
 
 	// Reset render states
-    DX8Wrapper::Set_DX8_Render_State( D3DRS_POINTSPRITEENABLE, FALSE );
-    DX8Wrapper::Set_DX8_Render_State( D3DRS_POINTSCALEENABLE,  FALSE );
+    DX9Wrapper::Set_DX9_Render_State( D3DRS_POINTSPRITEENABLE, FALSE );
+    DX9Wrapper::Set_DX9_Render_State( D3DRS_POINTSCALEENABLE,  FALSE );
 
 }
 
@@ -486,9 +486,9 @@ void W3DSnowManager::renderAsQuads(RenderInfoClass &rinfo, Int cubeOriginX, Int 
 	}
 
 	Matrix4x4 identity(true);
-	DX8Wrapper::Set_Transform(D3DTS_VIEW,identity);
+	DX9Wrapper::Set_Transform(D3DTS_VIEW,identity);
 
-	DX8Wrapper::Set_Index_Buffer(m_indexBuffer,0);
+	DX9Wrapper::Set_Index_Buffer(m_indexBuffer,0);
 
 	Int y=cubeOriginY;	//loop counter.
 	Int cubeOriginXRemainder = cubeOriginX;	//loop counter - adjusted when not all particles fit into render buffer.
@@ -507,7 +507,7 @@ void W3DSnowManager::renderAsQuads(RenderInfoClass &rinfo, Int cubeOriginX, Int 
 
 		Int numberInBatch=0;
 
-		DynamicVBAccessClass vb_access(BUFFER_TYPE_DYNAMIC_DX8,dynamic_fvf_type,batchSize*4);	//allocate 4 verts per flake
+		DynamicVBAccessClass vb_access(BUFFER_TYPE_DYNAMIC_DX9,dynamic_fvf_type,batchSize*4);	//allocate 4 verts per flake
 		{
 			DynamicVBAccessClass::WriteLockClass lock(&vb_access);
 			VertexFormatXYZNDUV2* verts=lock.Get_Formatted_Vertex_Array();
@@ -566,8 +566,8 @@ flush_particles:
 		//Render any particles that may be queued up.
 		if (numberInBatch)
 		{
-			DX8Wrapper::Set_Vertex_Buffer(vb_access);
-			DX8Wrapper::Draw_Triangles(	0,numberInBatch*2, 0, numberInBatch*4);
+			DX9Wrapper::Set_Vertex_Buffer(vb_access);
+			DX9Wrapper::Draw_Triangles(	0,numberInBatch*2, 0, numberInBatch*4);
 			totalPart -= numberInBatch;
 		}
 	}

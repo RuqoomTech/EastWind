@@ -39,7 +39,7 @@
 
 #pragma once
 
-#ifndef DX8_WRAPPER_H
+#ifndef DX9_WRAPPER_H
 //#include "dx9wrapper.h"
 #endif
 

@@ -230,7 +230,7 @@ namespace
 		{
 			Release_Texture();
 
-			const D3DCAPS9 &caps = DX8Wrapper::Get_Current_Caps()->Get_DX8_Caps();
+			const D3DCAPS9 &caps = DX9Wrapper::Get_Current_Caps()->Get_DX9_Caps();
 			const bool pow2_only = (caps.TextureCaps & D3DPTEXTURECAPS_POW2) && !(caps.TextureCaps & D3DPTEXTURECAPS_NONPOW2CONDITIONAL);
 			if (DWORD(width) > caps.MaxTextureWidth || DWORD(height) > caps.MaxTextureHeight
 				|| (pow2_only && (!Is_Power_Of_Two(width) || !Is_Power_Of_Two(height))))
@@ -298,7 +298,7 @@ namespace
 		if (map == nullptr || TheGlobalData == nullptr)
 			return Skip("no height map");
 
-		Device = DX8Wrapper::_Get_D3D_Device9();
+		Device = DX9Wrapper::_Get_D3D_Device9();
 		if (Device == nullptr)
 			return Skip("no device");
 		return true;
@@ -377,7 +377,7 @@ bool Bind(WorldHeightMap *map, EwShaders::VertexShaderId vertex_id, EwShaders::P
 		return Skip("the pass has a vertex shader bound");
 	}
 
-	const DX8Caps *caps = DX8Wrapper::Get_Current_Caps();
+	const DX9Caps *caps = DX9Wrapper::Get_Current_Caps();
 	if (caps->Get_Vertex_Shader_Major_Version() < 3 || caps->Get_Pixel_Shader_Major_Version() < 3)
 		return Fallback(REASON_NO_SM3, (caps->Get_Vertex_Shader_Major_Version() << 8) | caps->Get_Pixel_Shader_Major_Version());
 

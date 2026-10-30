@@ -288,12 +288,12 @@ ScreenCursorClass::Render (RenderInfoClass &rinfo)
 	/*
 	** Apply the shader and material
 	*/
-	DX8Wrapper::Set_Material(m_pVertMaterial.Peek());
-	DX8Wrapper::Set_Shader(ShaderClass::_PresetATestBlend2DShader);
-	DX8Wrapper::Set_Texture(0,m_pTexture.Peek());
+	DX9Wrapper::Set_Material(m_pVertMaterial.Peek());
+	DX9Wrapper::Set_Shader(ShaderClass::_PresetATestBlend2DShader);
+	DX9Wrapper::Set_Texture(0,m_pTexture.Peek());
 
-	DX8Wrapper::Set_Vertex_Buffer(vbaccess);
-	DX8Wrapper::Set_Index_Buffer(ibaccess,0);
+	DX9Wrapper::Set_Vertex_Buffer(vbaccess);
+	DX9Wrapper::Set_Index_Buffer(ibaccess,0);
 
 	SphereClass sphere;
 	Get_Obj_Space_Bounding_Sphere(sphere);

@@ -311,11 +311,11 @@ void StreakRendererClass::RenderStreak
 )
 {
 	Matrix4x4 view;
-	DX8Wrapper::Get_Transform(D3DTS_VIEW,view);
+	DX9Wrapper::Get_Transform(D3DTS_VIEW,view);
 
 	Matrix4x4 identity(true);
-	DX8Wrapper::Set_Transform(D3DTS_WORLD,identity);
-	DX8Wrapper::Set_Transform(D3DTS_VIEW,identity);
+	DX9Wrapper::Set_Transform(D3DTS_WORLD,identity);
+	DX9Wrapper::Set_Transform(D3DTS_VIEW,identity);
 
 	/*
 	** Handle texture UV offset animation (done once for entire line).
@@ -1278,7 +1278,7 @@ void StreakRendererClass::RenderStreak
 
 		// If color is not white or opacity not 100%, enable gradient in shader and in renderer - otherwise disable.
 		//unsigned int rgba;
-		//rgba=DX8Wrapper::Convert_Color(Color,Opacity);
+		//rgba=DX9Wrapper::Convert_Color(Color,Opacity);
 		//bool rgba_all=(rgba==0xFFFFFFFF);
 
 //		int colorIndex = 0;
@@ -1287,7 +1287,7 @@ void StreakRendererClass::RenderStreak
 //			//vertexArray[vertexIndex].diffuse = rgba;/// OLD WAY COLORS THEM ALL TO THE COLOR,OPACITY MEMBERS /////////////////
 //			unsigned int perPointARGB;
 //			colorIndex = MIN(vertexIndex / 2, point_cnt);
-//			perPointARGB = DX8Wrapper::Convert_Color( colors[colorIndex] );// twice as many verts as points? or so?
+//			perPointARGB = DX9Wrapper::Convert_Color( colors[colorIndex] );// twice as many verts as points? or so?
 //			vertexArray[vertexIndex].diffuse = perPointARGB;
 //			vertexArray[vertexIndex].u1 = (float)((vertexIndex&2) == 2);
 //			vertexArray[vertexIndex].v1 = (float)((vertexIndex&1) == 1);
@@ -1304,7 +1304,7 @@ void StreakRendererClass::RenderStreak
 
 		VertexMaterialClass *mat;
 		mat=VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE);
-		DX8Wrapper::Set_Material(mat);
+		DX9Wrapper::Set_Material(mat);
 		REF_PTR_RELEASE(mat);
 
 		// If Texture is non-null enable texturing in shader - otherwise disable.
@@ -1323,7 +1323,7 @@ void StreakRendererClass::RenderStreak
 		** Render
 		*/
 
-		DynamicVBAccessClass Verts((sorting?BUFFER_TYPE_DYNAMIC_SORTING:BUFFER_TYPE_DYNAMIC_DX8),dynamic_fvf_type,vnum);
+		DynamicVBAccessClass Verts((sorting?BUFFER_TYPE_DYNAMIC_SORTING:BUFFER_TYPE_DYNAMIC_DX9),dynamic_fvf_type,vnum);
 		// Copy in the data to the  VB
 		{
 			DynamicVBAccessClass::WriteLockClass Lock(&Verts);
@@ -1344,7 +1344,7 @@ void StreakRendererClass::RenderStreak
 				vertex->X = vertexArray[i].x;
 				vertex->Y = vertexArray[i].y;
 				vertex->Z = vertexArray[i].z;
-				*reinterpret_cast<unsigned int *>(vb + diffuseOffset) = DX8Wrapper::Convert_Color_Clamp(colors[MIN((i/2), point_cnt)]); // TODO: Does not work correctly when subdivision are not 0
+				*reinterpret_cast<unsigned int *>(vb + diffuseOffset) = DX9Wrapper::Convert_Color_Clamp(colors[MIN((i/2), point_cnt)]); // TODO: Does not work correctly when subdivision are not 0
 				Vector2 *texture = reinterpret_cast<Vector2 *>(vb + textureOffset);
 				texture->U = vertexArray[i].u1;
 				texture->V = vertexArray[i].v1;
@@ -1352,7 +1352,7 @@ void StreakRendererClass::RenderStreak
 			}
 		}
 
-		DynamicIBAccessClass ib_access((sorting?BUFFER_TYPE_DYNAMIC_SORTING:BUFFER_TYPE_DYNAMIC_DX8),triangleIndex*3);
+		DynamicIBAccessClass ib_access((sorting?BUFFER_TYPE_DYNAMIC_SORTING:BUFFER_TYPE_DYNAMIC_DX9),triangleIndex*3);
 		{
 			unsigned int i;
 			DynamicIBAccessClass::WriteLockClass lock(&ib_access);
@@ -1367,10 +1367,10 @@ void StreakRendererClass::RenderStreak
 		}
 
 
-		DX8Wrapper::Set_Index_Buffer(ib_access,0);
-		DX8Wrapper::Set_Vertex_Buffer(Verts);
-		DX8Wrapper::Set_Texture(0,Texture);
-		DX8Wrapper::Set_Shader(shader);
+		DX9Wrapper::Set_Index_Buffer(ib_access,0);
+		DX9Wrapper::Set_Vertex_Buffer(Verts);
+		DX9Wrapper::Set_Texture(0,Texture);
+		DX9Wrapper::Set_Shader(shader);
 
 		if (sorting)
 		{
@@ -1378,12 +1378,12 @@ void StreakRendererClass::RenderStreak
 		}
 		else
 		{
-			DX8Wrapper::Draw_Triangles(0,triangleIndex,0,vnum);
+			DX9Wrapper::Draw_Triangles(0,triangleIndex,0,vnum);
 		}
 
 	}
 
-	DX8Wrapper::Set_Transform(D3DTS_VIEW,view);
+	DX9Wrapper::Set_Transform(D3DTS_VIEW,view);
 
 }
 

@@ -131,8 +131,8 @@ public:
 	void unbindTrack( TerrainTracksRenderObjClass *mod );	///<releases control of track object
 
 protected:
-	DX8VertexBufferClass		*m_vertexBuffer;	///<vertex buffer used to draw all tracks
-	DX8IndexBufferClass			*m_indexBuffer;	///<indices defining triangles in maximum length track
+	DX9VertexBufferClass		*m_vertexBuffer;	///<vertex buffer used to draw all tracks
+	DX9IndexBufferClass			*m_indexBuffer;	///<indices defining triangles in maximum length track
 	VertexMaterialClass	  	  *m_vertexMaterialClass;	///< vertex lighting material
 	ShaderClass m_shaderClass; ///<shader or rendering state for heightmap
 

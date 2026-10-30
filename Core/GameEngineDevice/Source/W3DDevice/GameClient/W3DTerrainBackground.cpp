@@ -125,14 +125,14 @@ void W3DTerrainBackground::doPartialUpdate(const IRegion2D &partialRange, WorldH
 		m_vertexTerrainSize = requiredVertexSize;
 		REF_PTR_RELEASE(m_vertexTerrain);
 		REF_PTR_RELEASE(m_indexTerrain);
-		m_vertexTerrain=NEW_REF(DX8VertexBufferClass,(DX8_FVF_XYZDUV1,m_vertexTerrainSize+4,DX8VertexBufferClass::USAGE_DEFAULT));
+		m_vertexTerrain=NEW_REF(DX9VertexBufferClass,(DX9_FVF_XYZDUV1,m_vertexTerrainSize+4,DX9VertexBufferClass::USAGE_DEFAULT));
 	}
 
 	Int requiredIndexSize = (m_width+1) * (m_width+1) + 6;
 	if (m_indexTerrainSize<requiredIndexSize || m_indexTerrain==nullptr) {
 		m_indexTerrainSize = requiredIndexSize;
 		REF_PTR_RELEASE(m_indexTerrain);
-		m_indexTerrain=NEW_REF(DX8IndexBufferClass,(m_indexTerrainSize+4,DX8IndexBufferClass::USAGE_DEFAULT));
+		m_indexTerrain=NEW_REF(DX9IndexBufferClass,(m_indexTerrainSize+4,DX9IndexBufferClass::USAGE_DEFAULT));
 	}
 	Int minX = m_xOrigin;
 	Int minY = m_yOrigin;
@@ -153,7 +153,7 @@ void W3DTerrainBackground::doPartialUpdate(const IRegion2D &partialRange, WorldH
 	VertexFormatXYZDUV2 *vb;
 	UnsignedShort *ib;
 	// Lock the buffer.
-	DX8VertexBufferClass::WriteLockClass lockVtxBuffer(m_vertexTerrain);
+	DX9VertexBufferClass::WriteLockClass lockVtxBuffer(m_vertexTerrain);
 	vb=(VertexFormatXYZDUV2*)lockVtxBuffer.Get_Vertex_Array();
 	// Add to the vertex buffer.
 
@@ -194,7 +194,7 @@ void W3DTerrainBackground::doPartialUpdate(const IRegion2D &partialRange, WorldH
 
 	if (m_curNumTerrainIndices == 0) {
 		// Only do the index buffer if it has never been done.  Index values don't change. jba.
-		DX8IndexBufferClass::WriteLockClass lockIdxBuffer(m_indexTerrain);
+		DX9IndexBufferClass::WriteLockClass lockIdxBuffer(m_indexTerrain);
 		ib = lockIdxBuffer.Get_Index_Array();
 		UnsignedShort *curIb = ib;
 		Int yOffset = ((maxX - minX)/STEP+1);
@@ -506,13 +506,13 @@ void W3DTerrainBackground::doTesselatedUpdate(const IRegion2D &partialRange, Wor
 	if (m_vertexTerrainSize<requiredVertex || m_vertexTerrain==nullptr) {
 		m_vertexTerrainSize = requiredVertex;
 		REF_PTR_RELEASE(m_vertexTerrain);
-		m_vertexTerrain=NEW_REF(DX8VertexBufferClass,(DX8_FVF_XYZDUV2,m_vertexTerrainSize+4,DX8VertexBufferClass::USAGE_DEFAULT));
+		m_vertexTerrain=NEW_REF(DX9VertexBufferClass,(DX9_FVF_XYZDUV2,m_vertexTerrainSize+4,DX9VertexBufferClass::USAGE_DEFAULT));
 	}
 
 	m_curNumTerrainVertices = 0;
 	VertexFormatXYZDUV2 *vb;
 	// Lock the buffer.
-	DX8VertexBufferClass::WriteLockClass lockVtxBuffer(m_vertexTerrain);
+	DX9VertexBufferClass::WriteLockClass lockVtxBuffer(m_vertexTerrain);
 	vb=(VertexFormatXYZDUV2*)lockVtxBuffer.Get_Vertex_Array();
 	VertexFormatXYZDUV2 *curVb = vb;
 	// Add to the vertex buffer.
@@ -547,13 +547,13 @@ void W3DTerrainBackground::doTesselatedUpdate(const IRegion2D &partialRange, Wor
 	if (m_indexTerrainSize<requiredIndex || m_indexTerrain==nullptr) {
 		m_indexTerrainSize = requiredIndex;
 		REF_PTR_RELEASE(m_indexTerrain);
-		m_indexTerrain=NEW_REF(DX8IndexBufferClass,(m_indexTerrainSize+4,DX8IndexBufferClass::USAGE_DEFAULT));
+		m_indexTerrain=NEW_REF(DX9IndexBufferClass,(m_indexTerrainSize+4,DX9IndexBufferClass::USAGE_DEFAULT));
 	}
 
 	m_curNumTerrainIndices = 0;
 
 	UnsignedShort *ib;
-	DX8IndexBufferClass::WriteLockClass lockIdxBuffer(m_indexTerrain);
+	DX9IndexBufferClass::WriteLockClass lockIdxBuffer(m_indexTerrain);
 	ib = lockIdxBuffer.Get_Index_Array();
 	fillVBRecursive(ib, 0, 0, m_width, ndx, m_curNumTerrainIndices);
 	delete[] ndx;
@@ -763,18 +763,18 @@ void W3DTerrainBackground::drawVisiblePolys(RenderInfoClass & rinfo, Bool disabl
 		return;
 	}
 	// Setup the vertex buffer, shader & texture.
-	DX8Wrapper::Set_Index_Buffer(m_indexTerrain,0);
-	DX8Wrapper::Set_Vertex_Buffer(m_vertexTerrain);
+	DX9Wrapper::Set_Index_Buffer(m_indexTerrain,0);
+	DX9Wrapper::Set_Vertex_Buffer(m_vertexTerrain);
   if (!disableTextures) {
 		if (m_terrainTexture4X) {
-			DX8Wrapper::Set_Texture(1, m_terrainTexture4X);
+			DX9Wrapper::Set_Texture(1, m_terrainTexture4X);
 		}	else if (m_terrainTexture2X) {
-			DX8Wrapper::Set_Texture(1, m_terrainTexture2X);
+			DX9Wrapper::Set_Texture(1, m_terrainTexture2X);
 		}	else {
-			DX8Wrapper::Set_Texture(1, m_terrainTexture);
+			DX9Wrapper::Set_Texture(1, m_terrainTexture);
 		}
 	}
-	DX8Wrapper::Draw_Triangles(	0, m_curNumTerrainIndices/3, 0,	m_curNumTerrainVertices);
+	DX9Wrapper::Draw_Triangles(	0, m_curNumTerrainIndices/3, 0,	m_curNumTerrainVertices);
 #else
 	if (m_curNumTerrainIndices == 0) {
 		return;
@@ -783,18 +783,18 @@ void W3DTerrainBackground::drawVisiblePolys(RenderInfoClass & rinfo, Bool disabl
 		return;
 	}
 	// Setup the vertex buffer, shader & texture.
-	DX8Wrapper::Set_Index_Buffer(m_indexTerrain,0);
-	DX8Wrapper::Set_Vertex_Buffer(m_vertexTerrain);
+	DX9Wrapper::Set_Index_Buffer(m_indexTerrain,0);
+	DX9Wrapper::Set_Vertex_Buffer(m_vertexTerrain);
   if (!disableTextures) {
 		if (m_terrainTexture4X) {
-			DX8Wrapper::Set_Texture(0, m_terrainTexture4X);
+			DX9Wrapper::Set_Texture(0, m_terrainTexture4X);
 		}	else if (m_terrainTexture2X) {
-			DX8Wrapper::Set_Texture(0, m_terrainTexture2X);
+			DX9Wrapper::Set_Texture(0, m_terrainTexture2X);
 		}	else {
-			DX8Wrapper::Set_Texture(0, m_terrainTexture);
+			DX9Wrapper::Set_Texture(0, m_terrainTexture);
 		}
 	}
-	DX8Wrapper::Draw_Triangles(	0, m_curNumTerrainIndices/3, 0,	m_curNumTerrainVertices);
+	DX9Wrapper::Draw_Triangles(	0, m_curNumTerrainIndices/3, 0,	m_curNumTerrainVertices);
 #endif
 }
 

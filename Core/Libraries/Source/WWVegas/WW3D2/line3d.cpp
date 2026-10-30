@@ -267,21 +267,21 @@ void Line3DClass::Render(RenderInfoClass & rinfo)
 		return;
 	}
 
-	DX8Wrapper::Set_Shader(Shader);
-	DX8Wrapper::Set_Texture(0,nullptr);
+	DX9Wrapper::Set_Shader(Shader);
+	DX9Wrapper::Set_Texture(0,nullptr);
 	VertexMaterialClass *vm=VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE);
-	DX8Wrapper::Set_Material(vm);
+	DX9Wrapper::Set_Material(vm);
 	REF_PTR_RELEASE(vm);
 
-	DX8Wrapper::Set_Transform(D3DTS_WORLD,Transform);
+	DX9Wrapper::Set_Transform(D3DTS_WORLD,Transform);
 
-	DynamicVBAccessClass vb(BUFFER_TYPE_DYNAMIC_DX8,dynamic_fvf_type,8);
+	DynamicVBAccessClass vb(BUFFER_TYPE_DYNAMIC_DX9,dynamic_fvf_type,8);
 	{
 		DynamicVBAccessClass::WriteLockClass Lock(&vb);
 		const FVFInfoClass &fi=vb.FVF_Info();
 		unsigned char *vb=(unsigned char*)Lock.Get_Formatted_Vertex_Array();
 		int i;
-		unsigned int color=DX8Wrapper::Convert_Color(Color);
+		unsigned int color=DX9Wrapper::Convert_Color(Color);
 
 		for (i=0; i<8; i++)
 		{
@@ -291,7 +291,7 @@ void Line3DClass::Render(RenderInfoClass & rinfo)
 		}
 	}
 
-	DynamicIBAccessClass ib(BUFFER_TYPE_DYNAMIC_DX8,36);
+	DynamicIBAccessClass ib(BUFFER_TYPE_DYNAMIC_DX9,36);
 	{
 		DynamicIBAccessClass::WriteLockClass Lock(&ib);
 		unsigned short *mem=Lock.Get_Index_Array();
@@ -299,9 +299,9 @@ void Line3DClass::Render(RenderInfoClass & rinfo)
 			mem[i]=Indices[i];
 	}
 
-	DX8Wrapper::Set_Vertex_Buffer(vb);
-	DX8Wrapper::Set_Index_Buffer(ib,0);
-	DX8Wrapper::Draw_Triangles(0,36/3,0,8);
+	DX9Wrapper::Set_Vertex_Buffer(vb);
+	DX9Wrapper::Set_Index_Buffer(ib,0);
+	DX9Wrapper::Draw_Triangles(0,36/3,0,8);
 }
 
 /**************************************************************************

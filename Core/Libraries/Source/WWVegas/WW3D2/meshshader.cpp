@@ -691,7 +691,7 @@ namespace
 	// only, read through its first texture coordinates. Anything else stays fixed function.
 	bool Begin_Particle()
 	{
-		const DX8Caps *caps = DX8Wrapper::Get_Current_Caps();
+		const DX9Caps *caps = DX9Wrapper::Get_Current_Caps();
 		if (caps->Get_Vertex_Shader_Major_Version() < 3 || caps->Get_Pixel_Shader_Major_Version() < 3 || Caller_Has_Shaders())
 			return false;
 		if (Render_State(D3DRS_ALPHABLENDENABLE) == FALSE || Render_State(D3DRS_ALPHATESTENABLE) != FALSE
@@ -838,13 +838,13 @@ void EwMeshShader::Begin_Batch()
 void EwMeshShader::End_Batch()
 {
 	Batching = false;
-	Device = DX8Wrapper::_Get_D3D_Device9();
+	Device = DX9Wrapper::_Get_D3D_Device9();
 	Unbind_Shaders();
 }
 
 static bool Begin_Draw()
 {
-	Device = DX8Wrapper::_Get_D3D_Device9();
+	Device = DX9Wrapper::_Get_D3D_Device9();
 	if (Device == nullptr)
 		return false;
 
@@ -852,7 +852,7 @@ static bool Begin_Draw()
 	// is drawn as any other unlit draw.
 	const bool lit = Render_State(D3DRS_LIGHTING) != FALSE;
 	DrawLit = lit;
-	if (!lit && SceneDepthInvWidth > 0.0f && DX8Wrapper::Get_Ew_Soft_Particle() && Begin_Particle())
+	if (!lit && SceneDepthInvWidth > 0.0f && DX9Wrapper::Get_Ew_Soft_Particle() && Begin_Particle())
 		return true;
 
 	if (lit ? !EwGraphics().MeshLighting() : !EwGraphics().UnlitShader())
@@ -875,7 +875,7 @@ static bool Begin_Draw()
 			return false;
 	}
 
-	const DX8Caps *caps = DX8Wrapper::Get_Current_Caps();
+	const DX9Caps *caps = DX9Wrapper::Get_Current_Caps();
 	if (caps->Get_Vertex_Shader_Major_Version() < 3 || caps->Get_Pixel_Shader_Major_Version() < 3)
 		return Fallback(REASON_NO_SM3, (caps->Get_Vertex_Shader_Major_Version() << 8) | caps->Get_Pixel_Shader_Major_Version());
 
@@ -947,7 +947,7 @@ static bool Begin_Draw()
 	IDirect3DBaseTexture9 *normal_map = nullptr;
 	IDirect3DBaseTexture9 *spec_map = nullptr;
 	unsigned house_color = 0;
-	TextureBaseClass *stage0 = DX8Wrapper::Peek_Render_State_Texture(0);
+	TextureBaseClass *stage0 = DX9Wrapper::Peek_Render_State_Texture(0);
 	TextureClass *diffuse = (stage0 != nullptr) ? stage0->As_TextureClass() : nullptr;
 	if (lit && EwGraphics().MeshNormalMaps() && diffuse != nullptr && has_texture[0] > 0.5f && texgen[0].x == 0.0f
 		&& stage_constants[4].x == float(D3DTOP_DISABLE))
@@ -961,7 +961,7 @@ static bool Begin_Draw()
 				TextureClass::EwMaterialMapsStruct &maps = Resolve_Maps(diffuse);
 				normal_map = Map_Texture(maps.Normal);
 				spec_map = Map_Texture(maps.Spec);
-				house_color = maps.Recolored ? 0 : (DX8Wrapper::Get_Ew_House_Color() & 0xffffff);
+				house_color = maps.Recolored ? 0 : (DX9Wrapper::Get_Ew_House_Color() & 0xffffff);
 			}
 			bound->Release();
 		}
@@ -1150,12 +1150,12 @@ void EwMeshShader::Set_Object(const RenderObjClass *object)
 				break;
 		}
 	}
-	DX8Wrapper::Set_Ew_House_Color(colour);
+	DX9Wrapper::Set_Ew_House_Color(colour);
 }
 
 void EwMeshShader::Clear_Object()
 {
-	DX8Wrapper::Set_Ew_House_Color(0);
+	DX9Wrapper::Set_Ew_House_Color(0);
 }
 
 void EwMeshShader::Shutdown()

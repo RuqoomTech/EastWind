@@ -47,17 +47,17 @@
 ** Here we're just typedefing some multi-lists so we don't have to write the
 ** long template names.
 */
-class DX8TextureCategoryClass;
-typedef MultiListClass<DX8TextureCategoryClass>			TextureCategoryList;
-typedef MultiListIterator<DX8TextureCategoryClass>		TextureCategoryListIterator;
+class DX9TextureCategoryClass;
+typedef MultiListClass<DX9TextureCategoryClass>			TextureCategoryList;
+typedef MultiListIterator<DX9TextureCategoryClass>		TextureCategoryListIterator;
 
-class DX8FVFCategoryContainer;
-typedef MultiListClass<DX8FVFCategoryContainer>			FVFCategoryList;
-typedef MultiListIterator<DX8FVFCategoryContainer>		FVFCategoryListIterator;
+class DX9FVFCategoryContainer;
+typedef MultiListClass<DX9FVFCategoryContainer>			FVFCategoryList;
+typedef MultiListIterator<DX9FVFCategoryContainer>		FVFCategoryListIterator;
 
-class DX8PolygonRendererClass;
-typedef MultiListClass<DX8PolygonRendererClass>			DX8PolygonRendererList;
-typedef MultiListIterator<DX8PolygonRendererClass>		DX8PolygonRendererListIterator;
+class DX9PolygonRendererClass;
+typedef MultiListClass<DX9PolygonRendererClass>			DX9PolygonRendererList;
+typedef MultiListIterator<DX9PolygonRendererClass>		DX9PolygonRendererListIterator;
 
 class TextureTrackerClass;
 typedef MultiListClass<TextureTrackerClass>				TextureTrackerList;

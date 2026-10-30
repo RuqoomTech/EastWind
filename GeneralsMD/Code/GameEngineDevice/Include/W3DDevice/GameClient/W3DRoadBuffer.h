@@ -153,8 +153,8 @@ public:
 	~RoadType();
 protected:
 	TextureClass *m_roadTexture;	///<Roads texture
-	DX8VertexBufferClass	*m_vertexRoad;	///<Road vertex buffer.
-	DX8IndexBufferClass			*m_indexRoad;	///<indices defining a triangles for the road drawing.
+	DX9VertexBufferClass	*m_vertexRoad;	///<Road vertex buffer.
+	DX9IndexBufferClass			*m_indexRoad;	///<indices defining a triangles for the road drawing.
 	Int			m_numRoadVertices; ///<Number of vertices used in m_vertexRoad.
 	Int			m_numRoadIndices;	///<Number of indices used in b_indexRoad;
 	Int					  m_uniqueID;     ///< ID of the road type in INI.
@@ -170,8 +170,8 @@ public:
 	Int getStacking() {return m_stackingOrder;}
 	void setStacking(Int order) {m_stackingOrder = order;}
 	Int getUniqueID() {return m_uniqueID;};
-	DX8VertexBufferClass	*getVB() {return m_vertexRoad;};
-	DX8IndexBufferClass		*getIB() {return m_indexRoad;}
+	DX9VertexBufferClass	*getVB() {return m_vertexRoad;};
+	DX9IndexBufferClass		*getIB() {return m_indexRoad;}
 	Int getNumVertices() {return m_numRoadVertices;}
 	void setNumIndices(Int num) {m_numRoadIndices=num;}
 	void setNumVertices(Int num) {m_numRoadVertices=num;}

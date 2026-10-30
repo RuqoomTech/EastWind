@@ -603,11 +603,11 @@ void TerrainTracksRenderObjClassSystem::ReAcquireResources()
 	REF_PTR_RELEASE(m_vertexBuffer);
 
 	//Create static index buffers.  These will index the vertex buffers holding the track segments
-	m_indexBuffer=NEW_REF(DX8IndexBufferClass,((m_maxTankTrackEdges-1)*6));
+	m_indexBuffer=NEW_REF(DX9IndexBufferClass,((m_maxTankTrackEdges-1)*6));
 
 	// Fill up the IB
 	{
-		DX8IndexBufferClass::WriteLockClass lockIdxBuffer(m_indexBuffer);
+		DX9IndexBufferClass::WriteLockClass lockIdxBuffer(m_indexBuffer);
 		UnsignedShort *ib=lockIdxBuffer.Get_Index_Array();
 
 		for (i=0; i<(m_maxTankTrackEdges-1); i++)
@@ -622,7 +622,7 @@ void TerrainTracksRenderObjClassSystem::ReAcquireResources()
 
 	DEBUG_ASSERTCRASH(numModules*m_maxTankTrackEdges*2 < 65535, ("Too many terrain track edges"));
 
-	m_vertexBuffer=NEW_REF(DX8VertexBufferClass,(DX8_FVF_XYZDUV1,numModules*m_maxTankTrackEdges*2,DX8VertexBufferClass::USAGE_DYNAMIC));
+	m_vertexBuffer=NEW_REF(DX9VertexBufferClass,(DX9_FVF_XYZDUV1,numModules*m_maxTankTrackEdges*2,DX9VertexBufferClass::USAGE_DYNAMIC));
 }
 
 //=============================================================================
@@ -833,7 +833,7 @@ Try improving the fit to vertical surfaces like cliffs.
 	//check if there is anything to draw and fill vertex buffer
 	if (m_edgesToFlush >= 2)
 	{
-		DX8VertexBufferClass::WriteLockClass lockVtxBuffer(m_vertexBuffer);
+		DX9VertexBufferClass::WriteLockClass lockVtxBuffer(m_vertexBuffer);
 		VertexFormatXYZDUV1 *verts = (VertexFormatXYZDUV1*)lockVtxBuffer.Get_Vertex_Array();
 		trackStartIndex=0;
 
@@ -899,21 +899,21 @@ Try improving the fit to vertical surfaces like cliffs.
 	if (m_edgesToFlush >= 2)
 	{
 		ShaderClass::Invalidate();
-		DX8Wrapper::Set_Material(m_vertexMaterialClass);
-		DX8Wrapper::Set_Shader(m_shaderClass);
-		DX8Wrapper::Set_Index_Buffer(m_indexBuffer,0);
-		DX8Wrapper::Set_Vertex_Buffer(m_vertexBuffer);
+		DX9Wrapper::Set_Material(m_vertexMaterialClass);
+		DX9Wrapper::Set_Shader(m_shaderClass);
+		DX9Wrapper::Set_Index_Buffer(m_indexBuffer,0);
+		DX9Wrapper::Set_Vertex_Buffer(m_vertexBuffer);
 
 		trackStartIndex=0;
 		mod=m_usedModules;
-		DX8Wrapper::Set_Transform(D3DTS_WORLD,mod->Transform);
+		DX9Wrapper::Set_Transform(D3DTS_WORLD,mod->Transform);
 		while (mod)
 		{
 			if (mod->m_activeEdgeCount >= 2 && mod->Is_Really_Visible())
 			{
-				DX8Wrapper::Set_Texture(0,mod->m_stageZeroTexture);
-				DX8Wrapper::Set_Index_Buffer_Index_Offset(trackStartIndex);
-				DX8Wrapper::Draw_Triangles(	0,(mod->m_activeEdgeCount-1)*2, 0, mod->m_activeEdgeCount*2);
+				DX9Wrapper::Set_Texture(0,mod->m_stageZeroTexture);
+				DX9Wrapper::Set_Index_Buffer_Index_Offset(trackStartIndex);
+				DX9Wrapper::Draw_Triangles(	0,(mod->m_activeEdgeCount-1)*2, 0, mod->m_activeEdgeCount*2);
 
 				trackStartIndex += mod->m_activeEdgeCount*2;
 			}

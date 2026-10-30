@@ -17,7 +17,7 @@
 
 // EastWind DX9: per-pixel lighting for lit meshes (M3.1a, Options.ini EwPerPixelLighting).
 //
-// DX8Wrapper::Draw and Draw_Sorting_IB_VB call Begin() right before DrawIndexedPrimitive.
+// DX9Wrapper::Draw and Draw_Sorting_IB_VB call Begin() right before DrawIndexedPrimitive.
 // When the draw is a fixed-function lit mesh that mesh.hlsl can reproduce, Begin() binds the
 // mesh shaders on the device with constants taken from the device state (transforms, lights,
 // material, texture stages, fog) and returns true; End() unbinds them after the draw.
@@ -38,7 +38,7 @@
 // texture keeps them (TextureClass::Ew_Material_Maps), so they are freed with it. Begin() then
 // uses the material pixel shader and binds the maps to samplers 2 and 3 for that draw only.
 // The house colour is the object colour the game gives team-coloured objects
-// (RenderObjClass::Get_ObjectColor). DX8TextureCategoryClass::Render puts it in the render
+// (RenderObjClass::Get_ObjectColor). DX9TextureCategoryClass::Render puts it in the render
 // state around each mesh, so sorted (transparent) draws replay it too. Textures the game
 // already recolours on the CPU (ZHC*) keep that and ignore the SpecMap's house colour mask.
 //
@@ -80,9 +80,9 @@ public:
 
 	// Soft particles (EwSoftParticles): EwPostProcess bound the scene's view depth on
 	// EW_PARTICLE_DEPTH_SAMPLER, and these are 1 / its size; 0, 0 when it is unbound. While it is
-	// bound, billboard particles (DX8Wrapper::Set_Ew_Soft_Particle) draw with the particle shaders.
+	// bound, billboard particles (DX9Wrapper::Set_Ew_Soft_Particle) draw with the particle shaders.
 	static void Set_Scene_Depth(float inv_width, float inv_height);
 
-	// Forgets which map files exist. Called from DX8Wrapper::Shutdown.
+	// Forgets which map files exist. Called from DX9Wrapper::Shutdown.
 	static void Shutdown();
 };

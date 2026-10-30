@@ -140,7 +140,7 @@ void EwGpuTimer::Mark(Point point)
 {
 	if (!EwGraphics().DebugKeys || Unsupported)
 		return;
-	IDirect3DDevice9 *device = DX8Wrapper::_Get_D3D_Device9();
+	IDirect3DDevice9 *device = DX9Wrapper::_Get_D3D_Device9();
 	if (device == nullptr)
 		return;
 

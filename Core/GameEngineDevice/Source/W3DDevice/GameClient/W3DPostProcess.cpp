@@ -35,7 +35,7 @@
 #include <string.h>
 #include <vector>
 
-// The render target is set on the device directly, not with DX8Wrapper::Set_Render_Target: the
+// The render target is set on the device directly, not with DX9Wrapper::Set_Render_Target: the
 // water reflection and the projected shadows switch targets with the wrapper, which saves the
 // device's current target (the scene texture) and restores it afterwards.
 //
@@ -671,7 +671,7 @@ namespace
 			{  1.0f - dx, -1.0f + dy, 0.0f, u1, v1 },
 		};
 		device->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, quad, sizeof(PostVertex));
-		DX8Wrapper::Increment_DX8_CallCount();
+		DX9Wrapper::Increment_DX9_CallCount();
 	}
 
 	void Set_Texture(IDirect3DDevice9 *device, int stage, IDirect3DTexture9 *texture, bool linear)
@@ -917,7 +917,7 @@ bool EwPostProcess::Begin_Scene(float clear_alpha)
 	if (EwShaders::Peek_Vertex(EwShaders::VS_POST) == nullptr || EwShaders::Peek_Pixel(EwShaders::PS_POST_COPY) == nullptr)
 		return Fail(REASON_NO_SHADER);
 
-	IDirect3DDevice9 *device = DX8Wrapper::_Get_D3D_Device9();
+	IDirect3DDevice9 *device = DX9Wrapper::_Get_D3D_Device9();
 	if (device == nullptr)
 		return Fail(REASON_NO_TARGET);
 
@@ -1009,7 +1009,7 @@ void EwPostProcess::End_Scene(int x, int y, int width, int height, const CameraC
 	const bool scene_depth = SceneDepthBound;
 	SceneDepthBound = false;
 
-	IDirect3DDevice9 *device = DX8Wrapper::_Get_D3D_Device9();
+	IDirect3DDevice9 *device = DX9Wrapper::_Get_D3D_Device9();
 	if (MsaaSurface)
 		device->StretchRect(MsaaSurface, nullptr, SceneSurface, nullptr, D3DTEXF_NONE);
 	device->SetRenderTarget(0, BackBuffer);
@@ -1185,7 +1185,7 @@ void EwPostProcess::Begin_Particles(const CameraClass *camera)
 		|| EwShaders::Peek_Pixel(EwShaders::PS_PARTICLE) == nullptr)
 		return Set_Reason(SOFT_PARTICLES, REASON_NO_SHADER);
 
-	IDirect3DDevice9 *device = DX8Wrapper::_Get_D3D_Device9();
+	IDirect3DDevice9 *device = DX9Wrapper::_Get_D3D_Device9();
 	if (ParticleDepthBound || !Particle_Depth_Ready(device))
 		return;
 
@@ -1230,7 +1230,7 @@ void EwPostProcess::End_Particles()
 		return;
 	ParticleDepthBound = false;
 	EwMeshShader::Set_Scene_Depth(0.0f, 0.0f);
-	IDirect3DDevice9 *device = DX8Wrapper::_Get_D3D_Device9();
+	IDirect3DDevice9 *device = DX9Wrapper::_Get_D3D_Device9();
 	if (device)
 		device->SetTexture(EW_PARTICLE_DEPTH_SAMPLER, nullptr);
 }
@@ -1241,7 +1241,7 @@ void EwPostProcess::Release()
 		End_Particles();
 	if (BackBuffer != nullptr)
 	{
-		IDirect3DDevice9 *device = DX8Wrapper::_Get_D3D_Device9();
+		IDirect3DDevice9 *device = DX9Wrapper::_Get_D3D_Device9();
 		if (device)
 		{
 			device->SetRenderTarget(0, BackBuffer);

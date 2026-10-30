@@ -54,7 +54,7 @@ struct IDirect3DTexture9;
 struct IDirect3DCubeTexture9;
 struct IDirect3DVolumeTexture9;
 
-class DX8Wrapper;
+class DX9Wrapper;
 class TextureLoader;
 class LoaderThreadClass;
 class TextureLoadTaskClass;
@@ -66,8 +66,8 @@ class TextureBaseClass : public RefCountClass
 {
 	friend class TextureLoader;
 	friend class LoaderThreadClass;
-	friend class DX8TextureTrackerClass;  //(gth) so it can call Poke_Texture,
-	friend class DX8ZTextureTrackerClass;
+	friend class DX9TextureTrackerClass;  //(gth) so it can call Poke_Texture,
+	friend class DX9ZTextureTrackerClass;
 
 public:
 
@@ -264,7 +264,7 @@ private:
 class TextureClass : public TextureBaseClass
 {
 	W3DMPO_CODE(TextureClass)
-//	friend DX8Wrapper;
+//	friend DX9Wrapper;
 
 public:
 

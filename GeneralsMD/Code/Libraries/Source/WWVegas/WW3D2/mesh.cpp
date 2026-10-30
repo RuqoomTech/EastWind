@@ -721,7 +721,7 @@ void MeshClass::Render(RenderInfoClass & rinfo)
 			/*
 			** Look up the FVF container that this mesh is in
 			*/
-			DX8FVFCategoryContainer * fvf_container = Model->PolygonRendererList.Peek_Head()->Get_Texture_Category()->Get_Container();
+			DX9FVFCategoryContainer * fvf_container = Model->PolygonRendererList.Peek_Head()->Get_Texture_Category()->Get_Container();
 
 			/*
 			** Check if we should render the base passes.  One special case here: if
@@ -744,9 +744,9 @@ void MeshClass::Render(RenderInfoClass & rinfo)
 				/*
 				** Link each polygon renderer for this mesh into the visible list
 				*/
-				DX8PolygonRendererListIterator it(&(Model->PolygonRendererList));
+				DX9PolygonRendererListIterator it(&(Model->PolygonRendererList));
 				while (!it.Is_Done()) {
-					DX8PolygonRendererClass* polygon_renderer=it.Peek_Obj();
+					DX9PolygonRendererClass* polygon_renderer=it.Peek_Obj();
 					polygon_renderer->Get_Texture_Category()->Add_Render_Task(polygon_renderer,this);
 					it.Next();
 				}
@@ -783,8 +783,8 @@ void MeshClass::Render(RenderInfoClass & rinfo)
 			** to tell the mesh rendering system to process this skin
 			*/
 			if (rendered_something && Model->Get_Flag(MeshGeometryClass::SKIN)) {
-				//WWASSERT(dynamic_cast<DX8SkinFVFCategoryContainer *>(fvf_container) != nullptr);
-				static_cast<DX8SkinFVFCategoryContainer*>(fvf_container)->Add_Visible_Skin(this);
+				//WWASSERT(dynamic_cast<DX9SkinFVFCategoryContainer *>(fvf_container) != nullptr);
+				static_cast<DX9SkinFVFCategoryContainer*>(fvf_container)->Add_Visible_Skin(this);
 			}
 
 			/*
@@ -797,11 +797,11 @@ void MeshClass::Render(RenderInfoClass & rinfo)
 				Vector3 cam_space_sphere_center;
 				rinfo.Camera.Transform_To_View_Space(cam_space_sphere_center,ws_sphere.Center);
 				if (-cam_space_sphere_center.Z - ws_sphere.Radius < WW3D::Get_Decal_Rejection_Distance()) {
-					TheDX8MeshRenderer.Add_To_Render_List(DecalMesh);
+					TheDX9MeshRenderer.Add_To_Render_List(DecalMesh);
 				}
 			}
 
-			DX8RendererDebugger::Add_Mesh(this);
+			DX9RendererDebugger::Add_Mesh(this);
 		}
 	}
 }
@@ -827,7 +827,7 @@ void MeshClass::Render_Material_Pass(MaterialPassClass * pass,IndexBufferClass *
 	Vector3 oldEmissive(-1,-1,-1);
 
 	if (LightEnvironment != nullptr) {
-		DX8Wrapper::Set_Light_Environment(LightEnvironment);
+		DX9Wrapper::Set_Light_Environment(LightEnvironment);
 	}
 
 	if (Model->Get_Flag(MeshModelClass::SKIN)) {
@@ -852,12 +852,12 @@ void MeshClass::Render_Material_Pass(MaterialPassClass * pass,IndexBufferClass *
 			}
 		}
 		pass->Install_Materials();
-		DX8Wrapper::Set_Index_Buffer(ib,0);
+		DX9Wrapper::Set_Index_Buffer(ib,0);
 
 		SNAPSHOT_SAY(("Set_World_Identity"));
-		DX8Wrapper::Set_World_Identity();
+		DX9Wrapper::Set_World_Identity();
 
-		DX8PolygonRendererListIterator it(&Model->PolygonRendererList);
+		DX9PolygonRendererListIterator it(&Model->PolygonRendererList);
 		while (!it.Is_Done()) {
 			if (it.Peek_Obj()->Get_Pass() == 0)
 				it.Peek_Obj()->Render(BaseVertexOffset);
@@ -904,7 +904,7 @@ void MeshClass::Render_Material_Pass(MaterialPassClass * pass,IndexBufferClass *
 
 		if (temp_apt.Count() > 0) {
 
-			int buftype = BUFFER_TYPE_DYNAMIC_DX8;
+			int buftype = BUFFER_TYPE_DYNAMIC_DX9;
 			if (Model->Get_Flag(MeshGeometryClass::SORT) && WW3D::Is_Sorting_Enabled()) {
 				buftype = BUFFER_TYPE_DYNAMIC_SORTING;
 			}
@@ -947,10 +947,10 @@ void MeshClass::Render_Material_Pass(MaterialPassClass * pass,IndexBufferClass *
 			int vertex_offset = Model->PolygonRendererList.Peek_Head()->Get_Vertex_Offset();
 			pass->Install_Materials();
 
-			DX8Wrapper::Set_Transform(D3DTS_WORLD,Get_Transform());
-			DX8Wrapper::Set_Index_Buffer(dynamic_ib,vertex_offset);
+			DX9Wrapper::Set_Transform(D3DTS_WORLD,Get_Transform());
+			DX9Wrapper::Set_Index_Buffer(dynamic_ib,vertex_offset);
 
-			DX8Wrapper::Draw_Triangles(
+			DX9Wrapper::Draw_Triangles(
 				0,
 				temp_apt.Count(),
 				min_v,
@@ -980,12 +980,12 @@ void MeshClass::Render_Material_Pass(MaterialPassClass * pass,IndexBufferClass *
 			}
 		}
 		pass->Install_Materials();
-		DX8Wrapper::Set_Index_Buffer(ib,0);
+		DX9Wrapper::Set_Index_Buffer(ib,0);
 
 		SNAPSHOT_SAY(("Set_World_Transform"));
-		DX8Wrapper::Set_Transform(D3DTS_WORLD,Transform);
+		DX9Wrapper::Set_Transform(D3DTS_WORLD,Transform);
 
-		DX8PolygonRendererListIterator it(&Model->PolygonRendererList);
+		DX9PolygonRendererListIterator it(&Model->PolygonRendererList);
 		while (!it.Is_Done()) {
 
 			if (it.Peek_Obj()->Get_Pass() == 0)

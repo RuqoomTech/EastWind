@@ -45,13 +45,13 @@
 
 const unsigned dynamic_fvf_type=D3DFVF_XYZ|D3DFVF_NORMAL|D3DFVF_TEX2|D3DFVF_DIFFUSE;
 
-class DX8Wrapper;
+class DX9Wrapper;
 class SortingRendererClass;
 class Vector2;
 class Vector3;
 class Vector4;
 class StringClass;
-class DX8VertexBufferClass;
+class DX9VertexBufferClass;
 class FVFInfoClass;
 struct IDirect3DVertexBuffer9;
 class VertexBufferClass;
@@ -70,7 +70,7 @@ public:
 };
 
 /**
-** DX8VertexBufferClass
+** DX9VertexBufferClass
 ** This class wraps a DX8 vertex buffer.  Use the lock objects to modify or append to the vertex buffer.
 */
 class VertexBufferClass : public RefCountClass
@@ -129,7 +129,7 @@ protected:
 
 class DynamicVBAccessClass
 {
-	friend DX8Wrapper;
+	friend DX9Wrapper;
 	friend SortingRendererClass;
 
 	const FVFInfoClass& FVFInfo;
@@ -140,9 +140,9 @@ class DynamicVBAccessClass
 //	static VertexFormatXYZNDUV2* _Get_Sorting_Vertex_Array();
 
 	void Allocate_Sorting_Dynamic_Buffer();
-	void Allocate_DX8_Dynamic_Buffer();
+	void Allocate_DX9_Dynamic_Buffer();
 public:
-	// Type parameter can be either BUFFER_TYPE_DYNAMIC_DX8 or BUFFER_TYPE_DYNAMIC_SORTING.
+	// Type parameter can be either BUFFER_TYPE_DYNAMIC_DX9 or BUFFER_TYPE_DYNAMIC_SORTING.
 
 	// Note: Even though the constructor takes fvf as a parameter, currently the
 	// only acceptable parameter is "dynamic_fvf_type". Any other type will
@@ -192,14 +192,14 @@ inline VertexFormatXYZNDUV2 * DynamicVBAccessClass::WriteLockClass::Get_Formatte
 // ----------------------------------------------------------------------------
 
 /**
-** DX8VertexBufferClass
+** DX9VertexBufferClass
 ** This class wraps a DX8 vertex buffer.  Use the lock objects to modify or append to the vertex buffer.
 */
-class DX8VertexBufferClass : public VertexBufferClass
+class DX9VertexBufferClass : public VertexBufferClass
 {
-	W3DMPO_CODE(DX8VertexBufferClass)
+	W3DMPO_CODE(DX9VertexBufferClass)
 protected:
-	virtual ~DX8VertexBufferClass() override;
+	virtual ~DX9VertexBufferClass() override;
 public:
 	enum UsageType {
 		USAGE_DEFAULT=0,
@@ -208,13 +208,13 @@ public:
 		USAGE_NPATCHES=4
 	};
 
-	DX8VertexBufferClass(unsigned FVF, unsigned short VertexCount, UsageType usage=USAGE_DEFAULT);
-	DX8VertexBufferClass(const Vector3* vertices, const Vector3* normals, const Vector2* tex_coords, unsigned short VertexCount,UsageType usage=USAGE_DEFAULT);
-	DX8VertexBufferClass(const Vector3* vertices, const Vector3* normals, const Vector4* diffuse, const Vector2* tex_coords, unsigned short VertexCount,UsageType usage=USAGE_DEFAULT);
-	DX8VertexBufferClass(const Vector3* vertices, const Vector4* diffuse, const Vector2* tex_coords, unsigned short VertexCount,UsageType usage=USAGE_DEFAULT);
-	DX8VertexBufferClass(const Vector3* vertices, const Vector2* tex_coords, unsigned short VertexCount,UsageType usage=USAGE_DEFAULT);
+	DX9VertexBufferClass(unsigned FVF, unsigned short VertexCount, UsageType usage=USAGE_DEFAULT);
+	DX9VertexBufferClass(const Vector3* vertices, const Vector3* normals, const Vector2* tex_coords, unsigned short VertexCount,UsageType usage=USAGE_DEFAULT);
+	DX9VertexBufferClass(const Vector3* vertices, const Vector3* normals, const Vector4* diffuse, const Vector2* tex_coords, unsigned short VertexCount,UsageType usage=USAGE_DEFAULT);
+	DX9VertexBufferClass(const Vector3* vertices, const Vector4* diffuse, const Vector2* tex_coords, unsigned short VertexCount,UsageType usage=USAGE_DEFAULT);
+	DX9VertexBufferClass(const Vector3* vertices, const Vector2* tex_coords, unsigned short VertexCount,UsageType usage=USAGE_DEFAULT);
 
-	IDirect3DVertexBuffer9* Get_DX8_Vertex_Buffer() { return VertexBuffer; }
+	IDirect3DVertexBuffer9* Get_DX9_Vertex_Buffer() { return VertexBuffer; }
 
 	void Copy(const Vector3* loc, unsigned first_vertex, unsigned count);
 	void Copy(const Vector3* loc, const Vector2* uv, unsigned first_vertex, unsigned count);
@@ -238,7 +238,7 @@ class SortingVertexBufferClass : public VertexBufferClass
 {
 	W3DMPO_CODE(SortingVertexBufferClass)
 
-	friend DX8Wrapper;
+	friend DX9Wrapper;
 	friend SortingRendererClass;
 	friend VertexBufferClass::WriteLockClass;
 	friend VertexBufferClass::AppendLockClass;

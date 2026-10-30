@@ -898,7 +898,7 @@ WW3DErrorType MeshModelClass::read_vertex_colors(ChunkLoadClass & cload,MeshLoad
 
 			Vector4 col;
 			col.Set((float)color.R / 255.0f,(float)color.G / 255.0f,(float)color.B / 255.0f, 1.0f);
-			dcg[i]=DX8Wrapper::Convert_Color(col);
+			dcg[i]=DX9Wrapper::Convert_Color(col);
 		}
 	}
 	CurMatDesc->Set_DCG_Source(context->CurPass,VertexMaterialClass::COLOR1);
@@ -1265,7 +1265,7 @@ WW3DErrorType MeshModelClass::read_dcg(ChunkLoadClass & cload,MeshLoadContextCla
 			cload.Read(&color,sizeof(color));
 			Vector4 col;
 			W3dUtilityClass::Convert_Color(color,&col);
-			dcg[i]=DX8Wrapper::Convert_Color(col);
+			dcg[i]=DX9Wrapper::Convert_Color(col);
 		}
 	} else if (context->PrelitChunkID==W3D_CHUNK_PRELIT_VERTEX) {
 
@@ -1275,9 +1275,9 @@ WW3DErrorType MeshModelClass::read_dcg(ChunkLoadClass & cload,MeshLoadContextCla
 		for (int i=0; i<Get_Vertex_Count(); i++) {
 			cload.Read(&color,sizeof(color));
 			Vector4 col;
-			col=DX8Wrapper::Convert_Color(dcg[i]);
+			col=DX9Wrapper::Convert_Color(dcg[i]);
 			col.W = float(color.A)/255.0f;
-			dcg[i]=DX8Wrapper::Convert_Color(col);
+			dcg[i]=DX9Wrapper::Convert_Color(col);
 		}
 	}
 
@@ -1327,7 +1327,7 @@ WW3DErrorType MeshModelClass::read_dig(ChunkLoadClass & cload,MeshLoadContextCla
 			col.Y = float(color.G)/255.0f;
 			col.Z = float(color.B)/255.0f;
 			col.W = 1.0f;
-			dcg[i]=DX8Wrapper::Convert_Color(col);
+			dcg[i]=DX9Wrapper::Convert_Color(col);
 
 
 		}
@@ -1335,11 +1335,11 @@ WW3DErrorType MeshModelClass::read_dig(ChunkLoadClass & cload,MeshLoadContextCla
 		unsigned * dcg = matdesc->Get_Color_Array(0);
 		for (int i=0; i<Get_Vertex_Count(); i++) {
 			cload.Read(&color,sizeof(color));
-			Vector4 col=DX8Wrapper::Convert_Color(dcg[i]);
+			Vector4 col=DX9Wrapper::Convert_Color(dcg[i]);
 			col.X *= float(color.R)/255.0f;
 			col.Y *= float(color.G)/255.0f;
 			col.Z *= float(color.B)/255.0f;
-			dcg[i]=DX8Wrapper::Convert_Color(col);
+			dcg[i]=DX9Wrapper::Convert_Color(col);
 		}
 	}
 

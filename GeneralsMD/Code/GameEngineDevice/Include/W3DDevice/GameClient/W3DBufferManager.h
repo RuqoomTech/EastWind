@@ -105,7 +105,7 @@ public:
 		Int	m_startFreeIndex;				///<index of vertex at start of unallocated memory.
 		Int m_size;							///<number of vertices allowed in VB.
 		W3DVertexBuffer *m_nextVB;			///<next vertex buffer of same type.
-		DX8VertexBufferClass *m_DX8VertexBuffer;	///<actual DX8 vertex buffer interface
+		DX9VertexBufferClass *m_DX9VertexBuffer;	///<actual DX8 vertex buffer interface
 		W3DRenderTask	*m_renderTaskList;	///<used to help app sort its D3D access by VB.
 	};
 
@@ -126,7 +126,7 @@ public:
 		Int	m_startFreeIndex;				///<index of index at start of unallocated memory.
 		Int m_size;							///<number of vertices allowed in VB.
 		W3DIndexBuffer *m_nextIB;			///<next index buffer of same type.
-		DX8IndexBufferClass *m_DX8IndexBuffer;	///<actual DX8 index buffer interface
+		DX9IndexBufferClass *m_DX9IndexBuffer;	///<actual DX8 index buffer interface
 	};
 
 	W3DBufferManager();
@@ -149,7 +149,7 @@ public:
 		return pVb->m_nextVB;
 	};
 
-	static Int getDX8Format(VBM_FVF_TYPES format);	///<translates our vertex format into D3D equivalent
+	static Int getDX9Format(VBM_FVF_TYPES format);	///<translates our vertex format into D3D equivalent
 
 protected:
 

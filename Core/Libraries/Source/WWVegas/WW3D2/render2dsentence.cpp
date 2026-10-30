@@ -367,7 +367,7 @@ Render2DSentenceClass::Build_Textures ()
 		//
 		//	Copy the contents of the texture from the surface
 		//
-		DX8Wrapper::_Copy_DX8_Rects (curr_surface->Peek_D3D_Surface (), nullptr, 0, texture_surface->Peek_D3D_Surface (), nullptr);
+		DX9Wrapper::_Copy_DX9_Rects (curr_surface->Peek_D3D_Surface (), nullptr, 0, texture_surface->Peek_D3D_Surface (), nullptr);
 		REF_PTR_RELEASE (texture_surface);
 
 		//
@@ -649,8 +649,8 @@ Render2DSentenceClass::Allocate_New_Surface (const WCHAR *text, bool justCalcExt
 		//	The font does not fit the search range, so use the smallest texture that fits, limited to
 		//	the largest texture the device supports.
 		//
-		const D3DCAPS9 &dx8caps = DX8Wrapper::Get_Current_Caps ()->Get_DX8_Caps ();
-		const int max_device_size = (int)min (dx8caps.MaxTextureWidth, dx8caps.MaxTextureHeight);
+		const D3DCAPS9 &dx9caps = DX9Wrapper::Get_Current_Caps ()->Get_DX9_Caps ();
+		const int max_device_size = (int)min (dx9caps.MaxTextureWidth, dx9caps.MaxTextureHeight);
 		while (max_pow2 > TextureSizeMinPow2 && (1 << max_pow2) > max_device_size) {
 			max_pow2 --;
 		}

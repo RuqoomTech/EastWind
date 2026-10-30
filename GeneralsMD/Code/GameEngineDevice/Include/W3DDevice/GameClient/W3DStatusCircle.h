@@ -83,11 +83,11 @@ protected:
 	static Int m_diffuse;
 	static Bool			 m_needUpdate;
 
-	DX8IndexBufferClass			*m_indexBuffer;	//indices defining a triangle strip the covers full terrain
+	DX9IndexBufferClass			*m_indexBuffer;	//indices defining a triangle strip the covers full terrain
 	ShaderClass m_shaderClass; //shader or rendering state for heightmap
 	VertexMaterialClass	  	  *m_vertexMaterialClass;
-	DX8VertexBufferClass	*m_vertexBufferCircle;	//collection of vertexes that make the circle.
-	DX8VertexBufferClass	*m_vertexBufferScreen;	//2 triangle quad that covers the screen.
+	DX9VertexBufferClass	*m_vertexBufferCircle;	//collection of vertexes that make the circle.
+	DX9VertexBufferClass	*m_vertexBufferScreen;	//2 triangle quad that covers the screen.
 
 	int initData();
 	Int updateCircleVB();

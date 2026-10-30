@@ -222,11 +222,11 @@ private:
 				MAX_BUFFERS = 1,
 				SORT_ITERATIONS_PER_FRAME=10};
 	enum {PARTITION_WIDTH_HEIGHT = 100};
-	DX8VertexBufferClass	*m_vertexTree[MAX_BUFFERS];	///<Tree vertex buffer.
-	DX8IndexBufferClass			*m_indexTree[MAX_BUFFERS];	///<indices defining a triangles for the tree drawing.
+	DX9VertexBufferClass	*m_vertexTree[MAX_BUFFERS];	///<Tree vertex buffer.
+	DX9IndexBufferClass			*m_indexTree[MAX_BUFFERS];	///<indices defining a triangles for the tree drawing.
 	IDirect3DPixelShader9*					m_dwTreePixelShader;	///<handle to D3D pixel shader
 	IDirect3DVertexShader9*					m_dwTreeVertexShader;	///<handle to D3D vertex shader
-	Bool		m_ewLitFormat;	///< EastWind M3.1d: the vertex buffers are DX8_FVF_XYZNDUV1TG3, with the inputs of TreesLitPS.
+	Bool		m_ewLitFormat;	///< EastWind M3.1d: the vertex buffers are DX9_FVF_XYZNDUV1TG3, with the inputs of TreesLitPS.
 
 	Short		m_areaPartition[PARTITION_WIDTH_HEIGHT*PARTITION_WIDTH_HEIGHT];
 	Region2D m_bounds;

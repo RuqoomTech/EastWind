@@ -948,23 +948,23 @@ void VertexMaterialClass::Apply() const
 {
 	int i;
 
-	DX8Wrapper::Set_DX8_Material(Material);
+	DX9Wrapper::Set_DX9_Material(Material);
 
 	if (WW3D::Is_Coloring_Enabled())
-		DX8Wrapper::Set_DX8_Render_State(D3DRS_LIGHTING,FALSE);
+		DX9Wrapper::Set_DX9_Render_State(D3DRS_LIGHTING,FALSE);
 	else
-		DX8Wrapper::Set_DX8_Render_State(D3DRS_LIGHTING,UseLighting);
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_AMBIENTMATERIALSOURCE,AmbientColorSource);
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_DIFFUSEMATERIALSOURCE,DiffuseColorSource);
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_EMISSIVEMATERIALSOURCE,EmissiveColorSource);
+		DX9Wrapper::Set_DX9_Render_State(D3DRS_LIGHTING,UseLighting);
+	DX9Wrapper::Set_DX9_Render_State(D3DRS_AMBIENTMATERIALSOURCE,AmbientColorSource);
+	DX9Wrapper::Set_DX9_Render_State(D3DRS_DIFFUSEMATERIALSOURCE,DiffuseColorSource);
+	DX9Wrapper::Set_DX9_Render_State(D3DRS_EMISSIVEMATERIALSOURCE,EmissiveColorSource);
 
 	// set to default values if no mappers
 	for (i=0; i<MeshBuilderClass::MAX_STAGES; i++) {
 		if (Mapper[i]) {
 			Mapper[i]->Apply(UVSource[i]);
 		} else {
-			DX8Wrapper::Set_DX8_Texture_Stage_State(i,D3DTSS_TEXCOORDINDEX,D3DTSS_TCI_PASSTHRU | UVSource[i]);
-			DX8Wrapper::Set_DX8_Texture_Stage_State(i,D3DTSS_TEXTURETRANSFORMFLAGS,D3DTTFF_DISABLE);
+			DX9Wrapper::Set_DX9_Texture_Stage_State(i,D3DTSS_TEXCOORDINDEX,D3DTSS_TCI_PASSTHRU | UVSource[i]);
+			DX9Wrapper::Set_DX9_Texture_Stage_State(i,D3DTSS_TEXTURETRANSFORMFLAGS,D3DTTFF_DISABLE);
 		}
 	}
 }
@@ -981,17 +981,17 @@ void VertexMaterialClass::Apply_Null()
 		1.0f									// power
 	};
 
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_LIGHTING,FALSE);
-	DX8Wrapper::Set_DX8_Material(&default_settings);
+	DX9Wrapper::Set_DX9_Render_State(D3DRS_LIGHTING,FALSE);
+	DX9Wrapper::Set_DX9_Material(&default_settings);
 
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_AMBIENTMATERIALSOURCE,D3DMCS_MATERIAL);
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_DIFFUSEMATERIALSOURCE,D3DMCS_MATERIAL);
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_EMISSIVEMATERIALSOURCE,D3DMCS_MATERIAL);
+	DX9Wrapper::Set_DX9_Render_State(D3DRS_AMBIENTMATERIALSOURCE,D3DMCS_MATERIAL);
+	DX9Wrapper::Set_DX9_Render_State(D3DRS_DIFFUSEMATERIALSOURCE,D3DMCS_MATERIAL);
+	DX9Wrapper::Set_DX9_Render_State(D3DRS_EMISSIVEMATERIALSOURCE,D3DMCS_MATERIAL);
 
 	// set to default values if no mappers
 	for (i=0; i<MeshBuilderClass::MAX_STAGES; i++) {
-		DX8Wrapper::Set_DX8_Texture_Stage_State(i,D3DTSS_TEXCOORDINDEX,D3DTSS_TCI_PASSTHRU | i);
-		DX8Wrapper::Set_DX8_Texture_Stage_State(i,D3DTSS_TEXTURETRANSFORMFLAGS,D3DTTFF_DISABLE);
+		DX9Wrapper::Set_DX9_Texture_Stage_State(i,D3DTSS_TEXCOORDINDEX,D3DTSS_TCI_PASSTHRU | i);
+		DX9Wrapper::Set_DX9_Texture_Stage_State(i,D3DTSS_TEXTURETRANSFORMFLAGS,D3DTTFF_DISABLE);
 	}
 }
 

@@ -105,9 +105,9 @@ protected:
 	enum { INITIAL_BIB_VERTEX=256,
 					INITIAL_BIB_INDEX=384,
 					MAX_BIBS=1000};
-	DX8VertexBufferClass	*m_vertexBib;	///<Bib vertex buffer.
+	DX9VertexBufferClass	*m_vertexBib;	///<Bib vertex buffer.
 	Int										m_vertexBibSize; ///< Num vertices in bib buffer.
-	DX8IndexBufferClass		*m_indexBib;	///<indices defining a triangles for the bib drawing.
+	DX9IndexBufferClass		*m_indexBib;	///<indices defining a triangles for the bib drawing.
 	Int							  		m_indexBibSize;	///<indices available in m_indexBib.
 	TextureClass *m_bibTexture;	///<Bibs texture
 	TextureClass *m_highlightBibTexture;	///<Bibs texture

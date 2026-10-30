@@ -531,13 +531,13 @@ void RingRenderObjClass::render_ring(RenderInfoClass & rinfo,const Vector3 & cen
 	} else {
 		RingShader.Set_Texturing (ShaderClass::TEXTURING_DISABLE);
 	}
-	DX8Wrapper::Set_Shader(RingShader);
-	DX8Wrapper::Set_Texture(0,RingTexture);
-	DX8Wrapper::Set_Material(RingMaterial);
+	DX9Wrapper::Set_Shader(RingShader);
+	DX9Wrapper::Set_Texture(0,RingTexture);
+	DX9Wrapper::Set_Material(RingMaterial);
 
 	// Enable sorting if the primitive is translucent, alpha testing is not enabled, and sorting is enabled globally.
 	const bool sort = (RingShader.Get_Dst_Blend_Func() != ShaderClass::DSTBLEND_ZERO) && (RingShader.Get_Alpha_Test() == ShaderClass::ALPHATEST_DISABLE) && (WW3D::Is_Sorting_Enabled());
-	const unsigned int buffer_type = sort ? BUFFER_TYPE_DYNAMIC_SORTING : BUFFER_TYPE_DYNAMIC_DX8;
+	const unsigned int buffer_type = sort ? BUFFER_TYPE_DYNAMIC_SORTING : BUFFER_TYPE_DYNAMIC_DX9;
 
 	DynamicVBAccessClass vb(buffer_type, dynamic_fvf_type, ring.Vertex_ct);
 	{
@@ -549,9 +549,9 @@ void RingRenderObjClass::render_ring(RenderInfoClass & rinfo,const Vector3 & cen
 		//
 		unsigned color;
 		if (RingShader.Get_Dst_Blend_Func () == ShaderClass::DSTBLEND_ONE) {
-			color = DX8Wrapper::Convert_Color(Alpha * Color,1.0f);
+			color = DX9Wrapper::Convert_Color(Alpha * Color,1.0f);
 		} else {
-			color = DX8Wrapper::Convert_Color(Color,Alpha);
+			color = DX9Wrapper::Convert_Color(Color,Alpha);
 		}
 
 		for (int i=0; i<ring.Vertex_ct; i++)
@@ -586,13 +586,13 @@ void RingRenderObjClass::render_ring(RenderInfoClass & rinfo,const Vector3 & cen
 		}
 	}
 
-	DX8Wrapper::Set_Vertex_Buffer(vb);
-	DX8Wrapper::Set_Index_Buffer(ib,0);
+	DX9Wrapper::Set_Vertex_Buffer(vb);
+	DX9Wrapper::Set_Index_Buffer(ib,0);
 
 	if (sort) {
 		SortingRendererClass::Insert_Triangles(Get_Bounding_Sphere(), 0, ring.face_ct, 0, ring.Vertex_ct);
 	} else {
-		DX8Wrapper::Draw_Triangles(0, ring.face_ct, 0, ring.Vertex_ct);
+		DX9Wrapper::Draw_Triangles(0, ring.face_ct, 0, ring.Vertex_ct);
 	}
 
 }
@@ -720,9 +720,9 @@ void RingRenderObjClass::Render(RenderInfoClass & rinfo)
 
 			Matrix3D temp;
 			temp.Look_At(obj_position, obj_position + camera_z_vector, 0.0f);
-			DX8Wrapper::Set_Transform(D3DTS_WORLD, temp);
+			DX9Wrapper::Set_Transform(D3DTS_WORLD, temp);
 		} else {
-			DX8Wrapper::Set_Transform(D3DTS_WORLD, Transform);
+			DX9Wrapper::Set_Transform(D3DTS_WORLD, Transform);
 		}
 
 		//

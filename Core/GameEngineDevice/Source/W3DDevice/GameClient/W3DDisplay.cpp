@@ -225,8 +225,8 @@ void StatDumpClass::dumpStats( Bool brief, Bool flagSpikes )
 
 	//Rendering stats
 	fprintf( m_fp, "Draws: %d \nSkins: %d \nSortedPolys: %d \nSkinPolys: %d\n",(Int)Debug_Statistics::Get_Draw_Calls(),
-		(Int)Debug_Statistics::Get_DX8_Skin_Renders(),
-		(Int)Debug_Statistics::Get_Sorting_Polygons(), (Int)Debug_Statistics::Get_DX8_Skin_Polygons());
+		(Int)Debug_Statistics::Get_DX9_Skin_Renders(),
+		(Int)Debug_Statistics::Get_Sorting_Polygons(), (Int)Debug_Statistics::Get_DX9_Skin_Polygons());
 
 	Int onScreenParticleCount = TheParticleSystemManager->getOnScreenParticleCount();
 
@@ -236,7 +236,7 @@ void StatDumpClass::dumpStats( Bool brief, Bool flagSpikes )
   	  fprintf( m_fp, "                                                                      DRAWS OUT OF TOLERANCE(2000)\n" );
     if ( Debug_Statistics::Get_Sorting_Polygons() > (onScreenParticleCount*2) + 300 )
   	  fprintf( m_fp, "                                                                      NON-PARTICLE-SORTS OUT OF TOLERANCE(300)\n" );
-    if ( Debug_Statistics::Get_DX8_Skin_Renders()>100 )
+    if ( Debug_Statistics::Get_DX9_Skin_Renders()>100 )
   	  fprintf( m_fp, "                                                                      SKINS OUT OF TOLERANCE(100)\n" );
   }
 
@@ -300,12 +300,12 @@ void StatDumpClass::dumpStats( Bool brief, Bool flagSpikes )
 
 
 	// polygons this frame
-	Int polyPerFrame = Debug_Statistics::Get_DX8_Polygons();
+	Int polyPerFrame = Debug_Statistics::Get_DX9_Polygons();
 	Int polyPerSecond = (Int)(polyPerFrame * fps);
 	fprintf( m_fp, "  Polygons: %d per frame (%d per second)\n", polyPerFrame, polyPerSecond );
 
 	// vertices this frame
-	fprintf( m_fp, "  Vertices: %d\n", Debug_Statistics::Get_DX8_Vertices() );
+	fprintf( m_fp, "  Vertices: %d\n", Debug_Statistics::Get_DX9_Vertices() );
 
 	//
 	// I'm adjusting the texture memory usage counter by subtracting
@@ -488,7 +488,7 @@ W3DDisplay::~W3DDisplay()
 		WW3D::Shutdown();
 	WWMath::Shutdown();
 	if (!TheGlobalData->m_headless)
-		DX8WebBrowser::Shutdown();
+		DX9WebBrowser::Shutdown();
 	delete TheW3DFileSystem;
 	TheW3DFileSystem = nullptr;
 
@@ -1257,7 +1257,7 @@ void W3DDisplay::init()
 			m_nativeDebugDisplay->setFontWidth( 9 );
 		}
 
-		DX8WebBrowser::Initialize();
+		DX9WebBrowser::Initialize();
 	}
 
 	// we're now online
@@ -1433,7 +1433,7 @@ void W3DDisplay::gatherDebugStats()
 		double fps = (Real)s_framesRenderedSinceLastUpdate / s_timeSinceLastUpdateInSecs;
 		double drawsPerFrame = Debug_Statistics::Get_Draw_Calls(); //(Real)s_drawCallsSinceLastUpdate / (Real)s_framesRenderedSinceLastUpdate;
 		double sortPolysPerFrame = Debug_Statistics::Get_Sorting_Polygons();  //(Real)s_sortedPolysSinceLastUpdate / (Real)s_framesRenderedSinceLastUpdate;
-		double skinDrawsPerFrame = Debug_Statistics::Get_DX8_Skin_Renders();
+		double skinDrawsPerFrame = Debug_Statistics::Get_DX9_Skin_Renders();
 
 		if (fps<0.1) fps = 0.1;
 
@@ -1445,7 +1445,7 @@ void W3DDisplay::gatherDebugStats()
 		if (cumuTime < 0.0) cumuTime = 0.0;
 		Int numFrames = (Int)TheGameLogic->getFrame() - (Int)START_CUMU_FRAME;
 		double cumuFPS = (numFrames > 0 && cumuTime > 0.0) ? (numFrames / cumuTime) : 0.0;
-		double skinPolysPerFrame = Debug_Statistics::Get_DX8_Skin_Polygons();
+		double skinPolysPerFrame = Debug_Statistics::Get_DX9_Skin_Polygons();
 
 		Int LOD = TheGlobalData->m_terrainLOD;
 		//unibuffer.format( L"FPS: %.2f, %.2fms mapLOD=%d [cumu FPS=%.2f] draws: %.2f sort: %.2f", fps, ms, LOD, cumuFPS, drawsPerFrame,sortPolysPerFrame);
@@ -1470,7 +1470,7 @@ void W3DDisplay::gatherDebugStats()
 		fpsString.format( L"FPS: %.2f", fps);
 		m_benchmarkDisplayString->setText( fpsString );
 
-		Int polyPerFrame = Debug_Statistics::Get_DX8_Polygons();
+		Int polyPerFrame = Debug_Statistics::Get_DX9_Polygons();
 
 #ifdef EXTENDED_STATS
 		static float gameOverheadMS = 0.0f;
@@ -1489,76 +1489,76 @@ void W3DDisplay::gatherDebugStats()
 		} else if (statMode == gameOverhead) {
 			gameOverheadMS = ms;
 			statMode = console;
-			DX8Wrapper::stats.m_disableTerrain = true;
-			DX8Wrapper::stats.m_disableOverhead = true;
-			DX8Wrapper::stats.m_disableWater = true;
-			DX8Wrapper::stats.m_disableObjects = true;
-			DX8Wrapper::stats.m_disableConsole = false;
-			DX8Wrapper::stats.m_debugLinesToShow = 1;
+			DX9Wrapper::stats.m_disableTerrain = true;
+			DX9Wrapper::stats.m_disableOverhead = true;
+			DX9Wrapper::stats.m_disableWater = true;
+			DX9Wrapper::stats.m_disableObjects = true;
+			DX9Wrapper::stats.m_disableConsole = false;
+			DX9Wrapper::stats.m_debugLinesToShow = 1;
 		} else if (statMode == console) {
 			consoleMS = ms;
 			statMode = threeDOverhead;
-			DX8Wrapper::stats.m_disableTerrain = true;
-			DX8Wrapper::stats.m_disableOverhead = true;
-			DX8Wrapper::stats.m_disableWater = true;
-			DX8Wrapper::stats.m_disableObjects = true;
-			DX8Wrapper::stats.m_disableConsole = true;
-			DX8Wrapper::stats.m_debugLinesToShow = 1;
+			DX9Wrapper::stats.m_disableTerrain = true;
+			DX9Wrapper::stats.m_disableOverhead = true;
+			DX9Wrapper::stats.m_disableWater = true;
+			DX9Wrapper::stats.m_disableObjects = true;
+			DX9Wrapper::stats.m_disableConsole = true;
+			DX9Wrapper::stats.m_debugLinesToShow = 1;
 		} else if (statMode == threeDOverhead) {
 			threeDOverheadMS = ms;
 			statMode = terrain;
-			DX8Wrapper::stats.m_disableTerrain = false;
-			DX8Wrapper::stats.m_disableOverhead = true;
-			DX8Wrapper::stats.m_disableWater = true;
-			DX8Wrapper::stats.m_disableObjects = true;
-			DX8Wrapper::stats.m_disableConsole = true;
-			DX8Wrapper::stats.m_debugLinesToShow = 1;
+			DX9Wrapper::stats.m_disableTerrain = false;
+			DX9Wrapper::stats.m_disableOverhead = true;
+			DX9Wrapper::stats.m_disableWater = true;
+			DX9Wrapper::stats.m_disableObjects = true;
+			DX9Wrapper::stats.m_disableConsole = true;
+			DX9Wrapper::stats.m_debugLinesToShow = 1;
 		} else if (statMode == terrain) {
 			terrainMS = ms;
 			statMode = objects;
-			DX8Wrapper::stats.m_disableOverhead = true;
-			DX8Wrapper::stats.m_disableTerrain = true;
-			DX8Wrapper::stats.m_disableWater = true;
-			DX8Wrapper::stats.m_disableObjects = false;
-			DX8Wrapper::stats.m_disableConsole = true;
-			DX8Wrapper::stats.m_debugLinesToShow = 1;
+			DX9Wrapper::stats.m_disableOverhead = true;
+			DX9Wrapper::stats.m_disableTerrain = true;
+			DX9Wrapper::stats.m_disableWater = true;
+			DX9Wrapper::stats.m_disableObjects = false;
+			DX9Wrapper::stats.m_disableConsole = true;
+			DX9Wrapper::stats.m_debugLinesToShow = 1;
 		} else if (statMode == objects) {
 			objectMS = ms;
 			statMode = overlap;
-			DX8Wrapper::stats.m_disableOverhead = false;
-			DX8Wrapper::stats.m_disableTerrain = false;
-			DX8Wrapper::stats.m_disableWater = false;
-			DX8Wrapper::stats.m_disableObjects = false;
-			DX8Wrapper::stats.m_disableConsole = true;
-			DX8Wrapper::stats.m_sleepTime = (int)(terrainMS);
-			DX8Wrapper::stats.m_debugLinesToShow = 1;
+			DX9Wrapper::stats.m_disableOverhead = false;
+			DX9Wrapper::stats.m_disableTerrain = false;
+			DX9Wrapper::stats.m_disableWater = false;
+			DX9Wrapper::stats.m_disableObjects = false;
+			DX9Wrapper::stats.m_disableConsole = true;
+			DX9Wrapper::stats.m_sleepTime = (int)(terrainMS);
+			DX9Wrapper::stats.m_debugLinesToShow = 1;
 		} else if (statMode == overlap) {
 			overlapMS = ms;
 			statMode = normal;
-			DX8Wrapper::stats.m_disableOverhead = false;
-			DX8Wrapper::stats.m_disableTerrain = false;
-			DX8Wrapper::stats.m_disableWater = false;
-			DX8Wrapper::stats.m_disableObjects = false;
-			DX8Wrapper::stats.m_disableConsole = true;
-			DX8Wrapper::stats.m_sleepTime = 0;
-			DX8Wrapper::stats.m_debugLinesToShow = 1;
+			DX9Wrapper::stats.m_disableOverhead = false;
+			DX9Wrapper::stats.m_disableTerrain = false;
+			DX9Wrapper::stats.m_disableWater = false;
+			DX9Wrapper::stats.m_disableObjects = false;
+			DX9Wrapper::stats.m_disableConsole = true;
+			DX9Wrapper::stats.m_sleepTime = 0;
+			DX9Wrapper::stats.m_debugLinesToShow = 1;
 		} else if (statMode == normal) {
 			overlapMS = (ms + ((int)terrainMS) - overlapMS );
 			statMode = disabled;
 			extendedStats = SHOW_STATS_TIME;
 
 			// Done collecting stats. Re-enable stuff
-			DX8Wrapper::stats.m_disableConsole = false;
-			DX8Wrapper::stats.m_debugLinesToShow = -1;
-		} else if (!DX8Wrapper::stats.m_showingStats) {
+			DX9Wrapper::stats.m_disableConsole = false;
+			DX9Wrapper::stats.m_debugLinesToShow = -1;
+		} else if (!DX9Wrapper::stats.m_showingStats) {
 			// start collecting extended info.
-			DX8Wrapper::stats.m_showingStats = true;
-			DX8Wrapper::stats.m_disableOverhead = false;
-			DX8Wrapper::stats.m_disableTerrain = true;
-			DX8Wrapper::stats.m_disableWater = true;
-			DX8Wrapper::stats.m_disableObjects = true;
-			DX8Wrapper::stats.m_disableConsole = true;
-			DX8Wrapper::stats.m_debugLinesToShow = 1;
+			DX9Wrapper::stats.m_showingStats = true;
+			DX9Wrapper::stats.m_disableOverhead = false;
+			DX9Wrapper::stats.m_disableTerrain = true;
+			DX9Wrapper::stats.m_disableWater = true;
+			DX9Wrapper::stats.m_disableObjects = true;
+			DX9Wrapper::stats.m_disableConsole = true;
+			DX9Wrapper::stats.m_debugLinesToShow = 1;
 			statMode = sync;
 			gameOverheadMS = 0.0f;
 			threeDOverheadMS = 0.0f;
@@ -1627,7 +1627,7 @@ void W3DDisplay::gatherDebugStats()
 		m_displayStrings[Polygons]->setText( unibuffer );
 
 		// vertices this frame
-		unibuffer.format( L"Vertices: %d", Debug_Statistics::Get_DX8_Vertices() );
+		unibuffer.format( L"Vertices: %d", Debug_Statistics::Get_DX9_Vertices() );
 		m_displayStrings[Vertices]->setText( unibuffer );
 
 		//
@@ -1926,9 +1926,9 @@ void W3DDisplay::drawDebugStats()
 
 	int linesOfStrings = DisplayStringCount;
 #ifdef EXTENDED_STATS
-	if (DX8Wrapper::stats.m_debugLinesToShow > -1)
+	if (DX9Wrapper::stats.m_debugLinesToShow > -1)
 	{
-		linesOfStrings = DX8Wrapper::stats.m_debugLinesToShow;
+		linesOfStrings = DX9Wrapper::stats.m_debugLinesToShow;
 	}
 
 #endif
@@ -2122,7 +2122,7 @@ void W3DDisplay::update()
 	WW3D::Sync(TheGameLogic->hasUpdated());
 
 	// update all views of the world - recomputes data which will affect drawing
-	if (DX8Wrapper::_Get_D3D_Device9() && (DX8Wrapper::_Get_D3D_Device9()->TestCooperativeLevel()) == D3D_OK)
+	if (DX9Wrapper::_Get_D3D_Device9() && (DX9Wrapper::_Get_D3D_Device9()->TestCooperativeLevel()) == D3D_OK)
 	{
 		// Checking if we have the device before updating views because the heightmap crashes otherwise while
 		// trying to refresh the visible terrain geometry.
@@ -2157,7 +2157,7 @@ void W3DDisplay::draw()
 
 	// EastWind: a hung or removed device (driver reset, GPU unplugged) cannot be reset, so
 	// quit with the Direct3D error instead of a frozen screen.
-	if (DX8Wrapper::Is_Device_Removed())
+	if (DX9Wrapper::Is_Device_Removed())
 		RELEASE_CRASHLOCALIZED("ERROR:D3DFailurePrompt", "ERROR:D3DFailureMessage");
 
 	// TheSuperHackers @feature bobtista 10/07/2026 Show messages for screenshots finished by the screenshot thread.
@@ -2220,7 +2220,7 @@ AGAIN:
 #ifdef EXTENDED_STATS
 	else
 	{
-		DX8Wrapper::stats.m_showingStats = false;
+		DX9Wrapper::stats.m_showingStats = false;
 	}
 #endif
 
@@ -2291,7 +2291,7 @@ AGAIN:
 
 	do {
 
-		if (DX8Wrapper::_Get_D3D_Device9() && (DX8Wrapper::_Get_D3D_Device9()->TestCooperativeLevel()) == D3D_OK)
+		if (DX9Wrapper::_Get_D3D_Device9() && (DX9Wrapper::_Get_D3D_Device9()->TestCooperativeLevel()) == D3D_OK)
 		{
 			// TheSuperHackers @info The views are updated in W3DDisplay::update, except in the repeated passes
 			// of this loop, which keep moving the camera while the time is frozen for a camera movement.
@@ -2305,7 +2305,7 @@ AGAIN:
 			// EastWind DX9: the frame-wide pixel constant of shader_linear.h, read by the lit, water and post shaders.
 			{
 				const float frame_options[4] = { EwGraphics().Linear() ? 1.0f : 0.0f, 0.0f, 0.0f, 0.0f };
-				DX8Wrapper::_Get_D3D_Device9()->SetPixelShaderConstantF(EW_FRAME_PS_OPTIONS, frame_options, 1);
+				DX9Wrapper::_Get_D3D_Device9()->SetPixelShaderConstantF(EW_FRAME_PS_OPTIONS, frame_options, 1);
 			}
 
 			// EastWind DX9 (M3.4): the sun shadow map, before the water reflection so it has shadows too.
@@ -2333,8 +2333,8 @@ AGAIN:
 		Debug_Statistics::End_Statistics();	//record number of polygons rendered in RenderTargetTextures.
 
 		//Store number of polygons rendered in renderTargetTextures.
-		Int numRenderTargetPolygons=Debug_Statistics::Get_DX8_Polygons();
-		Int numRenderTargetVertices=Debug_Statistics::Get_DX8_Vertices();
+		Int numRenderTargetPolygons=Debug_Statistics::Get_DX9_Polygons();
+		Int numRenderTargetVertices=Debug_Statistics::Get_DX9_Vertices();
 
 		// start render block
 		#if defined(_ALLOW_DEBUG_CHEATS_IN_RELEASE)
@@ -2359,7 +2359,7 @@ AGAIN:
 				couldRender = true;
 				// add the number of verts/polygons drawn before the main scene
 				if (numRenderTargetPolygons || numRenderTargetVertices)
-					Debug_Statistics::Record_DX8_Polys_And_Vertices(numRenderTargetPolygons,numRenderTargetVertices,ShaderClass::_PresetOpaqueShader);
+					Debug_Statistics::Record_DX9_Polys_And_Vertices(numRenderTargetPolygons,numRenderTargetVertices,ShaderClass::_PresetOpaqueShader);
 
 				// draw all views of the world
 				drawViews();
@@ -2466,7 +2466,7 @@ AGAIN:
 	} while (freezeTime && !TheTacticalView->isCameraMovementFinished());
 
 #ifdef EXTENDED_STATS
-	if (DX8Wrapper::stats.m_disableOverhead) {
+	if (DX9Wrapper::stats.m_disableOverhead) {
 		goto AGAIN;
 	}
 #endif
@@ -3275,26 +3275,26 @@ VideoBuffer*	W3DDisplay::createVideoBuffer()
 
 	WW3DFormat displayFormat = Renderer::Get_Back_Buffer_Format();
 
-	if ( DX8Wrapper::Get_Current_Caps()->Support_Texture_Format( displayFormat ))
+	if ( DX9Wrapper::Get_Current_Caps()->Support_Texture_Format( displayFormat ))
 	{
 		format = W3DVideoBuffer::W3DFormatToType( displayFormat );
 	}
 
 	if ( format == VideoBuffer::TYPE_UNKNOWN )
 	{
-		if ( DX8Wrapper::Get_Current_Caps()->Support_Texture_Format( WW3D_FORMAT_X8R8G8B8 ))
+		if ( DX9Wrapper::Get_Current_Caps()->Support_Texture_Format( WW3D_FORMAT_X8R8G8B8 ))
 		{
 			format = VideoBuffer::TYPE_X8R8G8B8;
 		}
-		else if ( DX8Wrapper::Get_Current_Caps()->Support_Texture_Format( WW3D_FORMAT_R8G8B8 ))
+		else if ( DX9Wrapper::Get_Current_Caps()->Support_Texture_Format( WW3D_FORMAT_R8G8B8 ))
 		{
 			format = VideoBuffer::TYPE_R8G8B8;
 		}
-		else if ( DX8Wrapper::Get_Current_Caps()->Support_Texture_Format( WW3D_FORMAT_R5G6B5 ))
+		else if ( DX9Wrapper::Get_Current_Caps()->Support_Texture_Format( WW3D_FORMAT_R5G6B5 ))
 		{
 			format = VideoBuffer::TYPE_R5G6B5;
 		}
-		else if ( DX8Wrapper::Get_Current_Caps()->Support_Texture_Format( WW3D_FORMAT_X1R5G5B5 ))
+		else if ( DX9Wrapper::Get_Current_Caps()->Support_Texture_Format( WW3D_FORMAT_X1R5G5B5 ))
 		{
 			format = VideoBuffer::TYPE_X1R5G5B5;
 		}

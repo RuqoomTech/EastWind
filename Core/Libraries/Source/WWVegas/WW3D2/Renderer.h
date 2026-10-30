@@ -42,7 +42,7 @@ struct RenderViewport
 };
 
 // The interface holds only the methods that callers route through. The rest of
-// the DX8Wrapper API is called directly.
+// the DX9Wrapper API is called directly.
 
 class Renderer
 {

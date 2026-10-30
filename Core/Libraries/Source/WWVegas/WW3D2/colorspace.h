@@ -146,7 +146,7 @@ inline void Recolor(Vector3 &rgb, const Vector3 &hsv_shift)
 
 inline void Recolor(unsigned& rgba, const Vector3 &hsv_shift)
 {
-	Vector4 rgba_v = DX8Wrapper::Convert_Color(rgba);
+	Vector4 rgba_v = DX9Wrapper::Convert_Color(rgba);
 	Recolor((Vector3&)rgba_v, hsv_shift);
-	rgba = DX8Wrapper::Convert_Color(rgba_v);
+	rgba = DX9Wrapper::Convert_Color(rgba_v);
 }

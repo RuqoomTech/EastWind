@@ -43,10 +43,10 @@
 class StringClass;
 class MeshClass;
 
-// Note! For the debugger to be usable, the application must call DX8RendererDebugger::Update() once
+// Note! For the debugger to be usable, the application must call DX9RendererDebugger::Update() once
 // each frame.
 
-class DX8RendererDebugger
+class DX9RendererDebugger
 {
 	static bool Enabled;
 public:

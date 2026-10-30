@@ -111,14 +111,14 @@ protected:
 	enum {MAX_RADIUS = 50, NUM_FEEDBACK_VERTEX = 201*201, NUM_FEEDBACK_INDEX = 101*101*6};
 	Int	m_numTriangles;	//dimensions of list
 
-	DX8IndexBufferClass				*m_indexBuffer;	///< indices defining a object icon
+	DX9IndexBufferClass				*m_indexBuffer;	///< indices defining a object icon
 	ShaderClass								m_shaderClass; ///< shader or rendering state for heightmap
 	VertexMaterialClass	  	  *m_vertexMaterialClass;
-	DX8VertexBufferClass			*m_vertexBufferTile1;	///< First vertex buffer.
-	DX8VertexBufferClass			*m_vertexBufferTile2;	///< Second vertex buffer.
+	DX9VertexBufferClass			*m_vertexBufferTile1;	///< First vertex buffer.
+	DX9VertexBufferClass			*m_vertexBufferTile2;	///< Second vertex buffer.
 
-	DX8VertexBufferClass			*m_vertexBufferWater;	///< Vertex buffer for the water plane.
-	DX8IndexBufferClass				*m_indexWater;	///< indices defining a triangle strip for the water on terrain
+	DX9VertexBufferClass			*m_vertexBufferWater;	///< Vertex buffer for the water plane.
+	DX9IndexBufferClass				*m_indexWater;	///< indices defining a triangle strip for the water on terrain
 	Int												m_waterVertexCount;
 
 	WaterRenderObjClass				*m_waterDrawObject;
@@ -133,8 +133,8 @@ protected:
 	Bool											m_drawTestArtHighlight;
 	Bool											m_drawLetterbox;
 
-	DX8VertexBufferClass			*m_vertexFeedback;	///< Vertex buffer for brush feedback.
-	DX8IndexBufferClass				*m_indexFeedback;	///< indices defining a triangle strip for the feedback on terrain
+	DX9VertexBufferClass			*m_vertexFeedback;	///< Vertex buffer for brush feedback.
+	DX9IndexBufferClass				*m_indexFeedback;	///< indices defining a triangle strip for the feedback on terrain
 	Int												m_feedbackIndexCount;
 	Int												m_feedbackVertexCount;
 
@@ -168,7 +168,7 @@ protected: // static state vars.
 
 protected:
   void addCircleToLineRenderer( const Coord3D & center, Real radius, Real width, unsigned long color, CameraClass* camera );
-	Int updateVB(DX8VertexBufferClass	*vertexBufferTile, Int color, Bool doArrow, Bool doDiamond);
+	Int updateVB(DX9VertexBufferClass	*vertexBufferTile, Int color, Bool doArrow, Bool doDiamond);
 	void updatePolygonVB(PolygonTrigger *pTrig, Bool selected, Bool isOpen);
 	void updateFeedbackVB();
 	void updateMeshVB();

@@ -257,9 +257,9 @@ void	LineGroupClass::Render(RenderInfoClass &rinfo)
 	}
 
 	VertexMaterialClass * linemat = VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE);
-	DX8Wrapper::Set_Material(linemat);
-	DX8Wrapper::Set_Shader(Shader);
-	DX8Wrapper::Set_Texture(0, Texture);
+	DX9Wrapper::Set_Material(linemat);
+	DX9Wrapper::Set_Shader(Shader);
+	DX9Wrapper::Set_Texture(0, Texture);
 	REF_PTR_RELEASE(linemat);
 
 	WWASSERT(StartLineLoc && StartLineLoc->Get_Array());
@@ -281,10 +281,10 @@ void	LineGroupClass::Render(RenderInfoClass &rinfo)
 
 	// Save off the view matrix
 	Matrix4x4 view;
-	DX8Wrapper::Get_Transform(D3DTS_VIEW, view);
+	DX9Wrapper::Get_Transform(D3DTS_VIEW, view);
 
 	Matrix4x4 identity(true);
-	DX8Wrapper::Set_Transform(D3DTS_WORLD, identity);
+	DX9Wrapper::Set_Transform(D3DTS_WORLD, identity);
 
 	// if the points are in world space, transform the offsets
 	if (Get_Flag(TRANSFORM)) {
@@ -296,7 +296,7 @@ void	LineGroupClass::Render(RenderInfoClass &rinfo)
 			Matrix3D::Transform_Vector(xform_mat, offset[i], &offset[i]);
 		}
 	} else {
-		DX8Wrapper::Set_Transform(D3DTS_VIEW, identity);
+		DX9Wrapper::Set_Transform(D3DTS_VIEW, identity);
 	}
 
 	int num_tris=0;
@@ -319,7 +319,7 @@ void	LineGroupClass::Render(RenderInfoClass &rinfo)
 	// construct the tetrahedra in the index buffers
 	// assume first vertex is the apex, followed by offset[0-3]
 
-	DynamicIBAccessClass iba(sort?BUFFER_TYPE_DYNAMIC_SORTING:BUFFER_TYPE_DYNAMIC_DX8,num_indices);
+	DynamicIBAccessClass iba(sort?BUFFER_TYPE_DYNAMIC_SORTING:BUFFER_TYPE_DYNAMIC_DX9,num_indices);
 
 	{
 		DynamicIBAccessClass::WriteLockClass lock(&iba);
@@ -386,7 +386,7 @@ void	LineGroupClass::Render(RenderInfoClass &rinfo)
 
 	// make the vertex buffers
 
-	DynamicVBAccessClass vba(sort ? BUFFER_TYPE_DYNAMIC_SORTING : BUFFER_TYPE_DYNAMIC_DX8,dynamic_fvf_type,num_vertices);
+	DynamicVBAccessClass vba(sort ? BUFFER_TYPE_DYNAMIC_SORTING : BUFFER_TYPE_DYNAMIC_DX9,dynamic_fvf_type,num_vertices);
 
 	{
 		DynamicVBAccessClass::WriteLockClass lock(&vba);
@@ -417,7 +417,7 @@ void	LineGroupClass::Render(RenderInfoClass &rinfo)
 					vb->x			= end.X;
 					vb->y			= end.Y;
 					vb->z			= end.Z;
-					vb->diffuse	= DX8Wrapper::Convert_Color(taildiffuse);
+					vb->diffuse	= DX9Wrapper::Convert_Color(taildiffuse);
 					vb->u1		= ucoord;
 					vb->v1		= 1.0f;
 					vb++;
@@ -427,7 +427,7 @@ void	LineGroupClass::Render(RenderInfoClass &rinfo)
 						vb->x			= loc.X;
 						vb->y			= loc.Y;
 						vb->z			= loc.Z;
-						vb->diffuse	= DX8Wrapper::Convert_Color(diffuse);
+						vb->diffuse	= DX9Wrapper::Convert_Color(diffuse);
 						vb->u1		= ucoord;
 						vb->v1		= 0.0f;
 						vb++;
@@ -440,7 +440,7 @@ void	LineGroupClass::Render(RenderInfoClass &rinfo)
 						vb->x			= loc.X;
 						vb->y			= loc.Y;
 						vb->z			= loc.Z;
-						vb->diffuse	= DX8Wrapper::Convert_Color(diffuse);
+						vb->diffuse	= DX9Wrapper::Convert_Color(diffuse);
 						vb->u1		= ucoord;
 						vb->v1		= 0.0f;
 						vb++;
@@ -454,7 +454,7 @@ void	LineGroupClass::Render(RenderInfoClass &rinfo)
 						vb->x			= loc.X;
 						vb->y			= loc.Y;
 						vb->z			= loc.Z;
-						vb->diffuse	= DX8Wrapper::Convert_Color(taildiffuse);
+						vb->diffuse	= DX9Wrapper::Convert_Color(taildiffuse);
 						vb->u1		= ucoord;
 						vb->v1		= 1.0f;
 						vb++;
@@ -465,17 +465,17 @@ void	LineGroupClass::Render(RenderInfoClass &rinfo)
 		}
 	}
 
-	DX8Wrapper::Set_Index_Buffer(iba, 0);
-	DX8Wrapper::Set_Vertex_Buffer(vba);
+	DX9Wrapper::Set_Index_Buffer(iba, 0);
+	DX9Wrapper::Set_Vertex_Buffer(vba);
 
 	if (sort) {
 		SortingRendererClass::Insert_Triangles(0, num_tris, 0, num_vertices);
 	} else {
-		DX8Wrapper::Draw_Triangles(0, num_tris, 0, num_vertices);
+		DX9Wrapper::Draw_Triangles(0, num_tris, 0, num_vertices);
 	}
 
 	// restore the matrices
-	DX8Wrapper::Set_Transform(D3DTS_VIEW, view);
+	DX9Wrapper::Set_Transform(D3DTS_VIEW, view);
 }
 
 int LineGroupClass::Get_Polygon_Count()

@@ -51,7 +51,7 @@ static int FVFTypeIndexList[]=
 };
 static_assert(ARRAY_SIZE(FVFTypeIndexList) == W3DBufferManager::MAX_FVF, "Incorrect array size");
 
-Int W3DBufferManager::getDX8Format(VBM_FVF_TYPES format)
+Int W3DBufferManager::getDX9Format(VBM_FVF_TYPES format)
 {
 	return FVFTypeIndexList[format];
 }
@@ -142,7 +142,7 @@ void W3DBufferManager::freeAllBuffers()
 		W3DVertexBuffer *vb = m_W3DVertexBuffers[i];
 		while (vb)
 		{	DEBUG_ASSERTCRASH(vb->m_usedSlots == nullptr, ("Freeing Non-Empty Vertex Buffer"));
-			REF_PTR_RELEASE(vb->m_DX8VertexBuffer);
+			REF_PTR_RELEASE(vb->m_DX9VertexBuffer);
 			m_numEmptyVertexBuffersAllocated--;
 			vb=vb->m_nextVB;	//get next vertex buffer of this type
 		}
@@ -152,7 +152,7 @@ void W3DBufferManager::freeAllBuffers()
 	W3DIndexBuffer *ib = m_W3DIndexBuffers;
 	while (ib)
 	{	DEBUG_ASSERTCRASH(ib->m_usedSlots == nullptr, ("Freeing Non-Empty Index Buffer"));
-		REF_PTR_RELEASE(ib->m_DX8IndexBuffer);
+		REF_PTR_RELEASE(ib->m_DX9IndexBuffer);
 		m_numEmptyIndexBuffersAllocated--;
 		ib=ib->m_nextIB;	//get next vertex buffer of this type
 	}
@@ -169,7 +169,7 @@ void W3DBufferManager::ReleaseResources()
 		W3DVertexBuffer *vb = m_W3DVertexBuffers[i];
 		while (vb)
 		{
-			REF_PTR_RELEASE(vb->m_DX8VertexBuffer);
+			REF_PTR_RELEASE(vb->m_DX9VertexBuffer);
 			vb=vb->m_nextVB;	//get next vertex buffer of this type
 		}
 	}
@@ -177,7 +177,7 @@ void W3DBufferManager::ReleaseResources()
 	W3DIndexBuffer *ib = m_W3DIndexBuffers;
 	while (ib)
 	{
-		REF_PTR_RELEASE(ib->m_DX8IndexBuffer);
+		REF_PTR_RELEASE(ib->m_DX9IndexBuffer);
 		ib=ib->m_nextIB;	//get next vertex buffer of this type
 	}
 }
@@ -188,10 +188,10 @@ Bool W3DBufferManager::ReAcquireResources()
 	{
 		W3DVertexBuffer *vb = m_W3DVertexBuffers[i];
 		while (vb)
-		{	DEBUG_ASSERTCRASH( vb->m_DX8VertexBuffer == nullptr, ("ReAcquire of existing vertex buffer"));
-			vb->m_DX8VertexBuffer=NEW_REF(DX8VertexBufferClass,(FVFTypeIndexList[vb->m_format],vb->m_size,DX8VertexBufferClass::USAGE_DEFAULT));
-			DEBUG_ASSERTCRASH( vb->m_DX8VertexBuffer, ("Failed ReAcquire of vertex buffer"));
-			if (!vb->m_DX8VertexBuffer)
+		{	DEBUG_ASSERTCRASH( vb->m_DX9VertexBuffer == nullptr, ("ReAcquire of existing vertex buffer"));
+			vb->m_DX9VertexBuffer=NEW_REF(DX9VertexBufferClass,(FVFTypeIndexList[vb->m_format],vb->m_size,DX9VertexBufferClass::USAGE_DEFAULT));
+			DEBUG_ASSERTCRASH( vb->m_DX9VertexBuffer, ("Failed ReAcquire of vertex buffer"));
+			if (!vb->m_DX9VertexBuffer)
 				return FALSE;
 			vb=vb->m_nextVB;	//get next vertex buffer of this type
 		}
@@ -199,10 +199,10 @@ Bool W3DBufferManager::ReAcquireResources()
 
 	W3DIndexBuffer *ib = m_W3DIndexBuffers;
 	while (ib)
-	{	DEBUG_ASSERTCRASH( ib->m_DX8IndexBuffer == nullptr, ("ReAcquire of existing index buffer"));
-		ib->m_DX8IndexBuffer=NEW_REF(DX8IndexBufferClass,(ib->m_size,DX8IndexBufferClass::USAGE_DEFAULT));
-		DEBUG_ASSERTCRASH( ib->m_DX8IndexBuffer, ("Failed ReAcquire of index buffer"));
-		if (!ib->m_DX8IndexBuffer)
+	{	DEBUG_ASSERTCRASH( ib->m_DX9IndexBuffer == nullptr, ("ReAcquire of existing index buffer"));
+		ib->m_DX9IndexBuffer=NEW_REF(DX9IndexBufferClass,(ib->m_size,DX9IndexBufferClass::USAGE_DEFAULT));
+		DEBUG_ASSERTCRASH( ib->m_DX9IndexBuffer, ("Failed ReAcquire of index buffer"));
+		if (!ib->m_DX9IndexBuffer)
 			return FALSE;
 		ib=ib->m_nextIB;	//get next vertex buffer of this type
 	}
@@ -314,7 +314,7 @@ W3DBufferManager::W3DVertexBufferSlot * W3DBufferManager::allocateSlotStorage(VB
 
 		Int vbSize=__max(DEFAULT_VERTEX_BUFFER_SIZE,size);
 
-		pVB->m_DX8VertexBuffer=NEW_REF(DX8VertexBufferClass,(FVFTypeIndexList[fvfType],vbSize,DX8VertexBufferClass::USAGE_DEFAULT));
+		pVB->m_DX9VertexBuffer=NEW_REF(DX9VertexBufferClass,(FVFTypeIndexList[fvfType],vbSize,DX9VertexBufferClass::USAGE_DEFAULT));
 		pVB->m_format=fvfType;
 		pVB->m_startFreeIndex=size;
 		pVB->m_size=vbSize;
@@ -437,7 +437,7 @@ W3DBufferManager::W3DIndexBufferSlot * W3DBufferManager::allocateSlotStorage(Int
 
 		Int ibSize=__max(DEFAULT_INDEX_BUFFER_SIZE,size);
 
-		pIB->m_DX8IndexBuffer=NEW_REF(DX8IndexBufferClass,(ibSize,DX8IndexBufferClass::USAGE_DEFAULT));
+		pIB->m_DX9IndexBuffer=NEW_REF(DX9IndexBufferClass,(ibSize,DX9IndexBufferClass::USAGE_DEFAULT));
 		pIB->m_startFreeIndex=size;
 		pIB->m_size=ibSize;
 		ibSlot=&m_W3DIndexBufferEmptySlots[m_numEmptyIndexSlotsAllocated];

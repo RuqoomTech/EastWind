@@ -43,7 +43,7 @@
 #include "ww3dformat.h"
 #include <d3d9.h>
 
-class DX8Caps
+class DX9Caps
 {
 public:
 	enum DriverVersionStatusType {
@@ -221,8 +221,8 @@ public:
 	};
 
 
-	DX8Caps(IDirect3D9Ex* direct3d, const D3DCAPS9& caps,WW3DFormat display_format, const D3DADAPTER_IDENTIFIER9& adapter_id);
-	DX8Caps(IDirect3D9Ex* direct3d, IDirect3DDevice9Ex* D3DDevice,WW3DFormat display_format, const D3DADAPTER_IDENTIFIER9& adapter_id);
+	DX9Caps(IDirect3D9Ex* direct3d, const D3DCAPS9& caps,WW3DFormat display_format, const D3DADAPTER_IDENTIFIER9& adapter_id);
+	DX9Caps(IDirect3D9Ex* direct3d, IDirect3DDevice9Ex* D3DDevice,WW3DFormat display_format, const D3DADAPTER_IDENTIFIER9& adapter_id);
 	static void Shutdown();
 
 	void Compute_Caps(WW3DFormat display_format, const D3DADAPTER_IDENTIFIER9& adapter_id);
@@ -262,7 +262,7 @@ public:
 	bool Support_Render_To_Texture_Format(WW3DFormat format) const { return SupportRenderToTextureFormat[format]; }
 	bool Support_Depth_Stencil_Format(WW3DZFormat format) const { return SupportDepthStencilFormat[format]; }
 
-	D3DCAPS9 const & Get_DX8_Caps() const { return Caps; }
+	D3DCAPS9 const & Get_DX9_Caps() const { return Caps; }
 
 	const StringClass& Get_Log() const { return CapsLog; }
 	const StringClass& Get_Compact_Log() const { return CompactLog; }

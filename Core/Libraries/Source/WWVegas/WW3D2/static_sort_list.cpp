@@ -91,7 +91,7 @@ void DefaultStaticSortListClass::Render_And_Clear(RenderInfoClass & rinfo)
 				render = true;
 			}
 		}
-		if (render) TheDX8MeshRenderer.Flush();
+		if (render) TheDX9MeshRenderer.Flush();
 	}
 }
 

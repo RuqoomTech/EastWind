@@ -80,7 +80,7 @@ void W3DSmudgeManager::ReAcquireResources()
 {
 	ReleaseResources();
 
-	SurfaceClass *surface=DX8Wrapper::_Get_DX8_Back_Buffer();
+	SurfaceClass *surface=DX9Wrapper::_Get_DX9_Back_Buffer();
 	SurfaceClass::SurfaceDescription surface_desc;
 
 	surface->Get_Description(surface_desc);
@@ -91,11 +91,11 @@ void W3DSmudgeManager::ReAcquireResources()
 	m_backBufferWidth = surface_desc.Width;
 	m_backBufferHeight = surface_desc.Height;
 
-	m_indexBuffer=NEW_REF(DX8IndexBufferClass,(SMUDGE_DRAW_SIZE*4*3));	//allocate 4 triangles per smudge, each with 3 indices.
+	m_indexBuffer=NEW_REF(DX9IndexBufferClass,(SMUDGE_DRAW_SIZE*4*3));	//allocate 4 triangles per smudge, each with 3 indices.
 
 	// Fill up the IB with static vertex indices that will be used for all smudges.
 	{
-		DX8IndexBufferClass::WriteLockClass lockIdxBuffer(m_indexBuffer);
+		DX9IndexBufferClass::WriteLockClass lockIdxBuffer(m_indexBuffer);
 		UnsignedShort *ib=lockIdxBuffer.Get_Index_Array();
 		//quad of 4 triangles:
 		//	0-----3
@@ -137,7 +137,7 @@ Int copyRect(unsigned char *buf, Int bufSize, int oX, int oY, int width, int hei
 	Int result = 0;
 	HRESULT hr = S_OK;
 
- 	LPDIRECT3DDEVICE9EX m_pDev=DX8Wrapper::_Get_D3D_Device9();
+ 	LPDIRECT3DDEVICE9EX m_pDev=DX9Wrapper::_Get_D3D_Device9();
 
 	if (!m_pDev)
 		goto error;
@@ -166,7 +166,7 @@ Int copyRect(unsigned char *buf, Int bufSize, int oX, int oY, int width, int hei
 	if (hr != S_OK)
 		goto error;
 
- 	hr=DX8Wrapper::_Copy_DX8_Rects(surface,&srcRect,1,tempSurface,&dstPoint);
+ 	hr=DX9Wrapper::_Copy_DX9_Rects(surface,&srcRect,1,tempSurface,&dstPoint);
 
 	if (hr != S_OK)
 		goto error;
@@ -223,15 +223,15 @@ Bool W3DSmudgeManager::testHardwareSupport()
 		}
 
 		VertexMaterialClass *vmat=VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE);
-		DX8Wrapper::Set_Material(vmat);
+		DX9Wrapper::Set_Material(vmat);
 		REF_PTR_RELEASE(vmat);	//no need to keep a reference since it's a preset.
 
 		ShaderClass shader=ShaderClass::_PresetOpaqueShader;
 		shader.Set_Depth_Compare(ShaderClass::PASS_ALWAYS);
 		shader.Set_Depth_Mask(ShaderClass::DEPTH_WRITE_DISABLE);
-		DX8Wrapper::Set_Shader(shader);
-		DX8Wrapper::Set_Texture(0,nullptr);
-		DX8Wrapper::Apply_Render_State_Changes();	//force update of view and projection matrices
+		DX9Wrapper::Set_Shader(shader);
+		DX9Wrapper::Set_Texture(0,nullptr);
+		DX9Wrapper::Apply_Render_State_Changes();	//force update of view and projection matrices
 
 		struct _TRANS_LIT_TEX_VERTEX {
 			Vector4 p;
@@ -262,7 +262,7 @@ Bool W3DSmudgeManager::testHardwareSupport()
 		v[2].color = UNIQUE_COLOR;
 		v[3].color = UNIQUE_COLOR;
 
-		LPDIRECT3DDEVICE9EX pDev=DX8Wrapper::_Get_D3D_Device9();
+		LPDIRECT3DDEVICE9EX pDev=DX9Wrapper::_Get_D3D_Device9();
 
 		//draw polygons like this is very inefficient but for only 2 triangles, it's
 		//not worth bothering with index/vertex buffers.
@@ -279,7 +279,7 @@ Bool W3DSmudgeManager::testHardwareSupport()
 			return FALSE;
 		}
 
-		DX8Wrapper::Set_DX8_Texture(0,backTexture);
+		DX9Wrapper::Set_DX9_Texture(0,backTexture);
 
 		DWORD testData[BLOCK_SIZE*BLOCK_SIZE];
 		memset(testData,0xff,sizeof(testData));
@@ -329,7 +329,7 @@ void W3DSmudgeManager::render(RenderInfoClass &rinfo)
 	SurfaceClass *backBuffer = nullptr;
 	{
 		IDirect3DSurface9 *current = nullptr;
-		DX8Wrapper::_Get_D3D_Device9()->GetRenderTarget(0, &current);
+		DX9Wrapper::_Get_D3D_Device9()->GetRenderTarget(0, &current);
 		if (current)
 		{
 			// The copy cannot convert formats, and the scene texture can be 16-bit float (EwHdr), so
@@ -341,7 +341,7 @@ void W3DSmudgeManager::render(RenderInfoClass &rinfo)
 				&& background_desc.Format != target_desc.Format)
 			{
 				IDirect3DTexture9 *texture = nullptr;
-				if (SUCCEEDED(DX8Wrapper::_Get_D3D_Device9()->CreateTexture(background_desc.Width, background_desc.Height, 1,
+				if (SUCCEEDED(DX9Wrapper::_Get_D3D_Device9()->CreateTexture(background_desc.Width, background_desc.Height, 1,
 					D3DUSAGE_RENDERTARGET, target_desc.Format, D3DPOOL_DEFAULT, &texture, nullptr)))
 				{
 					REF_PTR_RELEASE(m_backgroundTexture);
@@ -475,30 +475,30 @@ void W3DSmudgeManager::render(RenderInfoClass &rinfo)
 	REF_PTR_RELEASE(backBuffer);
 
 	Matrix4x4 identity(true);
-	DX8Wrapper::Set_Transform(D3DTS_WORLD,identity);
-	DX8Wrapper::Set_Transform(D3DTS_VIEW,identity);
+	DX9Wrapper::Set_Transform(D3DTS_WORLD,identity);
+	DX9Wrapper::Set_Transform(D3DTS_VIEW,identity);
 
-	DX8Wrapper::Set_Index_Buffer(m_indexBuffer,0);
-	//DX8Wrapper::Set_Shader(ShaderClass::_PresetOpaqueSpriteShader);
+	DX9Wrapper::Set_Index_Buffer(m_indexBuffer,0);
+	//DX9Wrapper::Set_Shader(ShaderClass::_PresetOpaqueSpriteShader);
 
-	DX8Wrapper::Set_Shader(ShaderClass::_PresetAlphaShader);
+	DX9Wrapper::Set_Shader(ShaderClass::_PresetAlphaShader);
 
-	DX8Wrapper::Set_Texture(0,m_backgroundTexture);
+	DX9Wrapper::Set_Texture(0,m_backgroundTexture);
 	//Need these states in case texture is non-power-of-2
-	DX8Wrapper::Set_DX8_Sampler_State( 0, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP);
-	DX8Wrapper::Set_DX8_Sampler_State( 0, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP);
-	DX8Wrapper::Set_DX8_Sampler_State( 0, D3DSAMP_ADDRESSW, D3DTADDRESS_CLAMP);
-	DX8Wrapper::Set_DX8_Sampler_State( 0, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
-	DX8Wrapper::Set_DX8_Sampler_State( 0, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
-	DX8Wrapper::Set_DX8_Sampler_State( 0, D3DSAMP_MIPFILTER, D3DTEXF_NONE);
+	DX9Wrapper::Set_DX9_Sampler_State( 0, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP);
+	DX9Wrapper::Set_DX9_Sampler_State( 0, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP);
+	DX9Wrapper::Set_DX9_Sampler_State( 0, D3DSAMP_ADDRESSW, D3DTADDRESS_CLAMP);
+	DX9Wrapper::Set_DX9_Sampler_State( 0, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
+	DX9Wrapper::Set_DX9_Sampler_State( 0, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
+	DX9Wrapper::Set_DX9_Sampler_State( 0, D3DSAMP_MIPFILTER, D3DTEXF_NONE);
 	VertexMaterialClass *vmat=VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE);
-	DX8Wrapper::Set_Material(vmat);
+	DX9Wrapper::Set_Material(vmat);
 	REF_PTR_RELEASE(vmat);
-	DX8Wrapper::Apply_Render_State_Changes();
+	DX9Wrapper::Apply_Render_State_Changes();
 
 	//Disable reading texture alpha since it's undefined.
-	//DX8Wrapper::Set_DX8_Texture_Stage_State(0,D3DTSS_COLOROP,D3DTOP_SELECTARG1);
-	DX8Wrapper::Set_DX8_Texture_Stage_State(0,D3DTSS_ALPHAOP,D3DTOP_SELECTARG2);
+	//DX9Wrapper::Set_DX9_Texture_Stage_State(0,D3DTSS_COLOROP,D3DTOP_SELECTARG1);
+	DX9Wrapper::Set_DX9_Texture_Stage_State(0,D3DTSS_ALPHAOP,D3DTOP_SELECTARG2);
 
 	Int smudgesRemaining=count;
 	setIt=m_usedSmudgeSetList.begin();	//first smudge set that needs rendering.
@@ -514,7 +514,7 @@ void W3DSmudgeManager::render(RenderInfoClass &rinfo)
 
 		Int smudgesInRenderBatch=0;
 
-		DynamicVBAccessClass vb_access(BUFFER_TYPE_DYNAMIC_DX8,dynamic_fvf_type,count*5);	//allocate 5 verts per smudge.
+		DynamicVBAccessClass vb_access(BUFFER_TYPE_DYNAMIC_DX9,dynamic_fvf_type,count*5);	//allocate 5 verts per smudge.
 		{
 			DynamicVBAccessClass::WriteLockClass lock(&vb_access);
 			VertexFormatXYZNDUV2* verts=lock.Get_Formatted_Vertex_Array();
@@ -570,23 +570,23 @@ void W3DSmudgeManager::render(RenderInfoClass &rinfo)
 		}
 
 flushSmudges:
-		DX8Wrapper::Set_Vertex_Buffer(vb_access);
+		DX9Wrapper::Set_Vertex_Buffer(vb_access);
 
-		DX8Wrapper::Draw_Triangles(0,smudgesInRenderBatch*4, 0, smudgesInRenderBatch*5);
+		DX9Wrapper::Draw_Triangles(0,smudgesInRenderBatch*4, 0, smudgesInRenderBatch*5);
 
 //Debug Code which draws outline around smudge
-/*		DX8Wrapper::_Get_D3D_Device9()->SetRenderState(D3DRS_FILLMODE,D3DFILL_WIREFRAME);
-		DX8Wrapper::_Get_D3D_Device9()->SetRenderState(D3DRS_ALPHABLENDENABLE,FALSE);
-		DX8Wrapper::Set_DX8_Texture_Stage_State(0,D3DTSS_COLOROP,D3DTOP_SELECTARG2);
-		DX8Wrapper::Draw_Triangles(	0,smudgesInRenderBatch*4, 0, smudgesInRenderBatch*5);
-		DX8Wrapper::_Get_D3D_Device9()->SetRenderState(D3DRS_FILLMODE,D3DFILL_SOLID);
-		DX8Wrapper::_Get_D3D_Device9()->SetRenderState(D3DRS_ALPHABLENDENABLE,TRUE);
-		DX8Wrapper::Set_DX8_Texture_Stage_State(0,D3DTSS_COLOROP,D3DTOP_SELECTARG1);
+/*		DX9Wrapper::_Get_D3D_Device9()->SetRenderState(D3DRS_FILLMODE,D3DFILL_WIREFRAME);
+		DX9Wrapper::_Get_D3D_Device9()->SetRenderState(D3DRS_ALPHABLENDENABLE,FALSE);
+		DX9Wrapper::Set_DX9_Texture_Stage_State(0,D3DTSS_COLOROP,D3DTOP_SELECTARG2);
+		DX9Wrapper::Draw_Triangles(	0,smudgesInRenderBatch*4, 0, smudgesInRenderBatch*5);
+		DX9Wrapper::_Get_D3D_Device9()->SetRenderState(D3DRS_FILLMODE,D3DFILL_SOLID);
+		DX9Wrapper::_Get_D3D_Device9()->SetRenderState(D3DRS_ALPHABLENDENABLE,TRUE);
+		DX9Wrapper::Set_DX9_Texture_Stage_State(0,D3DTSS_COLOROP,D3DTOP_SELECTARG1);
 */
 		smudgesRemaining -= smudgesInRenderBatch;
 	}
 
-	DX8Wrapper::Set_DX8_Texture_Stage_State(0,D3DTSS_COLOROP,D3DTOP_MODULATE);
-	DX8Wrapper::Set_DX8_Texture_Stage_State(0,D3DTSS_ALPHAOP,D3DTOP_MODULATE);
+	DX9Wrapper::Set_DX9_Texture_Stage_State(0,D3DTSS_COLOROP,D3DTOP_MODULATE);
+	DX9Wrapper::Set_DX9_Texture_Stage_State(0,D3DTSS_ALPHAOP,D3DTOP_MODULATE);
 
 }

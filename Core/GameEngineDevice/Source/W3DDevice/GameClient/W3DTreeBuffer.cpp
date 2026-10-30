@@ -140,10 +140,10 @@ int W3DTreeBuffer::W3DTreeTextureClass::update(W3DTreeBuffer *buffer)
 	IDirect3DSurface9 *surface_level;
 	D3DSURFACE_DESC surface_desc;
 	D3DLOCKED_RECT locked_rect;
-	DX8_ErrorCode(Peek_D3D_Texture()->GetSurfaceLevel(0, &surface_level));
-	DX8_ErrorCode(surface_level->GetDesc(&surface_desc));
+	DX9_ErrorCode(Peek_D3D_Texture()->GetSurfaceLevel(0, &surface_level));
+	DX9_ErrorCode(surface_level->GetDesc(&surface_desc));
 
-	DX8_ErrorCode(surface_level->LockRect(&locked_rect, nullptr, 0));
+	DX9_ErrorCode(surface_level->LockRect(&locked_rect, nullptr, 0));
 
 	Int tilePixelExtent = TILE_PIXEL_EXTENT;
 //	Int numRows = surface_desc.Height/(tilePixelExtent+TILE_OFFSET);
@@ -192,11 +192,11 @@ int W3DTreeBuffer::W3DTreeTextureClass::update(W3DTreeBuffer *buffer)
 		}
 
 	}
-	DX8_ErrorCode(surface_level->UnlockRect());
+	DX9_ErrorCode(surface_level->UnlockRect());
 	surface_level->Release();
-	DX8_ErrorCode(DX8Wrapper::_Filter_Texture(Peek_D3D_Texture()));
+	DX9_ErrorCode(DX9Wrapper::_Filter_Texture(Peek_D3D_Texture()));
 	if (WW3D::Get_Texture_Reduction()) {
-		DX8_ErrorCode(Peek_D3D_Texture()->SetLOD((DWORD)WW3D::Get_Texture_Reduction()));
+		DX9_ErrorCode(Peek_D3D_Texture()->SetLOD((DWORD)WW3D::Get_Texture_Reduction()));
 	}
 	return(surface_desc.Height);
 }
@@ -210,7 +210,7 @@ int W3DTreeBuffer::W3DTreeTextureClass::update(W3DTreeBuffer *buffer)
 void W3DTreeBuffer::W3DTreeTextureClass::setLOD(Int LOD) const
 {
 	if (Peek_D3D_Texture()) {
-		DX8_ErrorCode(Peek_D3D_Texture()->SetLOD((DWORD)LOD));
+		DX9_ErrorCode(Peek_D3D_Texture()->SetLOD((DWORD)LOD));
 	}
 }
 //=============================================================================
@@ -741,11 +741,11 @@ void W3DTreeBuffer::loadTreesInVertexAndIndexBuffers(RefRenderObjListIterator *p
 		UnsignedShort *ib;
 		// Lock the buffers.
 	#ifdef USE_STATIC
-		DX8IndexBufferClass::WriteLockClass lockIdxBuffer(m_indexTree[bNdx], 0);
-		DX8VertexBufferClass::WriteLockClass lockVtxBuffer(m_vertexTree[bNdx], 0);
+		DX9IndexBufferClass::WriteLockClass lockIdxBuffer(m_indexTree[bNdx], 0);
+		DX9VertexBufferClass::WriteLockClass lockVtxBuffer(m_vertexTree[bNdx], 0);
 	#else
-		DX8IndexBufferClass::WriteLockClass lockIdxBuffer(m_indexTree[bNdx], D3DLOCK_DISCARD);
-		DX8VertexBufferClass::WriteLockClass lockVtxBuffer(m_vertexTree[bNdx], D3DLOCK_DISCARD);
+		DX9IndexBufferClass::WriteLockClass lockIdxBuffer(m_indexTree[bNdx], D3DLOCK_DISCARD);
+		DX9VertexBufferClass::WriteLockClass lockVtxBuffer(m_vertexTree[bNdx], D3DLOCK_DISCARD);
 	#endif
 		vb=(VertexFormatXYZNDUV1*)lockVtxBuffer.Get_Vertex_Array();
 		ib = lockIdxBuffer.Get_Index_Array();
@@ -964,9 +964,9 @@ void W3DTreeBuffer::updateVertexBuffer()
 		VertexFormatXYZNDUV1 *vb;
 		// Lock the buffers.
 	#ifdef USE_STATIC
-		DX8VertexBufferClass::WriteLockClass lockVtxBuffer(m_vertexTree[bNdx], 0);
+		DX9VertexBufferClass::WriteLockClass lockVtxBuffer(m_vertexTree[bNdx], 0);
 	#else
-		DX8VertexBufferClass::WriteLockClass lockVtxBuffer(m_vertexTree[bNdx], D3DLOCK_DISCARD);
+		DX9VertexBufferClass::WriteLockClass lockVtxBuffer(m_vertexTree[bNdx], D3DLOCK_DISCARD);
 	#endif
 		vb=(VertexFormatXYZNDUV1*)lockVtxBuffer.Get_Vertex_Array();
 		if (!vb) {
@@ -1208,16 +1208,16 @@ void W3DTreeBuffer::allocateTreeBuffers()
 	m_ewLitFormat = EwGraphics().PerPixelLighting && m_dwTreeVertexShader != nullptr
 		&& EwShaders::Peek_Vertex(EwShaders::VS_TREES_LIT) != nullptr
 		&& EwShaders::Peek_Pixel(EwShaders::PS_TREES_LIT) != nullptr;
-	const unsigned treeFvf = m_ewLitFormat ? DX8_FVF_XYZNDUV1TG3 : DX8_FVF_XYZNDUV1;
+	const unsigned treeFvf = m_ewLitFormat ? DX9_FVF_XYZNDUV1TG3 : DX9_FVF_XYZNDUV1;
 
 	Int i;
 	for	(i=0; i<MAX_BUFFERS; i++) {
 	#ifdef USE_STATIC
-		m_vertexTree[i]=NEW_REF(DX8VertexBufferClass,(treeFvf,MAX_TREE_VERTEX+4,DX8VertexBufferClass::USAGE_DEFAULT));
-		m_indexTree[i]=NEW_REF(DX8IndexBufferClass,(MAX_TREE_INDEX+4, DX8IndexBufferClass::USAGE_DEFAULT));
+		m_vertexTree[i]=NEW_REF(DX9VertexBufferClass,(treeFvf,MAX_TREE_VERTEX+4,DX9VertexBufferClass::USAGE_DEFAULT));
+		m_indexTree[i]=NEW_REF(DX9IndexBufferClass,(MAX_TREE_INDEX+4, DX9IndexBufferClass::USAGE_DEFAULT));
 	#else
-		m_vertexTree[i]=NEW_REF(DX8VertexBufferClass,(treeFvf,MAX_TREE_VERTEX+4,DX8VertexBufferClass::USAGE_DYNAMIC));
-		m_indexTree[i]=NEW_REF(DX8IndexBufferClass,(MAX_TREE_INDEX+4, DX8IndexBufferClass::USAGE_DYNAMIC));
+		m_vertexTree[i]=NEW_REF(DX9VertexBufferClass,(treeFvf,MAX_TREE_VERTEX+4,DX9VertexBufferClass::USAGE_DYNAMIC));
+		m_indexTree[i]=NEW_REF(DX9IndexBufferClass,(MAX_TREE_INDEX+4, DX9IndexBufferClass::USAGE_DYNAMIC));
 	#endif
 		m_curNumTreeVertices[i]=0;
 		m_curNumTreeIndices[i]=0;
@@ -1620,11 +1620,11 @@ void W3DTreeBuffer::drawTrees(CameraClass * camera, RefRenderObjListIterator *pD
 //#define DEBUG_TEXTURE 1
 #ifdef DEBUG_TEXTURE // Draw the combined texture for debugging. jba. [4/21/2003]
 	// Setup the vertex buffer, shader & texture.
-	DX8Wrapper::Set_Shader(detailAlphaShader);
-	DX8Wrapper::Set_Texture(0,m_treeTexture);
-	DynamicIBAccessClass ib_access(BUFFER_TYPE_DYNAMIC_DX8, 6);
+	DX9Wrapper::Set_Shader(detailAlphaShader);
+	DX9Wrapper::Set_Texture(0,m_treeTexture);
+	DynamicIBAccessClass ib_access(BUFFER_TYPE_DYNAMIC_DX9, 6);
 	//draw an infinite sky plane
-	DynamicVBAccessClass vb_access(BUFFER_TYPE_DYNAMIC_DX8, DX8_FVF_XYZNDUV2, 4);
+	DynamicVBAccessClass vb_access(BUFFER_TYPE_DYNAMIC_DX9, DX9_FVF_XYZNDUV2, 4);
 	{
 		DynamicIBAccessClass::WriteLockClass ibLock(&ib_access);
 		UnsignedShort *ndx = ibLock.Get_Index_Array();
@@ -1673,29 +1673,29 @@ void W3DTreeBuffer::drawTrees(CameraClass * camera, RefRenderObjListIterator *pD
 		}
 	}
 
-	DX8Wrapper::Set_Index_Buffer(ib_access,0);
-	DX8Wrapper::Set_Vertex_Buffer(vb_access);
+	DX9Wrapper::Set_Index_Buffer(ib_access,0);
+	DX9Wrapper::Set_Vertex_Buffer(vb_access);
 
 	Matrix3D tm(1);
-	DX8Wrapper::Set_Transform(D3DTS_WORLD,tm);
+	DX9Wrapper::Set_Transform(D3DTS_WORLD,tm);
 
-	DX8Wrapper::Draw_Triangles(	0,2, 0,	4);	//draw a quad, 2 triangles, 4 verts
+	DX9Wrapper::Draw_Triangles(	0,2, 0,	4);	//draw a quad, 2 triangles, 4 verts
 #endif
 
 
 	if (m_curNumTreeIndices[0] == 0) {
 		return;
 	}
-	DX8Wrapper::Set_Shader(detailAlphaShader);
+	DX9Wrapper::Set_Shader(detailAlphaShader);
 
-	DX8Wrapper::Set_Texture(0,m_treeTexture);
-	DX8Wrapper::Set_Texture(1,nullptr);
-	DX8Wrapper::Set_DX8_Texture_Stage_State(0,  D3DTSS_TEXCOORDINDEX, 0);
-	DX8Wrapper::Set_DX8_Texture_Stage_State(1,  D3DTSS_TEXCOORDINDEX, 1);
+	DX9Wrapper::Set_Texture(0,m_treeTexture);
+	DX9Wrapper::Set_Texture(1,nullptr);
+	DX9Wrapper::Set_DX9_Texture_Stage_State(0,  D3DTSS_TEXCOORDINDEX, 0);
+	DX9Wrapper::Set_DX9_Texture_Stage_State(1,  D3DTSS_TEXCOORDINDEX, 1);
 	// Draw all the trees.
-	DX8Wrapper::Apply_Render_State_Changes();
+	DX9Wrapper::Apply_Render_State_Changes();
 	W3DShaderManager::setShroudTex(1);
-	DX8Wrapper::Apply_Render_State_Changes();
+	DX9Wrapper::Apply_Render_State_Changes();
 
 	// EastWind M3.1d: per-pixel lit trees (TreesLitVS/TreesLitPS) when the buffers carry the light
 	// inputs and the unit and building light is per pixel (EwGraphics().MeshLighting()).
@@ -1715,24 +1715,24 @@ void W3DTreeBuffer::drawTrees(CameraClass * camera, RefRenderObjListIterator *pD
 
 	if (treeVertexShader) {
 		EwD3DMatrix matProj, matView, matWorld;
-		DX8Wrapper::_Get_DX8_Transform(D3DTS_WORLD, matWorld);
-		DX8Wrapper::_Get_DX8_Transform(D3DTS_VIEW, matView);
-		DX8Wrapper::_Get_DX8_Transform(D3DTS_PROJECTION, matProj);
+		DX9Wrapper::_Get_DX9_Transform(D3DTS_WORLD, matWorld);
+		DX9Wrapper::_Get_DX9_Transform(D3DTS_VIEW, matView);
+		DX9Wrapper::_Get_DX9_Transform(D3DTS_PROJECTION, matProj);
 		EwD3DMatrix mat;
 		EwD3DMatrixMultiply( &mat, &matView, &matProj );
 		EwD3DMatrixMultiply( &mat, &matWorld, &mat );
 		EwD3DMatrixTranspose( &mat, &mat );
 
 		// c4  - Composite World-View-Projection Matrix
-		DX8Wrapper::_Get_D3D_Device9()->SetVertexShaderConstantF(  EW_TREES_VS_WVP, (const float*)&mat,  4 );
+		DX9Wrapper::_Get_D3D_Device9()->SetVertexShaderConstantF(  EW_TREES_VS_WVP, (const float*)&mat,  4 );
 		Vector4 noSway(0,0,0,0);
-		DX8Wrapper::_Get_D3D_Device9()->SetVertexShaderConstantF(  EW_TREES_VS_WAVE, (const float*)&noSway,  1 );
+		DX9Wrapper::_Get_D3D_Device9()->SetVertexShaderConstantF(  EW_TREES_VS_WAVE, (const float*)&noSway,  1 );
 
 		// c8 - c8+MAX_SWAY_TYPES - the sway amount.
 		static_assert(MAX_SWAY_TYPES == EW_TREES_MAX_SWAY, "trees.hlsl must have room for every sway type");
 		for	(i=0; i<MAX_SWAY_TYPES; i++) {
 			Vector4 sway4(swayFactor[i].X, swayFactor[i].Y, swayFactor[i].Z, 0);
-			DX8Wrapper::_Get_D3D_Device9()->SetVertexShaderConstantF(  EW_TREES_VS_WAVE+1+i, (const float*)&sway4,  1 );
+			DX9Wrapper::_Get_D3D_Device9()->SetVertexShaderConstantF(  EW_TREES_VS_WAVE+1+i, (const float*)&sway4,  1 );
 		}
 
 		W3DShroud *shroud;
@@ -1746,19 +1746,19 @@ void W3DTreeBuffer::drawTrees(CameraClass * camera, RefRenderObjListIterator *pD
 			xoffset = -(float)shroud->getDrawOriginX() + width;
 			yoffset = -(float)shroud->getDrawOriginY() + height;
 			Vector4 offset(xoffset, yoffset, 0, 0);
-			DX8Wrapper::_Get_D3D_Device9()->SetVertexShaderConstantF(  EW_TREES_VS_SHROUD_OFS, (const float*)&offset,  1 );
+			DX9Wrapper::_Get_D3D_Device9()->SetVertexShaderConstantF(  EW_TREES_VS_SHROUD_OFS, (const float*)&offset,  1 );
 			width = 1.0f/(width*shroud->getTextureWidth());
 			height = 1.0f/(height*shroud->getTextureHeight());
 			offset.Set(width, height, 1, 1);
-			DX8Wrapper::_Get_D3D_Device9()->SetVertexShaderConstantF(  EW_TREES_VS_SHROUD_SCALE, (const float*)&offset,  1 );
+			DX9Wrapper::_Get_D3D_Device9()->SetVertexShaderConstantF(  EW_TREES_VS_SHROUD_SCALE, (const float*)&offset,  1 );
 
 		} else {
 			Vector4 offset(0,0,0,0);
-			DX8Wrapper::_Get_D3D_Device9()->SetVertexShaderConstantF(  EW_TREES_VS_SHROUD_OFS, (const float*)&offset,  1 );
-			DX8Wrapper::_Get_D3D_Device9()->SetVertexShaderConstantF(  EW_TREES_VS_SHROUD_SCALE, (const float*)&offset,  1 );
+			DX9Wrapper::_Get_D3D_Device9()->SetVertexShaderConstantF(  EW_TREES_VS_SHROUD_OFS, (const float*)&offset,  1 );
+			DX9Wrapper::_Get_D3D_Device9()->SetVertexShaderConstantF(  EW_TREES_VS_SHROUD_SCALE, (const float*)&offset,  1 );
 		}
 
-		DX8Wrapper::Set_Vertex_Shader_Program(treeVertexShader);
+		DX9Wrapper::Set_Vertex_Shader_Program(treeVertexShader);
 		if (treePixelShader) {
 			// The light doLighting bakes in: the ambient of the first object light, and the direction
 			// to each light with its diffuse colour.
@@ -1774,20 +1774,20 @@ void W3DTreeBuffer::drawTrees(CameraClass * camera, RefRenderObjListIterator *pD
 			}
 			light[EW_TREES_PS_OPTIONS].Set(TheTerrainRenderObject->getShroud() != nullptr ? 1.0f : 0.0f,
 				EwGraphics().DebugTerrainLightOnly ? 1.0f : 0.0f, 0, 0);
-			DX8Wrapper::_Get_D3D_Device9()->SetPixelShaderConstantF(EW_TREES_PS_LIGHT, (const float*)light, EW_TREES_PS_COUNT);
-			DX8Wrapper::Set_Pixel_Shader(treePixelShader);
+			DX9Wrapper::_Get_D3D_Device9()->SetPixelShaderConstantF(EW_TREES_PS_LIGHT, (const float*)light, EW_TREES_PS_COUNT);
+			DX9Wrapper::Set_Pixel_Shader(treePixelShader);
 		}
 #if 0
-		DX8Wrapper::Set_Pixel_Shader(m_dwTreePixelShader);
+		DX9Wrapper::Set_Pixel_Shader(m_dwTreePixelShader);
 		// a.c. 6/16 - allow switching between normal and 2X mode for terrain
 		Real mulTwoX = 0.5f;
 		if(TheGlobalData && TheGlobalData->m_useOverbright)
 			mulTwoX = 1.0f;
-		DX8Wrapper::_Get_D3D_Device9()->SetPixelShaderConstantF(1, EwD3DVector4(mulTwoX, mulTwoX, mulTwoX, mulTwoX), 1);
+		DX9Wrapper::_Get_D3D_Device9()->SetPixelShaderConstantF(1, EwD3DVector4(mulTwoX, mulTwoX, mulTwoX, mulTwoX), 1);
 #endif
 
 	} else {
-		DX8Wrapper::Set_Vertex_Shader(DX8_FVF_XYZNDUV1);
+		DX9Wrapper::Set_Vertex_Shader(DX9_FVF_XYZNDUV1);
 	}
 
 
@@ -1796,24 +1796,24 @@ void W3DTreeBuffer::drawTrees(CameraClass * camera, RefRenderObjListIterator *pD
 		if (m_curNumTreeIndices[bNdx]==0) {
 			break;
 		}
-		DX8Wrapper::Set_Index_Buffer(m_indexTree[bNdx],0);
-		DX8Wrapper::Set_Vertex_Buffer(m_vertexTree[bNdx]);
+		DX9Wrapper::Set_Index_Buffer(m_indexTree[bNdx],0);
+		DX9Wrapper::Set_Vertex_Buffer(m_vertexTree[bNdx]);
 		// Render the waving grass
-		DX8Wrapper::Apply_Render_State_Changes();
+		DX9Wrapper::Apply_Render_State_Changes();
 		if (treeVertexShader) {
 			// Apply_Render_State_Changes set the buffer's FVF, which dropped the shader. Rebind it through
 			// the wrapper, not the device, so the Set_Vertex_Shader after the loop unbinds it again.
-			DX8Wrapper::Set_Vertex_Shader_Program(treeVertexShader);
-			DX8Wrapper::_Get_D3D_Device9()->SetTextureStageState(0,  D3DTSS_TEXCOORDINDEX, 0);
-			DX8Wrapper::_Get_D3D_Device9()->SetTextureStageState(1,  D3DTSS_TEXCOORDINDEX, 1);
-			DX8Wrapper::_Get_D3D_Device9()->SetTextureStageState(1,  D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_DISABLE);
+			DX9Wrapper::Set_Vertex_Shader_Program(treeVertexShader);
+			DX9Wrapper::_Get_D3D_Device9()->SetTextureStageState(0,  D3DTSS_TEXCOORDINDEX, 0);
+			DX9Wrapper::_Get_D3D_Device9()->SetTextureStageState(1,  D3DTSS_TEXCOORDINDEX, 1);
+			DX9Wrapper::_Get_D3D_Device9()->SetTextureStageState(1,  D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_DISABLE);
 		}
-		DX8Wrapper::Draw_Triangles(	0, m_curNumTreeIndices[bNdx]/3, 0,	m_curNumTreeVertices[bNdx]);
+		DX9Wrapper::Draw_Triangles(	0, m_curNumTreeIndices[bNdx]/3, 0,	m_curNumTreeVertices[bNdx]);
 	}
 
-	DX8Wrapper::Set_Vertex_Shader(DX8_FVF_XYZNDUV1);
-	DX8Wrapper::Set_Pixel_Shader(0);
-	DX8Wrapper::Invalidate_Cached_Render_States();	//code above mucks around with W3D states so make sure we reset
+	DX9Wrapper::Set_Vertex_Shader(DX9_FVF_XYZNDUV1);
+	DX9Wrapper::Set_Pixel_Shader(0);
+	DX9Wrapper::Invalidate_Cached_Render_States();	//code above mucks around with W3D states so make sure we reset
 
 }
 
@@ -1830,21 +1830,21 @@ void W3DTreeBuffer::drawTreeCasters()
 	if (m_curNumTreeIndices[0] == 0 || m_treeTexture == nullptr || m_dwTreeVertexShader == nullptr) {
 		return;
 	}
-	IDirect3DDevice9 *device = DX8Wrapper::_Get_D3D_Device9();
+	IDirect3DDevice9 *device = DX9Wrapper::_Get_D3D_Device9();
 	if (device == nullptr) {
 		return;
 	}
 
-	DX8Wrapper::Set_Shader(detailAlphaShader);
-	DX8Wrapper::Set_Texture(0, m_treeTexture);
-	DX8Wrapper::Set_Texture(1, nullptr);
-	DX8Wrapper::Set_DX8_Texture_Stage_State(0, D3DTSS_TEXCOORDINDEX, 0);
-	DX8Wrapper::Apply_Render_State_Changes();
+	DX9Wrapper::Set_Shader(detailAlphaShader);
+	DX9Wrapper::Set_Texture(0, m_treeTexture);
+	DX9Wrapper::Set_Texture(1, nullptr);
+	DX9Wrapper::Set_DX9_Texture_Stage_State(0, D3DTSS_TEXCOORDINDEX, 0);
+	DX9Wrapper::Apply_Render_State_Changes();
 
 	EwD3DMatrix matProj, matView, matWorld;
-	DX8Wrapper::_Get_DX8_Transform(D3DTS_WORLD, matWorld);
-	DX8Wrapper::_Get_DX8_Transform(D3DTS_VIEW, matView);
-	DX8Wrapper::_Get_DX8_Transform(D3DTS_PROJECTION, matProj);
+	DX9Wrapper::_Get_DX9_Transform(D3DTS_WORLD, matWorld);
+	DX9Wrapper::_Get_DX9_Transform(D3DTS_VIEW, matView);
+	DX9Wrapper::_Get_DX9_Transform(D3DTS_PROJECTION, matProj);
 	EwD3DMatrix mat;
 	EwD3DMatrixMultiply(&mat, &matView, &matProj);
 	EwD3DMatrixMultiply(&mat, &matWorld, &mat);
@@ -1864,19 +1864,19 @@ void W3DTreeBuffer::drawTreeCasters()
 		if (m_curNumTreeIndices[bNdx]==0) {
 			break;
 		}
-		DX8Wrapper::Set_Index_Buffer(m_indexTree[bNdx], 0);
-		DX8Wrapper::Set_Vertex_Buffer(m_vertexTree[bNdx]);
-		DX8Wrapper::Apply_Render_State_Changes();
-		DX8Wrapper::Set_Vertex_Shader_Program(m_dwTreeVertexShader);
+		DX9Wrapper::Set_Index_Buffer(m_indexTree[bNdx], 0);
+		DX9Wrapper::Set_Vertex_Buffer(m_vertexTree[bNdx]);
+		DX9Wrapper::Apply_Render_State_Changes();
+		DX9Wrapper::Set_Vertex_Shader_Program(m_dwTreeVertexShader);
 		device->SetTextureStageState(0, D3DTSS_TEXCOORDINDEX, 0);
 		device->SetTextureStageState(1, D3DTSS_COLOROP, D3DTOP_DISABLE);
 		device->SetTextureStageState(1, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
-		DX8Wrapper::Draw_Triangles(0, m_curNumTreeIndices[bNdx]/3, 0, m_curNumTreeVertices[bNdx]);
+		DX9Wrapper::Draw_Triangles(0, m_curNumTreeIndices[bNdx]/3, 0, m_curNumTreeVertices[bNdx]);
 	}
 
-	DX8Wrapper::Set_Vertex_Shader(DX8_FVF_XYZNDUV1);
-	DX8Wrapper::Set_Pixel_Shader(0);
-	DX8Wrapper::Invalidate_Cached_Render_States();
+	DX9Wrapper::Set_Vertex_Shader(DX9_FVF_XYZNDUV1);
+	DX9Wrapper::Set_Pixel_Shader(0);
+	DX9Wrapper::Invalidate_Cached_Render_States();
 }
 
 //-------------------------------------------------------------------------------------------------

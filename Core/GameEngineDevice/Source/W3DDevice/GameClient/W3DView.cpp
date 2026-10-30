@@ -1892,7 +1892,7 @@ void W3DView::draw()
 				RenderInfoClass rinfo(*m_3DCamera);
 				// Apply the camera and viewport (including depth range)
 				m_3DCamera->Apply();
-				TheDX8MeshRenderer.Set_Camera(&rinfo.Camera);
+				TheDX9MeshRenderer.Set_Camera(&rinfo.Camera);
 				W3DDisplay::m_3DScene->renderSpecificDrawables(rinfo, 1, &drawable);
 				WW3D::Flush(rinfo);
 			}

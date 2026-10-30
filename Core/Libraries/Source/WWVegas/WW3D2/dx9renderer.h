@@ -50,12 +50,12 @@
 
 class IndexBufferClass;
 class VertexBufferClass;
-class DX8RenderTypeArrayClass;
+class DX9RenderTypeArrayClass;
 class MeshClass;
 class MeshModelClass;
-class DX8PolygonRendererClass;
+class DX9PolygonRendererClass;
 class Vertex_Split_Table;
-class DX8FVFCategoryContainer;
+class DX9FVFCategoryContainer;
 class DecalMeshClass;
 class MaterialPassClass;
 class MatPassTaskClass;
@@ -67,30 +67,30 @@ class CameraClass;
 #define RECORD_RENDER(I,P) render_stats[I].count++; render_stats[I].polys+=P;
 
 /**
-** DX8TextureCategoryClass
+** DX9TextureCategoryClass
 ** This class is used for each Material-Texture-Shader combination that is encountered during rendering.
 ** Each polygon_renderer that uses the same 'TextureCategory' will be linked to the 'TextureCategory' object.
 ** Then, all polygons will be rendered in 'TextureCategory' batches to reduce the number of stage changes
 ** (and most importantly, texture changes) that we cause in DX8.
 */
-class DX8TextureCategoryClass : public MultiListObjectClass
+class DX9TextureCategoryClass : public MultiListObjectClass
 {
 	int												pass;
 	TextureClass *									textures[MeshMatDescClass::MAX_TEX_STAGES];
 	ShaderClass										shader;
 	VertexMaterialClass *						material;
-	DX8PolygonRendererList						PolygonRendererList;
-	DX8FVFCategoryContainer*					container;
+	DX9PolygonRendererList						PolygonRendererList;
+	DX9FVFCategoryContainer*					container;
 
 	PolyRenderTaskClass *						render_task_head;			// polygon renderers queued for rendering
 	static bool											m_gForceMultiply;  // Forces opaque materials to use the multiply blend - pseudo transparent effect.  jba.
 
 public:
 
-	DX8TextureCategoryClass(DX8FVFCategoryContainer* container,TextureClass** textures, ShaderClass shd, VertexMaterialClass* mat,int pass);
-	virtual ~DX8TextureCategoryClass() override;
+	DX9TextureCategoryClass(DX9FVFCategoryContainer* container,TextureClass** textures, ShaderClass shd, VertexMaterialClass* mat,int pass);
+	virtual ~DX9TextureCategoryClass() override;
 
-	void									Add_Render_Task(DX8PolygonRendererClass * p_renderer,MeshClass * p_mesh);
+	void									Add_Render_Task(DX9PolygonRendererClass * p_renderer,MeshClass * p_mesh);
 
 	void									Render();
 	bool									Anything_To_Render() { return (render_task_head != nullptr); }
@@ -100,7 +100,7 @@ public:
 	const VertexMaterialClass *	Peek_Material() { return material; }
 	ShaderClass							Get_Shader() { return shader; }
 
-	DX8PolygonRendererList&			Get_Polygon_Renderer_List() { return PolygonRendererList; }
+	DX9PolygonRendererList&			Get_Polygon_Renderer_List() { return PolygonRendererList; }
 
 	unsigned Add_Mesh(
 		Vertex_Split_Table& split_buffer,
@@ -110,11 +110,11 @@ public:
 		unsigned pass);
 	void Log(bool only_visible);
 
-	void Remove_Polygon_Renderer(DX8PolygonRendererClass* p_renderer);
-	void Add_Polygon_Renderer(DX8PolygonRendererClass* p_renderer,DX8PolygonRendererClass* add_after_this=nullptr);
+	void Remove_Polygon_Renderer(DX9PolygonRendererClass* p_renderer);
+	void Add_Polygon_Renderer(DX9PolygonRendererClass* p_renderer,DX9PolygonRendererClass* add_after_this=nullptr);
 
 
-	DX8FVFCategoryContainer * Get_Container() { return container; }
+	DX9FVFCategoryContainer * Get_Container() { return container; }
 
 	// Force multiply blend on all objects inserted from now on. (Doesn't affect the objects that are already in the lists)
 	static void						SetForceMultiply(bool multiply) { m_gForceMultiply=multiply; }
@@ -124,10 +124,10 @@ public:
 // ----------------------------------------------------------------------------
 
 /**
-** DX8FVFCategoryContainer
+** DX9FVFCategoryContainer
 */
 
-class DX8FVFCategoryContainer : public MultiListObjectClass
+class DX9FVFCategoryContainer : public MultiListObjectClass
 {
 public:
 	enum {
@@ -164,39 +164,39 @@ protected:
 
 	void Render_Procedural_Material_Passes();
 
-	DX8TextureCategoryClass* Find_Matching_Texture_Category(
+	DX9TextureCategoryClass* Find_Matching_Texture_Category(
 		TextureClass* texture,
 		unsigned pass,
 		unsigned stage,
-		DX8TextureCategoryClass* ref_category);
+		DX9TextureCategoryClass* ref_category);
 
-	DX8TextureCategoryClass* Find_Matching_Texture_Category(
+	DX9TextureCategoryClass* Find_Matching_Texture_Category(
 		VertexMaterialClass* vmat,
 		unsigned pass,
-		DX8TextureCategoryClass* ref_category);
+		DX9TextureCategoryClass* ref_category);
 
 public:
 
-	DX8FVFCategoryContainer(unsigned FVF,bool sorting);
-	virtual ~DX8FVFCategoryContainer() override;
+	DX9FVFCategoryContainer(unsigned FVF,bool sorting);
+	virtual ~DX9FVFCategoryContainer() override;
 
 	static unsigned Define_FVF(MeshModelClass* mmc,bool enable_lighting);
 	bool Is_Sorting() const { return sorting; }
 
 	void Change_Polygon_Renderer_Texture(
-		DX8PolygonRendererList& polygon_renderer_list,
+		DX9PolygonRendererList& polygon_renderer_list,
 		TextureClass* texture,
 		TextureClass* new_texture,
 		unsigned pass,
 		unsigned stage);
 
 	void Change_Polygon_Renderer_Material(
-		DX8PolygonRendererList& polygon_renderer_list,
+		DX9PolygonRendererList& polygon_renderer_list,
 		VertexMaterialClass* vmat,
 		VertexMaterialClass* new_vmat,
 		unsigned pass);
 
-	void Remove_Texture_Category(DX8TextureCategoryClass* tex_category);
+	void Remove_Texture_Category(DX9TextureCategoryClass* tex_category);
 
 	virtual void Render()=0;
 	virtual void Add_Mesh(MeshModelClass* mmc)=0;
@@ -205,7 +205,7 @@ public:
 
 	unsigned Get_FVF() const { return FVF; }
 
-	void Add_Visible_Texture_Category(DX8TextureCategoryClass * tex_category,int pass)
+	void Add_Visible_Texture_Category(DX9TextureCategoryClass * tex_category,int pass)
 	{
 		WWASSERT(pass<MAX_PASSES);
 		WWASSERT(tex_category != nullptr);
@@ -228,14 +228,14 @@ public:
 
 
 /**
-** DX8RigidFVFCategoryContainer
+** DX9RigidFVFCategoryContainer
 ** This is an FVFCategoryContainer for rigid (non-skin) meshes
 */
-class DX8RigidFVFCategoryContainer : public DX8FVFCategoryContainer
+class DX9RigidFVFCategoryContainer : public DX9FVFCategoryContainer
 {
 public:
-	DX8RigidFVFCategoryContainer(unsigned FVF,bool sorting);
-	virtual ~DX8RigidFVFCategoryContainer() override;
+	DX9RigidFVFCategoryContainer(unsigned FVF,bool sorting);
+	virtual ~DX9RigidFVFCategoryContainer() override;
 
 	virtual void Add_Mesh(MeshModelClass* mmc) override;
 	virtual void Log(bool only_visible) override;
@@ -263,14 +263,14 @@ protected:
 
 
 /**
-** DX8SkinFVFCategoryContainer
+** DX9SkinFVFCategoryContainer
 ** This is an FVFCategoryContainer for skin meshes
 */
-class DX8SkinFVFCategoryContainer: public DX8FVFCategoryContainer
+class DX9SkinFVFCategoryContainer: public DX9FVFCategoryContainer
 {
 public:
-	DX8SkinFVFCategoryContainer(bool sorting);
-	virtual ~DX8SkinFVFCategoryContainer() override;
+	DX9SkinFVFCategoryContainer(bool sorting);
+	virtual ~DX9SkinFVFCategoryContainer() override;
 
 	virtual void Render() override;
 	virtual void Add_Mesh(MeshModelClass* mmc) override;
@@ -300,17 +300,17 @@ private:
 
 
 /**
-** DX8MeshRendererClass
+** DX9MeshRendererClass
 ** This object is controller for the entire DX8 mesh rendering system.  It organizes mesh
 ** fragments into groups based on FVF, texture, and material.  During rendering, a list of
 ** the visible mesh fragments is composed and rendered.  There is a global instance of this
-** class called TheDX8MeshRenderer that should be used for all mesh rendering.
+** class called TheDX9MeshRenderer that should be used for all mesh rendering.
 */
-class DX8MeshRendererClass
+class DX9MeshRendererClass
 {
 public:
-	DX8MeshRendererClass();
-	~DX8MeshRendererClass();
+	DX9MeshRendererClass();
+	~DX9MeshRendererClass();
 
 	void						Init();
 	void						Shutdown();
@@ -348,4 +348,4 @@ protected:
 
 };
 
-extern DX8MeshRendererClass TheDX8MeshRenderer;
+extern DX9MeshRendererClass TheDX9MeshRenderer;

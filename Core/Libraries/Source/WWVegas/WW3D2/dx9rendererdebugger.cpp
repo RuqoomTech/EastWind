@@ -23,14 +23,14 @@
 
 static HashTemplateClass<unsigned, MeshClass*> MeshHash;
 
-bool DX8RendererDebugger::Enabled;
+bool DX9RendererDebugger::Enabled;
 
-void DX8RendererDebugger::Enable(bool enable)
+void DX9RendererDebugger::Enable(bool enable)
 {
 	Enabled=true;
 }
 
-void DX8RendererDebugger::Get_String(StringClass& s)
+void DX9RendererDebugger::Get_String(StringClass& s)
 {
 	if (!Enabled) {
 		s="";
@@ -69,7 +69,7 @@ void DX8RendererDebugger::Get_String(StringClass& s)
 
 }
 
-void DX8RendererDebugger::Update()
+void DX9RendererDebugger::Update()
 {
 	// Release references to all meshes and empty the hash
 	HashTemplateIterator<unsigned,MeshClass*> ite(MeshHash);
@@ -81,7 +81,7 @@ void DX8RendererDebugger::Update()
 //	if (!Enabled) return;
 }
 
-void DX8RendererDebugger::Add_Mesh(MeshClass* mesh)
+void DX9RendererDebugger::Add_Mesh(MeshClass* mesh)
 {
 #ifdef WWDEBUG
 	if (!Enabled) return;
@@ -94,7 +94,7 @@ void DX8RendererDebugger::Add_Mesh(MeshClass* mesh)
 #endif
 }
 
-void DX8RendererDebugger::Disable_Mesh(unsigned id)
+void DX9RendererDebugger::Disable_Mesh(unsigned id)
 {
 	if (!Enabled) return;
 	MeshClass* mesh=MeshHash.Get(id);
@@ -102,7 +102,7 @@ void DX8RendererDebugger::Disable_Mesh(unsigned id)
 	mesh->Set_Debugger_Disable(true);
 }
 
-void DX8RendererDebugger::Enable_Mesh(unsigned id)
+void DX9RendererDebugger::Enable_Mesh(unsigned id)
 {
 	if (!Enabled) return;
 	MeshClass* mesh=MeshHash.Get(id);
@@ -110,7 +110,7 @@ void DX8RendererDebugger::Enable_Mesh(unsigned id)
 	mesh->Set_Debugger_Disable(false);
 }
 
-void DX8RendererDebugger::Disable_All()
+void DX9RendererDebugger::Disable_All()
 {
 	if (!Enabled) return;
 
@@ -120,7 +120,7 @@ void DX8RendererDebugger::Disable_All()
 	}
 }
 
-void DX8RendererDebugger::Enable_All()
+void DX9RendererDebugger::Enable_All()
 {
 	if (!Enabled) return;
 

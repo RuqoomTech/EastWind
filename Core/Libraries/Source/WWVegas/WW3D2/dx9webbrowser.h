@@ -52,11 +52,11 @@
 struct IDirect3DDevice9Ex;
 
 /**
-** DX8WebBrowser
+** DX9WebBrowser
 **
 ** DX8 interface wrapper class.  This encapsulates the BrowserEngine interface.
 */
-class DX8WebBrowser
+class DX9WebBrowser
 {
 public:
 

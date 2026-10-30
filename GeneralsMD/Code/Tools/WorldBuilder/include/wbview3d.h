@@ -63,7 +63,7 @@ struct WB3DFont
 /////////////////////////////////////////////////////////////////////////////
 // WbView3d view
 
-class WbView3d : public WbView, public DX8_CleanupHook
+class WbView3d : public WbView, public DX9_CleanupHook
 {
 protected:
 	WbView3d();           // protected constructor used by dynamic creation
@@ -72,7 +72,7 @@ protected:
 // Attributes
 public:
 
-	// DX8_CleanupHook methods
+	// DX9_CleanupHook methods
 	virtual void ReleaseResources() override;	///< Release all dx8 resources so the device can be reset.
 	virtual void ReAcquireResources() override;  ///< Reacquire all resources after device reset.
 

@@ -307,7 +307,7 @@ static void Log_Textures(bool inited,unsigned& total_count, unsigned& total_mem)
 		D3DSURFACE_DESC desc;
 		IDirect3DTexture9* d3d_texture=tex->Peek_D3D_Texture();
 		if (!d3d_texture) continue;
-		DX8_ErrorCode(d3d_texture->GetLevelDesc(0,&desc));
+		DX9_ErrorCode(d3d_texture->GetLevelDesc(0,&desc));
 
 		StringClass tex_format="Unknown";
 		switch (desc.Format) {
@@ -514,7 +514,7 @@ void WW3DAssetManager::Release_Unused_Assets()
 void WW3DAssetManager::Free_Assets_With_Exclusion_List(const DynamicVectorClass<StringClass> & exclusion_names)
 {
 	// Reset the dx8 mesh renderer
-	TheDX8MeshRenderer.Invalidate();
+	TheDX9MeshRenderer.Invalidate();
 
 	// Build an exclusion list object that will do the real filtering work for us
 	W3DExclusionListClass exclusion_list(exclusion_names);

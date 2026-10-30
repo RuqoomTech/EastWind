@@ -82,7 +82,7 @@ public:
 	static void Update(void(*network_callback)() = nullptr);
 
 	// returns true if current thread of execution is allowed to make DX8 calls.
-	static bool Is_DX8_Thread();
+	static bool Is_DX9_Thread();
 
 	static void Suspend_Texture_Load();
 	static void Continue_Texture_Load();

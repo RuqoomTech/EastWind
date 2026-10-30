@@ -94,7 +94,7 @@ static void Record_Texture_End()
 	if (record_texture_mode==Debug_Statistics::RECORD_TEXTURE_DETAILS) {
 		char tmp_text[1024];
 		snprintf(tmp_text,sizeof(tmp_text),
-			"Set_DX8_Texture count: %d\nactual changes: %d\n\n"
+			"Set_DX9_Texture count: %d\nactual changes: %d\n\n"
 			"id      refs changes  size      name\n"
 			"--------------------------------------\n",
 
@@ -265,16 +265,16 @@ const StringClass& Debug_Statistics::Get_Record_Texture_String()
 
 // ----------------------------------------------------------------------------
 
-static int dx8_skin_renders;
-static int last_frame_dx8_skin_renders;
-static int dx8_skin_polygons;
-static int last_frame_dx8_skin_polygons;
-static int dx8_skin_vertices;
-static int last_frame_dx8_skin_vertices;
-static int dx8_polygons;
-static int last_frame_dx8_polygons;
-static int dx8_vertices;
-static int last_frame_dx8_vertices;
+static int dx9_skin_renders;
+static int last_frame_dx9_skin_renders;
+static int dx9_skin_polygons;
+static int last_frame_dx9_skin_polygons;
+static int dx9_skin_vertices;
+static int last_frame_dx9_skin_vertices;
+static int dx9_polygons;
+static int last_frame_dx9_polygons;
+static int dx9_vertices;
+static int last_frame_dx9_vertices;
 static int sorting_polygons;
 static int last_frame_sorting_polygons;
 static int sorting_vertices;
@@ -286,49 +286,49 @@ static int last_frame_terrain_particle_batches;
 static int draw_calls;
 static int last_frame_draw_calls;
 
-void Debug_Statistics::Record_DX8_Skin_Polys_And_Vertices(int pcount,int vcount)
+void Debug_Statistics::Record_DX9_Skin_Polys_And_Vertices(int pcount,int vcount)
 {
-	dx8_skin_polygons+=pcount;
-	dx8_skin_vertices+=vcount;
-	dx8_skin_renders++;
+	dx9_skin_polygons+=pcount;
+	dx9_skin_vertices+=vcount;
+	dx9_skin_renders++;
 	draw_calls++;
 }
 
-void Debug_Statistics::Record_DX8_Polys_And_Vertices(int pcount,int vcount,const ShaderClass& shader)
+void Debug_Statistics::Record_DX9_Polys_And_Vertices(int pcount,int vcount,const ShaderClass& shader)
 {
-	if (shader.Get_NPatch_Enable()==ShaderClass::NPATCH_ENABLE && DX8Wrapper::Get_Current_Caps()->Support_NPatches()) {
+	if (shader.Get_NPatch_Enable()==ShaderClass::NPATCH_ENABLE && DX9Wrapper::Get_Current_Caps()->Support_NPatches()) {
 		unsigned level=WW3D::Get_NPatches_Level();
 		level*=level;
 		pcount*=level;
 	}
-	dx8_polygons+=pcount;
-	dx8_vertices+=vcount;
+	dx9_polygons+=pcount;
+	dx9_vertices+=vcount;
 	draw_calls++;
 }
 
-int Debug_Statistics::Get_DX8_Skin_Renders()
+int Debug_Statistics::Get_DX9_Skin_Renders()
 {
-	return last_frame_dx8_skin_renders;
+	return last_frame_dx9_skin_renders;
 }
 
-int Debug_Statistics::Get_DX8_Skin_Polygons()
+int Debug_Statistics::Get_DX9_Skin_Polygons()
 {
-	return last_frame_dx8_skin_polygons;
+	return last_frame_dx9_skin_polygons;
 }
 
-int Debug_Statistics::Get_DX8_Skin_Vertices()
+int Debug_Statistics::Get_DX9_Skin_Vertices()
 {
-	return last_frame_dx8_skin_vertices;
+	return last_frame_dx9_skin_vertices;
 }
 
-int Debug_Statistics::Get_DX8_Polygons()
+int Debug_Statistics::Get_DX9_Polygons()
 {
-	return last_frame_dx8_polygons;
+	return last_frame_dx9_polygons;
 }
 
-int Debug_Statistics::Get_DX8_Vertices()
+int Debug_Statistics::Get_DX9_Vertices()
 {
-	return last_frame_dx8_vertices;
+	return last_frame_dx9_vertices;
 }
 
 void Debug_Statistics::Record_Sorting_Polys_And_Vertices(int pcount,int vcount)
@@ -377,36 +377,36 @@ int Debug_Statistics::Get_Draw_Calls()
 
 void Debug_Statistics::Begin_Statistics()
 {
-	dx8_polygons=0;
-	dx8_vertices=0;
-	dx8_skin_polygons=0;
-	dx8_skin_vertices=0;
-	dx8_skin_renders=0;
+	dx9_polygons=0;
+	dx9_vertices=0;
+	dx9_skin_polygons=0;
+	dx9_skin_vertices=0;
+	dx9_skin_renders=0;
 	sorting_polygons=0;
 	sorting_vertices=0;
 	terrain_particle_triangles=0;
 	terrain_particle_batches=0;
 	draw_calls=0;
 	Record_Texture_Begin();
-	DX8Wrapper::Begin_Statistics();
-//	DX8MeshRendererClass::Begin_Statistics();
+	DX9Wrapper::Begin_Statistics();
+//	DX9MeshRendererClass::Begin_Statistics();
 }
 
 void Debug_Statistics::End_Statistics()
 {
 	Record_Texture_End();
-	last_frame_dx8_skin_polygons=dx8_skin_polygons;
-	last_frame_dx8_skin_vertices=dx8_skin_vertices;
-	last_frame_dx8_skin_renders=dx8_skin_renders;
-	last_frame_dx8_polygons=dx8_polygons;
-	last_frame_dx8_vertices=dx8_vertices;
+	last_frame_dx9_skin_polygons=dx9_skin_polygons;
+	last_frame_dx9_skin_vertices=dx9_skin_vertices;
+	last_frame_dx9_skin_renders=dx9_skin_renders;
+	last_frame_dx9_polygons=dx9_polygons;
+	last_frame_dx9_vertices=dx9_vertices;
 	last_frame_sorting_polygons=sorting_polygons;
 	last_frame_sorting_vertices=sorting_vertices;
 	last_frame_terrain_particle_triangles=terrain_particle_triangles;
 	last_frame_terrain_particle_batches=terrain_particle_batches;
 	last_frame_draw_calls=draw_calls;
-//	DX8MeshRendererClass::End_Statistics();
-	DX8Wrapper::End_Statistics();
+//	DX9MeshRendererClass::End_Statistics();
+	DX9Wrapper::End_Statistics();
 }
 
 void Debug_Statistics::Shutdown_Statistics()

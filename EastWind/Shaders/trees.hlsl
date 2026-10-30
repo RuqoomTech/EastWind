@@ -3,7 +3,7 @@
 // The pixel stages stay fixed-function, as in DX8 (Trees.pso was never used).
 // TreesLitVS/TreesLitPS at the end light trees per pixel instead (M3.1d).
 //
-// Vertex format DX8_FVF_XYZNDUV1, with the normal used for tree data:
+// Vertex format DX9_FVF_XYZNDUV1, with the normal used for tree data:
 //   normal.x = sway type (index into Wave), normal.y = colour scale, normal.z = base z of the tree.
 
 #include "shader_constants.h"
@@ -52,7 +52,7 @@ VsOut TreesVS(VsIn i)
 // light plus the material emissive plus each light's diffuse against the vertex normal, clamped
 // to 0..1, times the mesh vertex colour. drawTrees then darkens pushed-aside trees (normal.y).
 // TreesLitPS does the same per pixel. With EwPerPixelLighting the vertex buffer has the
-// DX8_FVF_XYZNDUV1TG3 layout, and the three extra coordinates hold what doLighting needs:
+// DX9_FVF_XYZNDUV1TG3 layout, and the three extra coordinates hold what doLighting needs:
 //   TEXCOORD1 the vertex normal, turned with the tree (as doLighting gets it)
 //   TEXCOORD2 the material emissive
 //   TEXCOORD3 the mesh vertex colour (white without one)

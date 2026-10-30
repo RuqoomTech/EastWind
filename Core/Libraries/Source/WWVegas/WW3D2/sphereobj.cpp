@@ -468,13 +468,13 @@ void SphereRenderObjClass::render_sphere()
 	} else {
 		SphereShader.Set_Texturing (ShaderClass::TEXTURING_DISABLE);
 	}
-	DX8Wrapper::Set_Shader(SphereShader);
-	DX8Wrapper::Set_Texture(0,SphereTexture);
-	DX8Wrapper::Set_Material(SphereMaterial);
+	DX9Wrapper::Set_Shader(SphereShader);
+	DX9Wrapper::Set_Texture(0,SphereTexture);
+	DX9Wrapper::Set_Material(SphereMaterial);
 
 	// Enable sorting if the primitive is translucent, alpha testing is not enabled, and sorting is enabled globally.
 	const bool sort = (SphereShader.Get_Dst_Blend_Func() != ShaderClass::DSTBLEND_ZERO) && (SphereShader.Get_Alpha_Test() == ShaderClass::ALPHATEST_DISABLE) && (WW3D::Is_Sorting_Enabled());
- 	const unsigned int buffer_type = sort ? BUFFER_TYPE_DYNAMIC_SORTING : BUFFER_TYPE_DYNAMIC_DX8;
+ 	const unsigned int buffer_type = sort ? BUFFER_TYPE_DYNAMIC_SORTING : BUFFER_TYPE_DYNAMIC_DX9;
 
 	DynamicVBAccessClass vb(buffer_type, dynamic_fvf_type, mesh.Vertex_ct);
 	{
@@ -492,7 +492,7 @@ void SphereRenderObjClass::render_sphere()
 			vb->nz = mesh.vtx_normal[i].Z;
 
 			if (Flags & USE_ALPHA_VECTOR) {
-				vb->diffuse = DX8Wrapper::Convert_Color(mesh.dcg[i]);
+				vb->diffuse = DX9Wrapper::Convert_Color(mesh.dcg[i]);
 			} else {
 				vb->diffuse = 0xFFFFFFFF;		// TODO could combine the material color with this and turn off lighting
 			}
@@ -517,13 +517,13 @@ void SphereRenderObjClass::render_sphere()
 		}
 	}
 
-	DX8Wrapper::Set_Vertex_Buffer(vb);
-	DX8Wrapper::Set_Index_Buffer(ib,0);
+	DX9Wrapper::Set_Vertex_Buffer(vb);
+	DX9Wrapper::Set_Index_Buffer(ib,0);
 
 	if (sort) {
 		SortingRendererClass::Insert_Triangles(Get_Bounding_Sphere(), 0, mesh.face_ct, 0, mesh.Vertex_ct);
 	} else {
-		DX8Wrapper::Draw_Triangles(0,mesh.face_ct,0,mesh.Vertex_ct);
+		DX9Wrapper::Draw_Triangles(0,mesh.face_ct,0,mesh.Vertex_ct);
 	}
 
 }
@@ -659,7 +659,7 @@ void SphereRenderObjClass::Render(RenderInfoClass & rinfo)
 		// Camera Align
 		if (Flags & USE_CAMERA_ALIGN) {
 			Matrix4x4 view,ident(true);
-			DX8Wrapper::Get_Transform(D3DTS_VIEW,view);
+			DX9Wrapper::Get_Transform(D3DTS_VIEW,view);
 
 			Vector4 wpos(Transform[0][3],Transform[1][3],Transform[2][3],1);
 			Vector4 cpos;
@@ -670,12 +670,12 @@ void SphereRenderObjClass::Render(RenderInfoClass & rinfo)
 							1.0f, 0.0f, 0.0f, cpos.Z);
 
 			tm.Scale(real_scale);
-			DX8Wrapper::Set_Transform(D3DTS_WORLD,ident);
-			DX8Wrapper::Set_Transform(D3DTS_VIEW,tm);
+			DX9Wrapper::Set_Transform(D3DTS_WORLD,ident);
+			DX9Wrapper::Set_Transform(D3DTS_VIEW,tm);
 			render_sphere();
-			DX8Wrapper::Set_Transform(D3DTS_VIEW,view);
+			DX9Wrapper::Set_Transform(D3DTS_VIEW,view);
 		} else {
-			DX8Wrapper::Set_Transform(D3DTS_WORLD,temp);
+			DX9Wrapper::Set_Transform(D3DTS_WORLD,temp);
 			render_sphere();
 		}
 	}

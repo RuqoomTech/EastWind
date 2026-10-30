@@ -91,7 +91,7 @@ void WBHeightMap::flattenHeights() {
 	for (j=0; j<m_numVBTilesY; j++)
 		for (i=0; i<m_numVBTilesX; i++)
 		{
-			DX8VertexBufferClass::WriteLockClass lockVtxBuffer(getVertexBufferTile(i, j));
+			DX9VertexBufferClass::WriteLockClass lockVtxBuffer(getVertexBufferTile(i, j));
 			VERTEX_FORMAT *vbHardware = (VERTEX_FORMAT*)lockVtxBuffer.Get_Vertex_Array();
 			Int vtx;
 			for (vtx=0; vtx<HEIGHTMAP_VERTEX_NUM; vtx++) {

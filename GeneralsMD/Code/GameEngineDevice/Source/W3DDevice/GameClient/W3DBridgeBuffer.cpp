@@ -131,9 +131,9 @@ are already set.  */
 void W3DBridge::renderBridge(Bool wireframe)
 {
 	if (m_visible && m_numPolygons && m_numVertex) {
-		if (!wireframe) DX8Wrapper::Set_Texture(0,m_bridgeTexture);
+		if (!wireframe) DX9Wrapper::Set_Texture(0,m_bridgeTexture);
 		// Draw all the bridges.
-		DX8Wrapper::Draw_Triangles(	m_firstIndex, m_numPolygons, m_firstVertex,	m_numVertex);
+		DX9Wrapper::Draw_Triangles(	m_firstIndex, m_numPolygons, m_firstVertex,	m_numVertex);
 	}
 }
 
@@ -701,8 +701,8 @@ void W3DBridgeBuffer::loadBridgesInVertexAndIndexBuffers(RefRenderObjListIterato
 	VertexFormatXYZNDUV1 *vb;
 	UnsignedShort *ib;
 	// Lock the buffers.
-	DX8IndexBufferClass::WriteLockClass lockIdxBuffer(m_indexBridge, D3DLOCK_DISCARD);
-	DX8VertexBufferClass::WriteLockClass lockVtxBuffer(m_vertexBridge, D3DLOCK_DISCARD);
+	DX9IndexBufferClass::WriteLockClass lockIdxBuffer(m_indexBridge, D3DLOCK_DISCARD);
+	DX9VertexBufferClass::WriteLockClass lockVtxBuffer(m_vertexBridge, D3DLOCK_DISCARD);
 	vb=(VertexFormatXYZNDUV1*)lockVtxBuffer.Get_Vertex_Array();
 	ib = lockIdxBuffer.Get_Index_Array();
 
@@ -774,8 +774,8 @@ void W3DBridgeBuffer::allocateBridgeBuffers()
 {
 	if (TheGlobalData->m_headless)
 		return;
-	m_vertexBridge=NEW_REF(DX8VertexBufferClass,(DX8_FVF_XYZNDUV1,MAX_BRIDGE_VERTEX+4,DX8VertexBufferClass::USAGE_DYNAMIC));
-	m_indexBridge=NEW_REF(DX8IndexBufferClass,(MAX_BRIDGE_INDEX+4, DX8IndexBufferClass::USAGE_DYNAMIC));
+	m_vertexBridge=NEW_REF(DX9VertexBufferClass,(DX9_FVF_XYZNDUV1,MAX_BRIDGE_VERTEX+4,DX9VertexBufferClass::USAGE_DYNAMIC));
+	m_indexBridge=NEW_REF(DX9IndexBufferClass,(MAX_BRIDGE_INDEX+4, DX9IndexBufferClass::USAGE_DYNAMIC));
 	m_vertexMaterial=VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE);
 #ifdef USE_BRIDGE_NORMALS
 	m_vertexMaterial= NEW VertexMaterialClass();
@@ -1160,16 +1160,16 @@ void W3DBridgeBuffer::drawBridges(CameraClass * camera, Bool wireframe, TextureC
 		return;
 	}
 
-	DX8Wrapper::Set_Material(m_vertexMaterial);
+	DX9Wrapper::Set_Material(m_vertexMaterial);
 	// Setup the vertex buffer, shader & texture.
-	DX8Wrapper::Set_Index_Buffer(m_indexBridge,0);
-	DX8Wrapper::Set_Vertex_Buffer(m_vertexBridge);
-	DX8Wrapper::Set_Shader(detailAlphaShader);
+	DX9Wrapper::Set_Index_Buffer(m_indexBridge,0);
+	DX9Wrapper::Set_Vertex_Buffer(m_vertexBridge);
+	DX9Wrapper::Set_Shader(detailAlphaShader);
 #ifdef RTS_DEBUG
-	//DX8Wrapper::Set_Shader(detailShader); // shows alpha clipping.
+	//DX9Wrapper::Set_Shader(detailShader); // shows alpha clipping.
 #endif
 
-	DX8Wrapper::Apply_Render_State_Changes();
+	DX9Wrapper::Apply_Render_State_Changes();
 
 	if (!wireframe && cloudTexture)
 	{
@@ -1192,12 +1192,12 @@ void W3DBridgeBuffer::drawBridges(CameraClass * camera, Bool wireframe, TextureC
 	if (!wireframe && TheTerrainRenderObject->getShroud())
 	{
 		//Reset to a known shader.
-		DX8Wrapper::Invalidate_Cached_Render_States();
-		DX8Wrapper::Set_Shader(ShaderClass::_PresetOpaqueShader);
-		DX8Wrapper::Set_Material(m_vertexMaterial);
-		DX8Wrapper::Set_Index_Buffer(m_indexBridge,0);
-		DX8Wrapper::Set_Vertex_Buffer(m_vertexBridge);
-		DX8Wrapper::Apply_Render_State_Changes();
+		DX9Wrapper::Invalidate_Cached_Render_States();
+		DX9Wrapper::Set_Shader(ShaderClass::_PresetOpaqueShader);
+		DX9Wrapper::Set_Material(m_vertexMaterial);
+		DX9Wrapper::Set_Index_Buffer(m_indexBridge,0);
+		DX9Wrapper::Set_Vertex_Buffer(m_vertexBridge);
+		DX9Wrapper::Apply_Render_State_Changes();
 		//Apply custom shroud projection shader.
 		W3DShaderManager::setTexture(0,TheTerrainRenderObject->getShroud()->getShroudTexture());
 		W3DShaderManager::setShader(W3DShaderManager::ST_SHROUD_TEXTURE, 0);

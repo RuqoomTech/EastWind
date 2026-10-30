@@ -140,7 +140,7 @@ private:
 	DynamicVectorClass<ResolutionDescClass>	ResArray;
 
 	friend class WW3D;
-	friend class DX8Wrapper;
+	friend class DX9Wrapper;
 };
 
 

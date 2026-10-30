@@ -70,7 +70,7 @@ void W3DProfilerFrameCapture::Capture(UnsignedInt displayWidth, UnsignedInt disp
 		return;
 
 	// allocate render target
-	TextureClass *renderTarget = DX8Wrapper::Create_Render_Target(PROFILER_FRAME_IMAGE_SIZE, PROFILER_FRAME_IMAGE_SIZE, WW3D_FORMAT_A8R8G8B8);
+	TextureClass *renderTarget = DX9Wrapper::Create_Render_Target(PROFILER_FRAME_IMAGE_SIZE, PROFILER_FRAME_IMAGE_SIZE, WW3D_FORMAT_A8R8G8B8);
 	if (!renderTarget)
 		return;
 
@@ -85,7 +85,7 @@ void W3DProfilerFrameCapture::Capture(UnsignedInt displayWidth, UnsignedInt disp
 	}
 
 	// get the backbuffer
-	SurfaceClass *backBuffer = DX8Wrapper::_Get_DX8_Back_Buffer();
+	SurfaceClass *backBuffer = DX9Wrapper::_Get_DX9_Back_Buffer();
 	if (!backBuffer)
 	{
 		REF_PTR_RELEASE(surfaceClass);
@@ -106,7 +106,7 @@ void W3DProfilerFrameCapture::Capture(UnsignedInt displayWidth, UnsignedInt disp
 
 	// allocate intermediate texture
 	IDirect3DTexture9 *intermediateTexture = nullptr;
-	hr = DX8Wrapper::_Get_D3D_Device9()->CreateTexture(
+	hr = DX9Wrapper::_Get_D3D_Device9()->CreateTexture(
 		backBufferSurfaceDesc.Width,
 		backBufferSurfaceDesc.Height,
 		1,
@@ -134,7 +134,7 @@ void W3DProfilerFrameCapture::Capture(UnsignedInt displayWidth, UnsignedInt disp
 		intermediateTexture->Release();
 		return;
 	}
-	DX8Wrapper::_Copy_DX8_Rects(backBufferSurface, nullptr, 0, intermediateTextureSurface, nullptr);
+	DX9Wrapper::_Copy_DX9_Rects(backBufferSurface, nullptr, 0, intermediateTextureSurface, nullptr);
 	intermediateTextureSurface->Release();
 	intermediateTextureSurface = nullptr;
 
@@ -145,10 +145,10 @@ void W3DProfilerFrameCapture::Capture(UnsignedInt displayWidth, UnsignedInt disp
 	// set render target to a small surface
 	IDirect3DSurface9 *smallRenderTargetSurface = renderTarget->Get_D3D_Surface_Level();
 	WWASSERT(smallRenderTargetSurface != nullptr);
-	DX8Wrapper::Set_Render_Target(smallRenderTargetSurface, false);
+	DX9Wrapper::Set_Render_Target(smallRenderTargetSurface, false);
 
 	// set viewport
-	IDirect3DDevice9Ex *device = DX8Wrapper::_Get_D3D_Device9();
+	IDirect3DDevice9Ex *device = DX9Wrapper::_Get_D3D_Device9();
 	D3DVIEWPORT9 restoreViewport;
 	device->GetViewport(&restoreViewport);
 
@@ -162,11 +162,11 @@ void W3DProfilerFrameCapture::Capture(UnsignedInt displayWidth, UnsignedInt disp
 	viewport.Height = smallRenderDesc.Height;
 	viewport.MinZ = 0.0f;
 	viewport.MaxZ = 1.0f;
-	DX8Wrapper::Set_Viewport(&viewport);
+	DX9Wrapper::Set_Viewport(&viewport);
 
 	// bind swizzle shader
 	// The ps.1.4 version built the swizzle from mask constants c0-c2; the HLSL one is a plain .bgra.
-	DX8Wrapper::Set_Pixel_Shader(m_swizzleShader);
+	DX9Wrapper::Set_Pixel_Shader(m_swizzleShader);
 
 	// draw texture scaled-down onto a small surface
 	struct QuadVertex
@@ -182,18 +182,18 @@ void W3DProfilerFrameCapture::Capture(UnsignedInt displayWidth, UnsignedInt disp
 	vtx[1] = {right, top,    0.0f, 1.0f, 1.0f, 0.0f};
 	vtx[2] = {left,  bottom, 0.0f, 1.0f, 0.0f, 1.0f};
 	vtx[3] = {left,  top,    0.0f, 1.0f, 0.0f, 0.0f};
-	DX8Wrapper::Set_DX8_Texture(0, intermediateTexture);
-	DX8Wrapper::Set_Vertex_Shader(D3DFVF_XYZRHW | D3DFVF_TEX1);
+	DX9Wrapper::Set_DX9_Texture(0, intermediateTexture);
+	DX9Wrapper::Set_Vertex_Shader(D3DFVF_XYZRHW | D3DFVF_TEX1);
 	device->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, vtx, sizeof(QuadVertex));
-	DX8Wrapper::Set_Pixel_Shader(0);
-	DX8Wrapper::Set_DX8_Texture(0, nullptr);
-	DX8Wrapper::Set_Viewport(&restoreViewport);
-	DX8Wrapper::Set_Render_Target(static_cast<IDirect3DSurface9 *>(nullptr));
+	DX9Wrapper::Set_Pixel_Shader(0);
+	DX9Wrapper::Set_DX9_Texture(0, nullptr);
+	DX9Wrapper::Set_Viewport(&restoreViewport);
+	DX9Wrapper::Set_Render_Target(static_cast<IDirect3DSurface9 *>(nullptr));
 
 	// copy the small surface pixels from GPU to CPU
 	RECT srcRect = { 0, 0, PROFILER_FRAME_IMAGE_SIZE, smallRenderDesc.Height };
 	POINT dstPoint = { 0, 0 };
-	DX8Wrapper::_Copy_DX8_Rects(
+	DX9Wrapper::_Copy_DX9_Rects(
 		smallRenderTargetSurface,
 		&srcRect,
 		1,

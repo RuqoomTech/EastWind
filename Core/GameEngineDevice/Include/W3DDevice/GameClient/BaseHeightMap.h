@@ -72,7 +72,7 @@ class W3DDynamicLight;
 #define DO_ROADS 1
 
 #define VERTEX_FORMAT VertexFormatXYZDUV2
-#define DX8_VERTEX_FORMAT DX8_FVF_XYZDUV2
+#define DX9_VERTEX_FORMAT DX9_FVF_XYZDUV2
 
 /// Custom render object that draws the heightmap and handles intersection tests.
 /**
@@ -80,7 +80,7 @@ Custom W3D render object that's used to process the terrain.  It handles
 virtually everything to do with the terrain, including: drawing, lighting,
 scorchmarks and intersection tests.
 */
-class BaseHeightMapRenderObjClass : public RenderObjClass, public DX8_CleanupHook, public Snapshot
+class BaseHeightMapRenderObjClass : public RenderObjClass, public DX9_CleanupHook, public Snapshot
 {
 
 public:
@@ -88,7 +88,7 @@ public:
 	BaseHeightMapRenderObjClass();
 	virtual ~BaseHeightMapRenderObjClass() override;
 
-	// DX8_CleanupHook methods
+	// DX9_CleanupHook methods
 	virtual void ReleaseResources() override;	///< Release all dx8 resources so the device can be reset.
 	virtual void ReAcquireResources() override;  ///< Reacquire all resources after device reset.
 

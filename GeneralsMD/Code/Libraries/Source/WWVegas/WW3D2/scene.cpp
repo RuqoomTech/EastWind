@@ -216,7 +216,7 @@ void SceneClass::Render(RenderInfoClass & rinfo)
 	// Any stuff that needs to get done before anything else
 	Pre_Render_Processing(rinfo);
 
-	DX8Wrapper::Set_Fog(FogEnabled, FogColor, FogStart, FogEnd);
+	DX9Wrapper::Set_Fog(FogEnabled, FogColor, FogStart, FogEnd);
 
 	if (Get_Extra_Pass_Polygon_Mode()==EXTRA_PASS_DISABLE) {
 		Customized_Render(rinfo);
@@ -224,20 +224,20 @@ void SceneClass::Render(RenderInfoClass & rinfo)
 	else {
 		bool old_enable=WW3D::Is_Texturing_Enabled();
 
-		DX8Wrapper::Set_DX8_ZBias(0);
+		DX9Wrapper::Set_DX9_ZBias(0);
 		Customized_Render(rinfo);
 		switch (Get_Extra_Pass_Polygon_Mode()) {
 		case EXTRA_PASS_LINE:
 			WW3D::Enable_Texturing(false);
-			DX8Wrapper::Set_DX8_Render_State(D3DRS_FILLMODE,D3DFILL_WIREFRAME);
-			DX8Wrapper::Set_DX8_ZBias(7);
+			DX9Wrapper::Set_DX9_Render_State(D3DRS_FILLMODE,D3DFILL_WIREFRAME);
+			DX9Wrapper::Set_DX9_ZBias(7);
 			Customized_Render(rinfo);
 			break;
 		case EXTRA_PASS_CLEAR_LINE:
 			Renderer::Clear(true, false, Vector3(0.0f,0.0f,0.0f));	// Clear color but not z
 			WW3D::Enable_Texturing(false);
-			DX8Wrapper::Set_DX8_Render_State(D3DRS_FILLMODE,D3DFILL_WIREFRAME);
-			DX8Wrapper::Set_DX8_ZBias(7);
+			DX9Wrapper::Set_DX9_Render_State(D3DRS_FILLMODE,D3DFILL_WIREFRAME);
+			DX9Wrapper::Set_DX9_ZBias(7);
 			Customized_Render(rinfo);
 			break;
 		}
@@ -557,10 +557,10 @@ void SimpleSceneClass::Customized_Render(RenderInfoClass & rinfo)
 	// derived classes should use light environment
 	WWASSERT(rinfo.light_environment==nullptr);
 	// Turn off lights in case we have none
-	DX8Wrapper::Set_Light(0,nullptr);
-	DX8Wrapper::Set_Light(1,nullptr);
-	DX8Wrapper::Set_Light(2,nullptr);
-	DX8Wrapper::Set_Light(3,nullptr);
+	DX9Wrapper::Set_Light(0,nullptr);
+	DX9Wrapper::Set_Light(1,nullptr);
+	DX9Wrapper::Set_Light(2,nullptr);
+	DX9Wrapper::Set_Light(3,nullptr);
 
 // (gth) WWShade only works with light environments.  We need to upgrade LightEnvironment to
 // support real point lights, etc.  It will likely just evolve into "the n most important" lights
@@ -571,7 +571,7 @@ void SimpleSceneClass::Customized_Render(RenderInfoClass & rinfo)
 	{
 		if (count<4)
 		{
-			DX8Wrapper::Set_Light(count,*(LightClass*)it.Peek_Obj());
+			DX9Wrapper::Set_Light(count,*(LightClass*)it.Peek_Obj());
 		} else
 		{
 			// Simple scene only supports 4 global lights

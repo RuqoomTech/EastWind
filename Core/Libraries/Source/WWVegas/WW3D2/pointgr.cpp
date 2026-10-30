@@ -133,7 +133,7 @@ VectorClass<Vector2>			VertexUV;		// vertex texture coords
 #define MAX_QUAD_POINTS		MAX_VB_SIZE/4
 #define MAX_QUAD_IB_SIZE	6*MAX_QUAD_POINTS
 
-DX8IndexBufferClass			*Tris, *Quads;						// Index buffers.
+DX9IndexBufferClass			*Tris, *Quads;						// Index buffers.
 SortingIndexBufferClass		*SortingTris, *SortingQuads;	// Sorting index buffers.
 
 /**************************************************************************
@@ -880,7 +880,7 @@ void PointGroupClass::Render(RenderInfoClass &rinfo)
 
 	// Get the world and view matrices
 	Matrix4x4 view;
-	DX8Wrapper::Get_Transform(D3DTS_VIEW,view);
+	DX9Wrapper::Get_Transform(D3DTS_VIEW,view);
 
 	// Transform the point locations from worldspace to camera space if needed
 	// (i.e. if they are not already in camera space):
@@ -919,13 +919,13 @@ void PointGroupClass::Render(RenderInfoClass &rinfo)
 	// so set world and view matrices to identity and render
 
 	Matrix4x4 identity(true);
-	DX8Wrapper::Set_Transform(D3DTS_WORLD,identity);
-	DX8Wrapper::Set_Transform(D3DTS_VIEW,identity);
+	DX9Wrapper::Set_Transform(D3DTS_WORLD,identity);
+	DX9Wrapper::Set_Transform(D3DTS_VIEW,identity);
 
-	DX8Wrapper::Set_Material(PointMaterial);
-	DX8Wrapper::Set_Shader(Shader);
-	DX8Wrapper::Set_Texture(0,Texture);
-	DX8Wrapper::Set_Ew_Soft_Particle(Billboard);	// EastWind: ground-aligned particles keep hard edges
+	DX9Wrapper::Set_Material(PointMaterial);
+	DX9Wrapper::Set_Shader(Shader);
+	DX9Wrapper::Set_Texture(0,Texture);
+	DX9Wrapper::Set_Ew_Soft_Particle(Billboard);	// EastWind: ground-aligned particles keep hard edges
 
 	// Enable sorting if the primitives are translucent and alpha testing is not enabled.
 	// TheSuperHackers @bugfix stephanmeesters 30/06/2026 However, do not apply sorting to ground-aligned particles.
@@ -953,7 +953,7 @@ void PointGroupClass::Render(RenderInfoClass &rinfo)
 	while (current<vnum)
 	{
 		delta=MIN(vnum-current,MAX_VB_SIZE);
-		DynamicVBAccessClass PointVerts (sort ? BUFFER_TYPE_DYNAMIC_SORTING : BUFFER_TYPE_DYNAMIC_DX8, dynamic_fvf_type, delta);
+		DynamicVBAccessClass PointVerts (sort ? BUFFER_TYPE_DYNAMIC_SORTING : BUFFER_TYPE_DYNAMIC_DX9, dynamic_fvf_type, delta);
 
 		// Copy in the data to the VB
 		{
@@ -970,19 +970,19 @@ void PointGroupClass::Render(RenderInfoClass &rinfo)
 				// Copy Locations
 				*(Vector3*)(vb+fvfinfo.Get_Location_Offset())=VertexLoc[i];
 				if (current_diffuse) {
-					unsigned color=DX8Wrapper::Convert_Color_Clamp(VertexDiffuse[i]);
+					unsigned color=DX9Wrapper::Convert_Color_Clamp(VertexDiffuse[i]);
 					*(unsigned int*)(vb+fvfinfo.Get_Diffuse_Offset())=color;
 				}
 				else
 					*(unsigned int*)(vb+fvfinfo.Get_Diffuse_Offset())=
-						DX8Wrapper::Convert_Color_Clamp(Vector4(DefaultPointColor[0],DefaultPointColor[1],DefaultPointColor[2],DefaultPointAlpha));
+						DX9Wrapper::Convert_Color_Clamp(Vector4(DefaultPointColor[0],DefaultPointColor[1],DefaultPointColor[2],DefaultPointAlpha));
 				*(Vector2*)(vb+fvfinfo.Get_Tex_Offset(0))=VertexUV[i];
 				vb+=fvfinfo.Get_FVF_Size();
 			}
 		}
 
-		DX8Wrapper::Set_Index_Buffer (indexbuffer, 0);
-		DX8Wrapper::Set_Vertex_Buffer (PointVerts);
+		DX9Wrapper::Set_Index_Buffer (indexbuffer, 0);
+		DX9Wrapper::Set_Vertex_Buffer (PointVerts);
 
 		if ( sort )
 		{
@@ -990,15 +990,15 @@ void PointGroupClass::Render(RenderInfoClass &rinfo)
 		}
 		else
 		{
-			DX8Wrapper::Draw_Triangles (0, delta / verticesperprimitive, 0, delta);
+			DX9Wrapper::Draw_Triangles (0, delta / verticesperprimitive, 0, delta);
 		}
 
 		current+=delta;
 	}
 
-	DX8Wrapper::Set_Ew_Soft_Particle(false);
+	DX9Wrapper::Set_Ew_Soft_Particle(false);
 	// restore the matrices
-	DX8Wrapper::Set_Transform(D3DTS_VIEW,view);
+	DX9Wrapper::Set_Transform(D3DTS_VIEW,view);
 }
 
 
@@ -1222,7 +1222,7 @@ void PointGroupClass::Update_Arrays(
 				Matrix4x4 view;
 				Vector4 result;
 				if (!Billboard) {
-					DX8Wrapper::Get_Transform(D3DTS_VIEW,view);
+					DX9Wrapper::Get_Transform(D3DTS_VIEW,view);
 				}
 
 				// Scale vertex offsets and add them to point locations to get vertex locations
@@ -1547,21 +1547,21 @@ void PointGroupClass::_Init()
 	}
 
 	// Create the IBs
-	Tris=NEW_REF(DX8IndexBufferClass,(MAX_TRI_IB_SIZE));
-	Quads=NEW_REF(DX8IndexBufferClass,(MAX_QUAD_IB_SIZE));
+	Tris=NEW_REF(DX9IndexBufferClass,(MAX_TRI_IB_SIZE));
+	Quads=NEW_REF(DX9IndexBufferClass,(MAX_QUAD_IB_SIZE));
 	SortingTris=NEW_REF(SortingIndexBufferClass,(MAX_TRI_IB_SIZE));
 	SortingQuads=NEW_REF(SortingIndexBufferClass,(MAX_QUAD_IB_SIZE));
 
 	// Fill up the IBs
 	{
-		DX8IndexBufferClass::WriteLockClass locktris(Tris);
+		DX9IndexBufferClass::WriteLockClass locktris(Tris);
 		unsigned short *ib=locktris.Get_Index_Array();
 		for (i=0; i<MAX_TRI_IB_SIZE; i++) ib[i]=(unsigned short) i;
 	}
 
 	{
 		unsigned short vert=0;
-		DX8IndexBufferClass::WriteLockClass lockquads(Quads);
+		DX9IndexBufferClass::WriteLockClass lockquads(Quads);
 		unsigned short *ib=lockquads.Get_Index_Array();
 		vert=0;
 		for (i=0; i<MAX_QUAD_IB_SIZE; i+=6)
@@ -1712,7 +1712,7 @@ void PointGroupClass::RenderVolumeParticle(RenderInfoClass &rinfo, unsigned int 
 
 		// Get the world and view matrices
 		Matrix4x4 view;
-		DX8Wrapper::Get_Transform(D3DTS_VIEW,view);
+		DX9Wrapper::Get_Transform(D3DTS_VIEW,view);
 
 
 
@@ -1851,13 +1851,13 @@ void PointGroupClass::RenderVolumeParticle(RenderInfoClass &rinfo, unsigned int 
 		// so set world and view matrices to identity and render
 
 		Matrix4x4 identity(true);
-		DX8Wrapper::Set_Transform(D3DTS_WORLD,identity);
-		DX8Wrapper::Set_Transform(D3DTS_VIEW,identity);
+		DX9Wrapper::Set_Transform(D3DTS_WORLD,identity);
+		DX9Wrapper::Set_Transform(D3DTS_VIEW,identity);
 
-		DX8Wrapper::Set_Material(PointMaterial);
-		DX8Wrapper::Set_Shader(Shader);
-		DX8Wrapper::Set_Texture(0,Texture);
-		DX8Wrapper::Set_Ew_Soft_Particle(Billboard);
+		DX9Wrapper::Set_Material(PointMaterial);
+		DX9Wrapper::Set_Shader(Shader);
+		DX9Wrapper::Set_Texture(0,Texture);
+		DX9Wrapper::Set_Ew_Soft_Particle(Billboard);
 
 		// Enable sorting if the primitives are translucent and alpha testing is not enabled.
 		// TheSuperHackers @info Volumetric particles, both billboarded and ground-aligned, must have sorting enabled to
@@ -1882,7 +1882,7 @@ void PointGroupClass::RenderVolumeParticle(RenderInfoClass &rinfo, unsigned int 
 		while (current<vnum)
 		{
 			delta=MIN(vnum-current,MAX_VB_SIZE);
-			DynamicVBAccessClass PointVerts (sort ? BUFFER_TYPE_DYNAMIC_SORTING : BUFFER_TYPE_DYNAMIC_DX8, dynamic_fvf_type, delta);
+			DynamicVBAccessClass PointVerts (sort ? BUFFER_TYPE_DYNAMIC_SORTING : BUFFER_TYPE_DYNAMIC_DX9, dynamic_fvf_type, delta);
 
 			// Copy in the data to the VB
 			{
@@ -1901,19 +1901,19 @@ void PointGroupClass::RenderVolumeParticle(RenderInfoClass &rinfo, unsigned int 
 					*(Vector3*)(vb+fvfinfo.Get_Location_Offset()) = VertexLoc[i];
 
 					if (current_diffuse) {
-						unsigned color=DX8Wrapper::Convert_Color_Clamp(VertexDiffuse[i]);
+						unsigned color=DX9Wrapper::Convert_Color_Clamp(VertexDiffuse[i]);
 						*(unsigned int*)(vb+fvfinfo.Get_Diffuse_Offset())=color;
 					}
 					else
 						*(unsigned int*)(vb+fvfinfo.Get_Diffuse_Offset())=
-							DX8Wrapper::Convert_Color_Clamp(Vector4(DefaultPointColor[0],DefaultPointColor[1],DefaultPointColor[2],DefaultPointAlpha));
+							DX9Wrapper::Convert_Color_Clamp(Vector4(DefaultPointColor[0],DefaultPointColor[1],DefaultPointColor[2],DefaultPointAlpha));
 					*(Vector2*)(vb+fvfinfo.Get_Tex_Offset(0))=VertexUV[i];
 					vb+=fvfinfo.Get_FVF_Size();
 				}
 			}
 
-			DX8Wrapper::Set_Index_Buffer (indexbuffer, 0);
-			DX8Wrapper::Set_Vertex_Buffer (PointVerts);
+			DX9Wrapper::Set_Index_Buffer (indexbuffer, 0);
+			DX9Wrapper::Set_Vertex_Buffer (PointVerts);
 
 			/// @todo lorenzen sez: precompute these params, above
 
@@ -1921,7 +1921,7 @@ void PointGroupClass::RenderVolumeParticle(RenderInfoClass &rinfo, unsigned int 
 			if ( sort )
 					SortingRendererClass::Insert_Triangles (0, delta / verticesperprimitive, 0, delta);
 			else
-				DX8Wrapper::Draw_Triangles (0, delta / verticesperprimitive, 0, delta);
+				DX9Wrapper::Draw_Triangles (0, delta / verticesperprimitive, 0, delta);
 
 
 			current+=delta;
@@ -1934,7 +1934,7 @@ void PointGroupClass::RenderVolumeParticle(RenderInfoClass &rinfo, unsigned int 
 
 
 
-	DX8Wrapper::Set_Ew_Soft_Particle(false);
+	DX9Wrapper::Set_Ew_Soft_Particle(false);
 	// restore the matrices
-	DX8Wrapper::Set_Transform(D3DTS_VIEW,view);
+	DX9Wrapper::Set_Transform(D3DTS_VIEW,view);
 }

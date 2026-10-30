@@ -45,7 +45,7 @@
 class		SceneClass;
 class		CameraClass;
 class		ShaderClass;
-class		DX8Wrapper;
+class		DX9Wrapper;
 
 struct	RenderStatistics;
 class		FrameGrabClass;
@@ -94,7 +94,7 @@ public:
 		MESH_DRAW_MODE_DEBUG_CLIP,
 		MESH_DRAW_MODE_DEBUG_BOX,
 		MESH_DRAW_MODE_NONE,
-		MESH_DRAW_MODE_DX8_ONLY
+		MESH_DRAW_MODE_DX9_ONLY
 	};
 
 	enum NPatchesGapFillingModeEnum {

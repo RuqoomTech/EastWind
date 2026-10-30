@@ -42,10 +42,10 @@
 #include "WWDebug/wwdebug.h"
 #include "WWMath/sphere.h"
 
-class DX8Wrapper;
+class DX9Wrapper;
 class SortingRendererClass;
 struct IDirect3DIndexBuffer9;
-class DX8IndexBufferClass;
+class DX9IndexBufferClass;
 class SortingIndexBufferClass;
 
 // ----------------------------------------------------------------------------
@@ -107,7 +107,7 @@ class DynamicIBAccessClass
 {
 	W3DMPO_CODE(DynamicIBAccessClass)
 
-	friend DX8Wrapper;
+	friend DX9Wrapper;
 	friend SortingRendererClass;
 
 	unsigned Type;
@@ -116,7 +116,7 @@ class DynamicIBAccessClass
 	IndexBufferClass* IndexBuffer;
 
 	void Allocate_Sorting_Dynamic_Buffer();
-	void Allocate_DX8_Dynamic_Buffer();
+	void Allocate_DX9_Dynamic_Buffer();
 
 public:
 	enum { MAX_INDEX_COUNT = 0xffff }; ///< index_count is an unsigned short
@@ -150,12 +150,12 @@ public:
 
 
 /**
-** DX8IndexBufferClass
+** DX9IndexBufferClass
 ** This class wraps a DX8 index buffer.
 */
-class DX8IndexBufferClass : public IndexBufferClass
+class DX9IndexBufferClass : public IndexBufferClass
 {
-	W3DMPO_CODE(DX8IndexBufferClass)
+	W3DMPO_CODE(DX9IndexBufferClass)
 
 	friend IndexBufferClass::WriteLockClass;
 	friend IndexBufferClass::AppendLockClass;
@@ -167,13 +167,13 @@ public:
 		USAGE_NPATCHES=4
 	};
 
-	DX8IndexBufferClass(unsigned short index_count,UsageType usage=USAGE_DEFAULT);
-	virtual ~DX8IndexBufferClass() override;
+	DX9IndexBufferClass(unsigned short index_count,UsageType usage=USAGE_DEFAULT);
+	virtual ~DX9IndexBufferClass() override;
 
 	void Copy(unsigned int* indices,unsigned start_index,unsigned index_count);
 	void Copy(unsigned short* indices,unsigned start_index,unsigned index_count);
 
-	IDirect3DIndexBuffer9* Get_DX8_Index_Buffer()	{ return index_buffer; }
+	IDirect3DIndexBuffer9* Get_DX9_Index_Buffer()	{ return index_buffer; }
 
 private:
 	IDirect3DIndexBuffer9*	index_buffer;		// actual dx8 index buffer
@@ -185,7 +185,7 @@ class SortingIndexBufferClass : public IndexBufferClass
 {
 	W3DMPO_CODE(SortingIndexBufferClass)
 
-	friend DX8Wrapper;
+	friend DX9Wrapper;
 	friend SortingRendererClass;
 	friend IndexBufferClass::WriteLockClass;
 	friend IndexBufferClass::AppendLockClass;

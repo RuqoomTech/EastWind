@@ -179,7 +179,7 @@ void DynamicMeshModel::Render(RenderInfoClass & rinfo)
 	// Process texture reductions:
 //	MatInfo->Process_Texture_Reduction();
 
-	unsigned buffer_type=(Get_Flag(MeshGeometryClass::SORT)&& WW3D::Is_Sorting_Enabled()) ? BUFFER_TYPE_DYNAMIC_SORTING : BUFFER_TYPE_DYNAMIC_DX8;
+	unsigned buffer_type=(Get_Flag(MeshGeometryClass::SORT)&& WW3D::Is_Sorting_Enabled()) ? BUFFER_TYPE_DYNAMIC_SORTING : BUFFER_TYPE_DYNAMIC_DX9;
 
 	/*
 	** Write the vertex data to the vertex buffer. We assume the FVF contains positions, normals,
@@ -250,8 +250,8 @@ void DynamicMeshModel::Render(RenderInfoClass & rinfo)
 	/*
 	** Set vertex and index buffers
 	*/
-	DX8Wrapper::Set_Vertex_Buffer(dynamic_vb);
-	DX8Wrapper::Set_Index_Buffer(dynamic_ib,0);
+	DX9Wrapper::Set_Vertex_Buffer(dynamic_vb);
+	DX9Wrapper::Set_Index_Buffer(dynamic_ib,0);
 
 	/*
 	** Draw dynamesh, one pass at a time
@@ -303,26 +303,26 @@ void DynamicMeshModel::Render(RenderInfoClass & rinfo)
 
 		// Set the DX8 state to the first triangle's state
 		if (texture_array0) {
-			DX8Wrapper::Set_Texture(0,texture_array0[0]);
+			DX9Wrapper::Set_Texture(0,texture_array0[0]);
 		} else {
-			DX8Wrapper::Set_Texture(0,MatDesc->Peek_Single_Texture(pass, 0));
+			DX9Wrapper::Set_Texture(0,MatDesc->Peek_Single_Texture(pass, 0));
 		}
 
 		if (texture_array1) {
-			DX8Wrapper::Set_Texture(1,texture_array1[0]);
+			DX9Wrapper::Set_Texture(1,texture_array1[0]);
 		} else {
-			DX8Wrapper::Set_Texture(1,MatDesc->Peek_Single_Texture(pass, 1));
+			DX9Wrapper::Set_Texture(1,MatDesc->Peek_Single_Texture(pass, 1));
 		}
 
 		if (material_array) {
-			DX8Wrapper::Set_Material(material_array[tris[0].I]);
+			DX9Wrapper::Set_Material(material_array[tris[0].I]);
 		} else {
-			DX8Wrapper::Set_Material(MatDesc->Peek_Single_Material(pass));
+			DX9Wrapper::Set_Material(MatDesc->Peek_Single_Material(pass));
 		}
 		if (shader_array) {
-			DX8Wrapper::Set_Shader(shader_array[0]);
+			DX9Wrapper::Set_Shader(shader_array[0]);
 		} else {
-			DX8Wrapper::Set_Shader(MatDesc->Get_Single_Shader(pass));
+			DX9Wrapper::Set_Shader(MatDesc->Get_Single_Shader(pass));
 		}
 
 		SphereClass sphere;
@@ -334,7 +334,7 @@ void DynamicMeshModel::Render(RenderInfoClass & rinfo)
 				SortingRendererClass::Insert_Triangles(sphere,0, DynamicMeshPNum, 0, DynamicMeshVNum);
 			}
 			else {
-				DX8Wrapper::Draw_Triangles(0, DynamicMeshPNum, 0, DynamicMeshVNum);
+				DX9Wrapper::Draw_Triangles(0, DynamicMeshPNum, 0, DynamicMeshVNum);
 			}
 			continue;
 		}
@@ -374,7 +374,7 @@ void DynamicMeshModel::Render(RenderInfoClass & rinfo)
 						1 + max_vert_idx - min_vert_idx);
 				}
 				else {
-					DX8Wrapper::Draw_Triangles(
+					DX9Wrapper::Draw_Triangles(
 						(start_tri_idx * 3),
 						(1 + cur_tri_idx - start_tri_idx),
 						min_vert_idx,
@@ -383,10 +383,10 @@ void DynamicMeshModel::Render(RenderInfoClass & rinfo)
 				start_tri_idx = next_tri_idx;
 				min_vert_idx = DynamicMeshVNum - 1;
 				max_vert_idx = 0;
-				if (texture_changed) DX8Wrapper::Set_Texture(0,texture_array0[next_tri_idx]);
-				if (texture1_changed) DX8Wrapper::Set_Texture(1,texture_array1[next_tri_idx]);
-				if (material_changed) DX8Wrapper::Set_Material(material_array[tris[next_tri_idx].I]);
-				if (shader_changed) DX8Wrapper::Set_Shader(shader_array[next_tri_idx]);
+				if (texture_changed) DX9Wrapper::Set_Texture(0,texture_array0[next_tri_idx]);
+				if (texture1_changed) DX9Wrapper::Set_Texture(1,texture_array1[next_tri_idx]);
+				if (material_changed) DX9Wrapper::Set_Material(material_array[tris[next_tri_idx].I]);
+				if (shader_changed) DX9Wrapper::Set_Shader(shader_array[next_tri_idx]);
 			}
 
 			cur_tri_idx = next_tri_idx;
@@ -432,7 +432,7 @@ void DynamicMeshClass::Render(RenderInfoClass & rinfo)
 		const FrustumClass & frustum = rinfo.Camera.Get_Frustum();
 
 		if (CollisionMath::Overlap_Test(frustum, Get_Bounding_Box()) != CollisionMath::OUTSIDE) {
-			DX8Wrapper::Set_Transform(D3DTS_WORLD, Transform);
+			DX9Wrapper::Set_Transform(D3DTS_WORLD, Transform);
 			Model->Render(rinfo);
 		}
 	}
@@ -463,7 +463,7 @@ bool DynamicMeshClass::End_Vertex()
 //			color->Z = CurVertexColor[color_array_index].Z;
 //			color->W = CurVertexColor[color_array_index].W;
 			unsigned * color = &((Model->Get_Color_Array(color_array_index))[VertCount]);
-			*color=DX8Wrapper::Convert_Color_Clamp(CurVertexColor[color_array_index]);
+			*color=DX9Wrapper::Convert_Color_Clamp(CurVertexColor[color_array_index]);
 		}
 	}
 

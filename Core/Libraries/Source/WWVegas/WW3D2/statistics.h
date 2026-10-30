@@ -48,15 +48,15 @@ namespace Debug_Statistics
 	int Get_Record_Procedural_Texture_Count();	// Return total number of procedutal textures used during latest frame
 	const StringClass& Get_Record_Texture_String();
 
-	void Record_DX8_Skin_Polys_And_Vertices(int pcount,int vcount);
-	void Record_DX8_Polys_And_Vertices(int pcount,int vcount,const ShaderClass& shader);
+	void Record_DX9_Skin_Polys_And_Vertices(int pcount,int vcount);
+	void Record_DX9_Polys_And_Vertices(int pcount,int vcount,const ShaderClass& shader);
 	void Record_Sorting_Polys_And_Vertices(int pcount,int vcount);
 	void Record_Terrain_Particle_Batch(int triangle_count);
-	int Get_DX8_Polygons();
-	int Get_DX8_Vertices();
-	int Get_DX8_Skin_Renders();
-	int Get_DX8_Skin_Polygons();
-	int Get_DX8_Skin_Vertices();
+	int Get_DX9_Polygons();
+	int Get_DX9_Vertices();
+	int Get_DX9_Skin_Renders();
+	int Get_DX9_Skin_Polygons();
+	int Get_DX9_Skin_Vertices();
 	int Get_Sorting_Polygons();
 	int Get_Sorting_Vertices();
 	int Get_Terrain_Particle_Triangles();
@@ -69,9 +69,9 @@ namespace Debug_Statistics
 };
 
 #define ADD_STATISTICS_VERTEX_PROCESSOR_PUSH Debug_Statistics::Add_Vertex_Processor()
-#define DX8_RECORD_TEXTURE(t) Debug_Statistics::Record_Texture(t)
-#define DX8_RECORD_TEXTURE_ARRAY(t,c) Debug_Statistics::Record_Texture_Array(t,c)
-#define DX8_RECORD_RENDER(polys,verts,shader) Debug_Statistics::Record_DX8_Polys_And_Vertices(polys,verts,shader)
-#define DX8_RECORD_SORTING_RENDER(polys,verts) Debug_Statistics::Record_Sorting_Polys_And_Vertices(polys,verts)
-#define DX8_RECORD_SKIN_RENDER(polys,verts) Debug_Statistics::Record_DX8_Skin_Polys_And_Vertices(polys,verts)
-#define DX8_RECORD_TERRAIN_PARTICLE_BATCH(triangles) Debug_Statistics::Record_Terrain_Particle_Batch(triangles)
+#define DX9_RECORD_TEXTURE(t) Debug_Statistics::Record_Texture(t)
+#define DX9_RECORD_TEXTURE_ARRAY(t,c) Debug_Statistics::Record_Texture_Array(t,c)
+#define DX9_RECORD_RENDER(polys,verts,shader) Debug_Statistics::Record_DX9_Polys_And_Vertices(polys,verts,shader)
+#define DX9_RECORD_SORTING_RENDER(polys,verts) Debug_Statistics::Record_Sorting_Polys_And_Vertices(polys,verts)
+#define DX9_RECORD_SKIN_RENDER(polys,verts) Debug_Statistics::Record_DX9_Skin_Polys_And_Vertices(polys,verts)
+#define DX9_RECORD_TERRAIN_PARTICLE_BATCH(triangles) Debug_Statistics::Record_Terrain_Particle_Batch(triangles)

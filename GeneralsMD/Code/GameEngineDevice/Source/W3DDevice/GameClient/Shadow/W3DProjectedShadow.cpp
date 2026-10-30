@@ -261,16 +261,16 @@ Bool W3DProjectedShadowManager::ReAcquireResources()
 	DEBUG_ASSERTCRASH(m_dynamicRenderTarget == nullptr, ("Acquire of existing shadow render target"));
 
 	m_renderTargetHasAlpha=TRUE;
-	if ((m_dynamicRenderTarget=DX8Wrapper::Create_Render_Target (DEFAULT_RENDER_TARGET_WIDTH, DEFAULT_RENDER_TARGET_HEIGHT, WW3D_FORMAT_A8R8G8B8)) == nullptr)
+	if ((m_dynamicRenderTarget=DX9Wrapper::Create_Render_Target (DEFAULT_RENDER_TARGET_WIDTH, DEFAULT_RENDER_TARGET_HEIGHT, WW3D_FORMAT_A8R8G8B8)) == nullptr)
 	{
 			m_renderTargetHasAlpha=FALSE;
 
 			//failed to get a render target with alpha.
 			//try again without.
-			m_dynamicRenderTarget=DX8Wrapper::Create_Render_Target (DEFAULT_RENDER_TARGET_WIDTH, DEFAULT_RENDER_TARGET_HEIGHT);
+			m_dynamicRenderTarget=DX9Wrapper::Create_Render_Target (DEFAULT_RENDER_TARGET_WIDTH, DEFAULT_RENDER_TARGET_HEIGHT);
 	}
 
-	LPDIRECT3DDEVICE9EX m_pDev=DX8Wrapper::_Get_D3D_Device9();
+	LPDIRECT3DDEVICE9EX m_pDev=DX9Wrapper::_Get_D3D_Device9();
 
 	DEBUG_ASSERTCRASH(m_pDev, ("Trying to ReAcquireResources on W3DProjectedShadowManager without device"));
 	DEBUG_ASSERTCRASH(shadowDecalIndexBufferD3D == nullptr && shadowDecalIndexBufferD3D == nullptr, ("ReAcquireResources not released in W3DProjectedShadowManager"));
@@ -372,7 +372,7 @@ Int W3DProjectedShadowManager::renderProjectedTerrainShadow(W3DProjectedShadow *
 		Real mapScaleInv=1.0f/MAP_XY_FACTOR;
 		SHADOW_VOLUME_VERTEX* pvVertices;
 		UnsignedShort *pvIndices;
-		LPDIRECT3DDEVICE9EX m_pDev=DX8Wrapper::_Get_D3D_Device9();
+		LPDIRECT3DDEVICE9EX m_pDev=DX9Wrapper::_Get_D3D_Device9();
 
 		if (!m_pDev)	return 0;
 
@@ -516,9 +516,9 @@ Int W3DProjectedShadowManager::renderProjectedTerrainShadow(W3DProjectedShadow *
 		m_pDev->SetRenderState( D3DRS_DESTBLEND, D3DBLEND_ZERO );
 
 
-		if (DX8Wrapper::_Is_Triangle_Draw_Enabled())
+		if (DX9Wrapper::_Is_Triangle_Draw_Enabled())
 		{
-			Debug_Statistics::Record_DX8_Polys_And_Vertices(numPolys,numVerts,ShaderClass::_PresetOpaqueShader);
+			Debug_Statistics::Record_DX9_Polys_And_Vertices(numPolys,numVerts,ShaderClass::_PresetOpaqueShader);
 			m_pDev->DrawIndexedPrimitive(D3DPT_TRIANGLELIST,nShadowStartBatchVertex,0,numVerts,nShadowStartBatchIndex,numPolys);
 		}
 
@@ -577,8 +577,8 @@ DWORD BDToVA[9][4]=
 
 static void RenderVBTile(TextureClass *text, Real ox, Real oy, Real ou, Real ov, BlendDirection bd=B_A)
 {
-	DynamicVBAccessClass vb_access(BUFFER_TYPE_DYNAMIC_DX8,DX8_FVF_XYZNDUV2,4);
-	DynamicIBAccessClass ib_access(BUFFER_TYPE_DYNAMIC_DX8,6);
+	DynamicVBAccessClass vb_access(BUFFER_TYPE_DYNAMIC_DX9,DX9_FVF_XYZNDUV2,4);
+	DynamicIBAccessClass ib_access(BUFFER_TYPE_DYNAMIC_DX9,6);
 
 	DynamicVBAccessClass::WriteLockClass lock(&vb_access);
 	VertexFormatXYZNDUV2* vb= lock.Get_Formatted_Vertex_Array();
@@ -633,14 +633,14 @@ static void RenderVBTile(TextureClass *text, Real ox, Real oy, Real ou, Real ov,
 		ib[4]=0;
 	}
 
-	DX8Wrapper::Set_Index_Buffer(ib_access,0);
-	DX8Wrapper::Set_Vertex_Buffer(vb_access);
-	DX8Wrapper::Set_Texture(0, text);
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_SRCBLEND,  D3DBLEND_SRCALPHA );
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA  );
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHABLENDENABLE, TRUE );
+	DX9Wrapper::Set_Index_Buffer(ib_access,0);
+	DX9Wrapper::Set_Vertex_Buffer(vb_access);
+	DX9Wrapper::Set_Texture(0, text);
+	DX9Wrapper::Set_DX9_Render_State(D3DRS_SRCBLEND,  D3DBLEND_SRCALPHA );
+	DX9Wrapper::Set_DX9_Render_State(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA  );
+	DX9Wrapper::Set_DX9_Render_State(D3DRS_ALPHABLENDENABLE, TRUE );
 	ShaderClass::Invalidate();	//invalidate to force shader to reset since we directly changed states
-	DX8Wrapper::Draw_Triangles(	0,2, 0,	4);	//draw a quad, 2 triangles, 4 verts
+	DX9Wrapper::Draw_Triangles(	0,2, 0,	4);	//draw a quad, 2 triangles, 4 verts
 }
 
 //Debug code used to draw some dummy polygons.
@@ -656,12 +656,12 @@ void TestBlendRender(RenderInfoClass & rinfo)
 	}
 
 	VertexMaterialClass *vmat=VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE);
-	DX8Wrapper::Set_Material(vmat);
+	DX9Wrapper::Set_Material(vmat);
 	REF_PTR_RELEASE(vmat);
-	DX8Wrapper::Set_Shader(ShaderClass::_PresetOpaqueShader);
+	DX9Wrapper::Set_Shader(ShaderClass::_PresetOpaqueShader);
 
 	Matrix3D tm(1);	//identity
-	DX8Wrapper::Set_Transform(D3DTS_WORLD,tm);
+	DX9Wrapper::Set_Transform(D3DTS_WORLD,tm);
 
 	//grass
 	RenderVBTile(grass,580.0f,480.0f,0.0f,0.0f);	RenderVBTile(grass,590.0f,480.0f,0.25f,0.0f);
@@ -692,33 +692,33 @@ void W3DProjectedShadowManager::flushDecals(W3DShadowTexture *texture, ShadowTyp
 		return;
 	}
 
-	LPDIRECT3DDEVICE9EX m_pDev=DX8Wrapper::_Get_D3D_Device9();
+	LPDIRECT3DDEVICE9EX m_pDev=DX9Wrapper::_Get_D3D_Device9();
 	if (!m_pDev)	return;	//no D3D Device to render
 
 	VertexMaterialClass *vmat=VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE);
-	DX8Wrapper::Set_Material(vmat);
+	DX9Wrapper::Set_Material(vmat);
 	REF_PTR_RELEASE(vmat);
-	DX8Wrapper::Set_Texture(0,texture->getTexture());
+	DX9Wrapper::Set_Texture(0,texture->getTexture());
 
-//	DX8Wrapper::Set_Shader(ShaderClass::_PresetOpaqueShader);	//good for debugging, draws without alpha
+//	DX9Wrapper::Set_Shader(ShaderClass::_PresetOpaqueShader);	//good for debugging, draws without alpha
 	switch (type)
 	{
 		case SHADOW_DECAL:
-			DX8Wrapper::Set_Shader(ShaderClass::_PresetMultiplicativeShader);
+			DX9Wrapper::Set_Shader(ShaderClass::_PresetMultiplicativeShader);
 			break;
 		case SHADOW_ALPHA_DECAL:
-			DX8Wrapper::Set_Shader(ShaderClass::_PresetAlphaShader);
+			DX9Wrapper::Set_Shader(ShaderClass::_PresetAlphaShader);
 			break;
 		case SHADOW_ADDITIVE_DECAL:
-			DX8Wrapper::Set_Shader(ShaderClass::_PresetAdditiveShader);
+			DX9Wrapper::Set_Shader(ShaderClass::_PresetAdditiveShader);
 			break;
 	}
 
-//	DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHAREF,0x60);
-//	DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHAFUNC,D3DCMP_GREATEREQUAL);
+//	DX9Wrapper::Set_DX9_Render_State(D3DRS_ALPHAREF,0x60);
+//	DX9Wrapper::Set_DX9_Render_State(D3DRS_ALPHAFUNC,D3DCMP_GREATEREQUAL);
 	//_PresetAlphaSpriteShader
 
-	DX8Wrapper::Apply_Render_State_Changes();	//force update of view and projection matrices
+	DX9Wrapper::Apply_Render_State_Changes();	//force update of view and projection matrices
 
 //Alpha Blended Shadows
 //	m_pDev->SetRenderState( D3DRS_SRCBLEND,  D3DBLEND_SRCALPHA );
@@ -757,9 +757,9 @@ void W3DProjectedShadowManager::flushDecals(W3DShadowTexture *texture, ShadowTyp
 */
 //m_pDev->SetRenderState( D3DRS_ALPHABLENDENABLE, FALSE );	//useful to see bounds
 
-	if (DX8Wrapper::_Is_Triangle_Draw_Enabled())
+	if (DX9Wrapper::_Is_Triangle_Draw_Enabled())
 	{
-		Debug_Statistics::Record_DX8_Polys_And_Vertices(nShadowDecalPolysInBatch,nShadowDecalVertsInBatch,ShaderClass::_PresetOpaqueShader);
+		Debug_Statistics::Record_DX9_Polys_And_Vertices(nShadowDecalPolysInBatch,nShadowDecalVertsInBatch,ShaderClass::_PresetOpaqueShader);
 		m_pDev->DrawIndexedPrimitive(D3DPT_TRIANGLELIST,nShadowDecalStartBatchVertex,0,nShadowDecalVertsInBatch,nShadowDecalStartBatchIndex,nShadowDecalPolysInBatch);
 	}
 
@@ -826,7 +826,7 @@ void W3DProjectedShadowManager::queueDecal(W3DProjectedShadow *shadow)
 
 	if (TheTerrainRenderObject)
 	{
-		LPDIRECT3DDEVICE9EX m_pDev=DX8Wrapper::_Get_D3D_Device9();
+		LPDIRECT3DDEVICE9EX m_pDev=DX9Wrapper::_Get_D3D_Device9();
 
 		if (!m_pDev)	return;	//no D3D Device to render
 
@@ -1164,7 +1164,7 @@ void W3DProjectedShadowManager::queueSimpleDecal(W3DProjectedShadow *shadow)
 
 	if (TheTerrainRenderObject)
 	{
-		LPDIRECT3DDEVICE9EX m_pDev=DX8Wrapper::_Get_D3D_Device9();
+		LPDIRECT3DDEVICE9EX m_pDev=DX9Wrapper::_Get_D3D_Device9();
 
 		if (!m_pDev)	return;	//no D3D Device to render
 
@@ -1337,7 +1337,7 @@ Int W3DProjectedShadowManager::renderShadows(RenderInfoClass & rinfo)
 	if (TheGlobalData->m_useShadowDecals && !EwShadowMap::Active())
 	{
 		// Render the object
-		TheDX8MeshRenderer.Set_Camera(&rinfo.Camera);
+		TheDX9MeshRenderer.Set_Camera(&rinfo.Camera);
 
 		//keep track of active decal texture so we can render all decals at once.
 		W3DShadowTexture *lastShadowDecalTexture=nullptr;
@@ -1403,7 +1403,7 @@ Int W3DProjectedShadowManager::renderShadows(RenderInfoClass & rinfo)
 
 					//terrain is always visible and affected by all shadows so must render
 					projector->Peek_Material_Pass()->Install_Materials();
-					DX8Wrapper::Apply_Render_State_Changes();	//force update of view and projection matrices
+					DX9Wrapper::Apply_Render_State_Changes();	//force update of view and projection matrices
 					if (renderProjectedTerrainShadow(shadow, aaBox))
 						projectionCount++;
 					projector->Peek_Material_Pass()->UnInstall_Materials();
@@ -1451,7 +1451,7 @@ Int W3DProjectedShadowManager::renderShadows(RenderInfoClass & rinfo)
 		}
 
 		flushDecals(lastShadowDecalTexture,lastShadowType);	//make sure there are not any unrendered decals left over.
-		TheDX8MeshRenderer.Flush();	//draw all the shadow receiving objects
+		TheDX9MeshRenderer.Flush();	//draw all the shadow receiving objects
 	}
 	if (m_decalList)
 	{

@@ -45,19 +45,19 @@
 #include "WW3D2/mesh.h"
 #include "dx9wrapper.h"
 
-class DX8PolygonRendererClass;
-class DX8TextureCategoryClass;
+class DX9PolygonRendererClass;
+class DX9TextureCategoryClass;
 
 
 /**
-** DX8PolygonRendererClass
-** This is a record of a batch/range of polygons to be rendered.  These hang off of the DX8TextureCategoryClass's
+** DX9PolygonRendererClass
+** This is a record of a batch/range of polygons to be rendered.  These hang off of the DX9TextureCategoryClass's
 ** and are rendered after the system installs a vertex buffer and textures in the DX8 wrapper.
 */
-class DX8PolygonRendererClass : public MultiListObjectClass
+class DX9PolygonRendererClass : public MultiListObjectClass
 {
 	MeshModelClass *				mmc;
-	DX8TextureCategoryClass *	texture_category;
+	DX9TextureCategoryClass *	texture_category;
 	unsigned							index_offset;				// absolute index of index 0 for our parent mesh
 	unsigned							vertex_offset;				// absolute index of vertex 0 for our parent mesh
 	unsigned							index_count;				// number of indices
@@ -67,16 +67,16 @@ class DX8PolygonRendererClass : public MultiListObjectClass
 	unsigned							pass;					// rendering pass
 
 public:
-	DX8PolygonRendererClass(
+	DX9PolygonRendererClass(
 		unsigned index_count,
 		MeshModelClass* mmc_,
-		DX8TextureCategoryClass* tex_cat,
+		DX9TextureCategoryClass* tex_cat,
 		unsigned vertex_offset,
 		unsigned index_offset,
 		bool strip,
 		unsigned pass);
-	DX8PolygonRendererClass(const DX8PolygonRendererClass& src,MeshModelClass* mmc_);
-	virtual ~DX8PolygonRendererClass() override;
+	DX9PolygonRendererClass(const DX9PolygonRendererClass& src,MeshModelClass* mmc_);
+	virtual ~DX9PolygonRendererClass() override;
 
 	void								Render(/*const Matrix3D & tm,*/int base_vertex_offset);
 	void								Render_Sorted(/*const Matrix3D & tm,*/int base_vertex_offset,const SphereClass & bounding_sphere);
@@ -87,15 +87,15 @@ public:
 	unsigned						Get_Pass()	{ return pass; }
 
 	MeshModelClass*				Get_Mesh_Model_Class() { return mmc; }
-	DX8TextureCategoryClass*	Get_Texture_Category() { return texture_category; }
-	void								Set_Texture_Category(DX8TextureCategoryClass* tc) { texture_category=tc; }
+	DX9TextureCategoryClass*	Get_Texture_Category() { return texture_category; }
+	void								Set_Texture_Category(DX9TextureCategoryClass* tc) { texture_category=tc; }
 
 	void Log();
 };
 
 // ----------------------------------------------------------------------------
 
-inline void DX8PolygonRendererClass::Set_Vertex_Index_Range(unsigned min_vertex_index_,unsigned vertex_index_range_)
+inline void DX9PolygonRendererClass::Set_Vertex_Index_Range(unsigned min_vertex_index_,unsigned vertex_index_range_)
 {
 //	WWDEBUG_SAY(("Set_Vertex_Index_Range - min: %d, range: %d",min_vertex_index_,vertex_index_range_));
 //	if (vertex_index_range_>30000) {
@@ -108,16 +108,16 @@ inline void DX8PolygonRendererClass::Set_Vertex_Index_Range(unsigned min_vertex_
 
 // ----------------------------------------------------------------------------
 
-inline void DX8PolygonRendererClass::Render(/*const Matrix3D & tm,*/int base_vertex_offset)
+inline void DX9PolygonRendererClass::Render(/*const Matrix3D & tm,*/int base_vertex_offset)
 {
-//	DX8Wrapper::Set_Transform(D3DTS_WORLD,tm);
+//	DX9Wrapper::Set_Transform(D3DTS_WORLD,tm);
 //	SNAPSHOT_SAY(("Set_Transform"));
 	SNAPSHOT_SAY(("Set_Index_Buffer_Index_Offset(%d)",base_vertex_offset));
 
-	DX8Wrapper::Set_Index_Buffer_Index_Offset(base_vertex_offset);
+	DX9Wrapper::Set_Index_Buffer_Index_Offset(base_vertex_offset);
 	if (strip) {
 		SNAPSHOT_SAY(("Draw_Strip(%d,%d,%d,%d)",index_offset,index_count-2,min_vertex_index,vertex_index_range));
-		DX8Wrapper::Draw_Strip(
+		DX9Wrapper::Draw_Strip(
 			index_offset,
 			index_count-2,
 			min_vertex_index,
@@ -125,7 +125,7 @@ inline void DX8PolygonRendererClass::Render(/*const Matrix3D & tm,*/int base_ver
 	}
 	else {
 		SNAPSHOT_SAY(("Draw_Triangles(%d,%d,%d,%d)",index_offset,index_count-2,min_vertex_index,vertex_index_range));
-		DX8Wrapper::Draw_Triangles(
+		DX9Wrapper::Draw_Triangles(
 			index_offset,
 			index_count/3,
 			min_vertex_index,
@@ -133,15 +133,15 @@ inline void DX8PolygonRendererClass::Render(/*const Matrix3D & tm,*/int base_ver
 	}
 }
 
-inline void DX8PolygonRendererClass::Render_Sorted(/*const Matrix3D & tm,*/int base_vertex_offset,const SphereClass & bounding_sphere)
+inline void DX9PolygonRendererClass::Render_Sorted(/*const Matrix3D & tm,*/int base_vertex_offset,const SphereClass & bounding_sphere)
 {
 	WWASSERT(!strip);	// Strips can't be sorted for now
-//	DX8Wrapper::Set_Transform(D3DTS_WORLD,tm);
+//	DX9Wrapper::Set_Transform(D3DTS_WORLD,tm);
 //	SNAPSHOT_SAY(("Set_Transform"));
 	SNAPSHOT_SAY(("Set_Index_Buffer_Index_Offset(%d)",base_vertex_offset));
 	SNAPSHOT_SAY(("Insert_Sorting_Triangles(%d,%d,%d,%d)",index_offset,index_count-2,min_vertex_index,vertex_index_range));
 
-	DX8Wrapper::Set_Index_Buffer_Index_Offset(base_vertex_offset);
+	DX9Wrapper::Set_Index_Buffer_Index_Offset(base_vertex_offset);
 	SortingRendererClass::Insert_Triangles(
 		bounding_sphere,
 		index_offset,

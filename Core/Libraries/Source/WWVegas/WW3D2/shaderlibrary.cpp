@@ -206,7 +206,7 @@ IDirect3DVertexShader9 *EwShaders::Peek_Vertex(VertexShaderId id)
 	WWASSERT(id >= 0 && id < VS_COUNT);
 	if (!VertexShaders[id] && !VertexFailed[id])
 	{
-		IDirect3DDevice9Ex *device = DX8Wrapper::_Get_D3D_Device9();
+		IDirect3DDevice9Ex *device = DX9Wrapper::_Get_D3D_Device9();
 		if (device == nullptr)
 			return nullptr;
 		HRESULT hr = device->CreateVertexShader(reinterpret_cast<const DWORD *>(VertexCode[id].code), &VertexShaders[id]);
@@ -225,7 +225,7 @@ IDirect3DPixelShader9 *EwShaders::Peek_Pixel(PixelShaderId id)
 	WWASSERT(id >= 0 && id < PS_COUNT);
 	if (!PixelShaders[id] && !PixelFailed[id])
 	{
-		IDirect3DDevice9Ex *device = DX8Wrapper::_Get_D3D_Device9();
+		IDirect3DDevice9Ex *device = DX9Wrapper::_Get_D3D_Device9();
 		if (device == nullptr)
 			return nullptr;
 		HRESULT hr = device->CreatePixelShader(reinterpret_cast<const DWORD *>(PixelCode[id].code), &PixelShaders[id]);

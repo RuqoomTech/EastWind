@@ -1340,7 +1340,7 @@ void W3DVolumetricShadow::RenderMeshVolume(Int meshIndex, Int lightIndex, const 
 	Int numVerts, numPolys, numIndex;
 
 	//Get D3D Device used by W3D for quicker access.
-	LPDIRECT3DDEVICE9EX m_pDev=DX8Wrapper::_Get_D3D_Device9();
+	LPDIRECT3DDEVICE9EX m_pDev=DX9Wrapper::_Get_D3D_Device9();
 
 	if (!m_pDev)
 		return;
@@ -1368,10 +1368,10 @@ void W3DVolumetricShadow::RenderMeshVolume(Int meshIndex, Int lightIndex, const 
 	W3DBufferManager::W3DVertexBufferSlot *vbSlot=m_shadowVolumeVB[lightIndex][ meshIndex ];
 	if (!vbSlot)
 		return;
-	if (vbSlot->m_VB->m_DX8VertexBuffer->Get_DX8_Vertex_Buffer() != lastActiveVertexBuffer)
-	{	lastActiveVertexBuffer=vbSlot->m_VB->m_DX8VertexBuffer->Get_DX8_Vertex_Buffer();
+	if (vbSlot->m_VB->m_DX9VertexBuffer->Get_DX9_Vertex_Buffer() != lastActiveVertexBuffer)
+	{	lastActiveVertexBuffer=vbSlot->m_VB->m_DX9VertexBuffer->Get_DX9_Vertex_Buffer();
 		m_pDev->SetStreamSource(0,lastActiveVertexBuffer,0,
-			vbSlot->m_VB->m_DX8VertexBuffer->FVF_Info().Get_FVF_Size());	//12 bytes per vertex.
+			vbSlot->m_VB->m_DX9VertexBuffer->FVF_Info().Get_FVF_Size());	//12 bytes per vertex.
 	}
 
 	DEBUG_ASSERTCRASH(vbSlot->m_size >= numVerts,("Overflowing Shadow Vertex Buffer Slot"));
@@ -1382,11 +1382,11 @@ void W3DVolumetricShadow::RenderMeshVolume(Int meshIndex, Int lightIndex, const 
 
 	DEBUG_ASSERTCRASH(ibSlot->m_size >= numIndex,("Overflowing Shadow Index Buffer Slot"));
 
-	m_pDev->SetIndices(ibSlot->m_IB->m_DX8IndexBuffer->Get_DX8_Index_Buffer());
+	m_pDev->SetIndices(ibSlot->m_IB->m_DX9IndexBuffer->Get_DX9_Index_Buffer());
 
-	if (DX8Wrapper::_Is_Triangle_Draw_Enabled())
+	if (DX9Wrapper::_Is_Triangle_Draw_Enabled())
 	{
-		Debug_Statistics::Record_DX8_Polys_And_Vertices(numPolys,numVerts,ShaderClass::_PresetOpaqueShader);
+		Debug_Statistics::Record_DX9_Polys_And_Vertices(numPolys,numVerts,ShaderClass::_PresetOpaqueShader);
 		m_pDev->DrawIndexedPrimitive(D3DPT_TRIANGLELIST,vbSlot->m_start,0,numVerts,ibSlot->m_start,numPolys);
 	}
 
@@ -1400,7 +1400,7 @@ void W3DVolumetricShadow::RenderDynamicMeshVolume(Int meshIndex, Int lightIndex,
 	UnsignedShort *pvIndices;
 
 	//Get D3D Device used by W3D for quicker access.
-	LPDIRECT3DDEVICE9EX m_pDev=DX8Wrapper::_Get_D3D_Device9();
+	LPDIRECT3DDEVICE9EX m_pDev=DX9Wrapper::_Get_D3D_Device9();
 
 	if (!m_pDev)
 		return;
@@ -1486,9 +1486,9 @@ void W3DVolumetricShadow::RenderDynamicMeshVolume(Int meshIndex, Int lightIndex,
 		lastActiveVertexBuffer = shadowVertexBufferD3D;
 	}
 
-	if (DX8Wrapper::_Is_Triangle_Draw_Enabled())
+	if (DX9Wrapper::_Is_Triangle_Draw_Enabled())
 	{
-		Debug_Statistics::Record_DX8_Polys_And_Vertices(numPolys,numVerts,ShaderClass::_PresetOpaqueShader);
+		Debug_Statistics::Record_DX9_Polys_And_Vertices(numPolys,numVerts,ShaderClass::_PresetOpaqueShader);
 		m_pDev->DrawIndexedPrimitive(D3DPT_TRIANGLELIST,nShadowStartBatchVertex,0,numVerts,nShadowStartBatchIndex,numPolys);
 	}
 
@@ -1539,7 +1539,7 @@ void W3DVolumetricShadow::RenderMeshVolumeBounds(Int meshIndex, Int lightIndex, 
 	static Vector3 verts[8];
 
 	//Get D3D Device used by W3D for quicker access.
-	LPDIRECT3DDEVICE9EX m_pDev=DX8Wrapper::_Get_D3D_Device9();
+	LPDIRECT3DDEVICE9EX m_pDev=DX9Wrapper::_Get_D3D_Device9();
 
 	if (!m_pDev)
 		return;
@@ -3008,13 +3008,13 @@ void W3DVolumetricShadow::constructVolumeVB( Vector3 *lightPosObject,Real shadow
 
 	geomMesh = m_geometry->getMesh(meshIndex);
 
-	DX8VertexBufferClass::AppendLockClass lockVtxBuffer(vbSlot->m_VB->m_DX8VertexBuffer,vbSlot->m_start,vertexCount);
+	DX9VertexBufferClass::AppendLockClass lockVtxBuffer(vbSlot->m_VB->m_DX9VertexBuffer,vbSlot->m_start,vertexCount);
 	VertexFormatXYZ *vb = (VertexFormatXYZ*)lockVtxBuffer.Get_Vertex_Array();
 
 	if (vb == nullptr)
 		return;
 
-	DX8IndexBufferClass::AppendLockClass lockIdxBuffer(ibSlot->m_IB->m_DX8IndexBuffer,ibSlot->m_start,polygonCount*3);
+	DX9IndexBufferClass::AppendLockClass lockIdxBuffer(ibSlot->m_IB->m_DX9IndexBuffer,ibSlot->m_start,polygonCount*3);
 	UnsignedShort *ib = (UnsignedShort*)lockIdxBuffer.Get_Index_Array();
 
 	if (ib == nullptr)
@@ -3380,7 +3380,7 @@ void W3DVolumetricShadow::resetSilhouette( Int meshIndex )
 // ============================================================================
 void W3DVolumetricShadowManager::renderStencilShadows()
 {
-	LPDIRECT3DDEVICE9EX m_pDev=DX8Wrapper::_Get_D3D_Device9();
+	LPDIRECT3DDEVICE9EX m_pDev=DX9Wrapper::_Get_D3D_Device9();
 
 	if (!m_pDev)
 		return;	//need device to render anything.
@@ -3434,7 +3434,7 @@ void W3DVolumetricShadowManager::renderStencilShadows()
 
 	m_pDev->SetRenderState(D3DRS_SHADEMODE, D3DSHADE_FLAT);
 
-	if (DX8Wrapper::_Is_Triangle_Draw_Enabled())
+	if (DX9Wrapper::_Is_Triangle_Draw_Enabled())
 		m_pDev->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, v, sizeof(_TRANSLITVERTEX));
 
 	m_pDev->SetRenderState(D3DRS_SHADEMODE, D3DSHADE_GOURAUD);
@@ -3467,7 +3467,7 @@ void W3DVolumetricShadowManager::renderShadows( Bool forceStencilFill )
 	if (m_shadowList && TheGlobalData->m_useShadowVolumes)
 	{
 
-		LPDIRECT3DDEVICE9EX m_pDev=DX8Wrapper::_Get_D3D_Device9();
+		LPDIRECT3DDEVICE9EX m_pDev=DX9Wrapper::_Get_D3D_Device9();
 
 		if (!m_pDev)
 			return;	//need device to render anything.
@@ -3479,13 +3479,13 @@ void W3DVolumetricShadowManager::renderShadows( Bool forceStencilFill )
 
 		//Set W3D to some known state
 		VertexMaterialClass *vmat=VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE);
-		DX8Wrapper::Set_Material(vmat);
+		DX9Wrapper::Set_Material(vmat);
 		REF_PTR_RELEASE(vmat);
 
-		DX8Wrapper::Set_Shader(ShaderClass::_PresetOpaqueShader);
-		DX8Wrapper::Set_Texture(0,nullptr);	//turn off textures
-		DX8Wrapper::Set_Texture(1,nullptr);	//turn off textures
-		DX8Wrapper::Apply_Render_State_Changes();	//force update of view and projection matrices
+		DX9Wrapper::Set_Shader(ShaderClass::_PresetOpaqueShader);
+		DX9Wrapper::Set_Texture(0,nullptr);	//turn off textures
+		DX9Wrapper::Set_Texture(1,nullptr);	//turn off textures
+		DX9Wrapper::Apply_Render_State_Changes();	//force update of view and projection matrices
 
 		// turn off z writing
 		m_pDev->SetRenderState(D3DRS_ZFUNC, D3DCMP_LESSEQUAL);
@@ -3520,9 +3520,9 @@ void W3DVolumetricShadowManager::renderShadows( Bool forceStencilFill )
 		m_pDev->SetRenderState(D3DRS_ZFUNC, D3DCMP_LESSEQUAL);
 	#else
 		//disable writes to color buffer
-		if (DX8Wrapper::Get_Current_Caps()->Get_DX8_Caps().PrimitiveMiscCaps & D3DPMISCCAPS_COLORWRITEENABLE)
-		{	DX8Wrapper::_Get_D3D_Device9()->GetRenderState(D3DRS_COLORWRITEENABLE, &oldColorWriteEnable);
-			DX8Wrapper::Set_DX8_Render_State(D3DRS_COLORWRITEENABLE,0);
+		if (DX9Wrapper::Get_Current_Caps()->Get_DX9_Caps().PrimitiveMiscCaps & D3DPMISCCAPS_COLORWRITEENABLE)
+		{	DX9Wrapper::_Get_D3D_Device9()->GetRenderState(D3DRS_COLORWRITEENABLE, &oldColorWriteEnable);
+			DX9Wrapper::Set_DX9_Render_State(D3DRS_COLORWRITEENABLE,0);
 		}
 		else
 		{
@@ -3584,7 +3584,7 @@ void W3DVolumetricShadowManager::renderShadows( Bool forceStencilFill )
 		}
 
 		// Set vertex format to that used by static shadow volumes
-		m_pDev->SetFVF(W3DBufferManager::getDX8Format(W3DBufferManager::VBM_FVF_XYZ));
+		m_pDev->SetFVF(W3DBufferManager::getDX9Format(W3DBufferManager::VBM_FVF_XYZ));
 
 		//Empty queue of static shadow volumes to render.
 		W3DBufferManager::W3DVertexBuffer *nextVb;
@@ -3643,7 +3643,7 @@ void W3DVolumetricShadowManager::renderShadows( Bool forceStencilFill )
 
 
 		if (oldColorWriteEnable != 0x12345678)
-			DX8Wrapper::Set_DX8_Render_State(D3DRS_COLORWRITEENABLE,oldColorWriteEnable);
+			DX9Wrapper::Set_DX9_Render_State(D3DRS_COLORWRITEENABLE,oldColorWriteEnable);
 
 		//
 		// render the big transparent square of shadows in the stencil buffer
@@ -3657,7 +3657,7 @@ void W3DVolumetricShadowManager::renderShadows( Bool forceStencilFill )
 		m_pDev->SetRenderState(D3DRS_ALPHABLENDENABLE , FALSE);
 		m_pDev->SetRenderState(D3DRS_LIGHTING, FALSE);
 
-		DX8Wrapper::Invalidate_Cached_Render_States();
+		DX9Wrapper::Invalidate_Cached_Render_States();
 	}
 	else
 	if (forceStencilFill)
@@ -3667,15 +3667,15 @@ void W3DVolumetricShadowManager::renderShadows( Bool forceStencilFill )
 
 		//Set W3D to some known state
 		VertexMaterialClass *vmat=VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE);
-		DX8Wrapper::Set_Material(vmat);
+		DX9Wrapper::Set_Material(vmat);
 		REF_PTR_RELEASE(vmat);
-		DX8Wrapper::Set_Shader(ShaderClass::_PresetOpaqueShader);
-		DX8Wrapper::Set_Texture(0,nullptr);
-		DX8Wrapper::Apply_Render_State_Changes();	//force update of view and projection matrices
+		DX9Wrapper::Set_Shader(ShaderClass::_PresetOpaqueShader);
+		DX9Wrapper::Set_Texture(0,nullptr);
+		DX9Wrapper::Apply_Render_State_Changes();	//force update of view and projection matrices
 
 		renderStencilShadows();
 
-		DX8Wrapper::Invalidate_Cached_Render_States();
+		DX9Wrapper::Invalidate_Cached_Render_States();
 	}
 
 }
@@ -3789,7 +3789,7 @@ Bool W3DVolumetricShadowManager::ReAcquireResources()
 {
 	ReleaseResources();
 
-	LPDIRECT3DDEVICE9EX m_pDev=DX8Wrapper::_Get_D3D_Device9();
+	LPDIRECT3DDEVICE9EX m_pDev=DX9Wrapper::_Get_D3D_Device9();
 
 	DEBUG_ASSERTCRASH(m_pDev, ("Trying to ReAcquireResources on W3DVolumetricShadowManager without device"));
 

@@ -477,7 +477,7 @@ namespace
 
 	bool Shaders_Supported()
 	{
-		const DX8Caps *caps = DX8Wrapper::Get_Current_Caps();
+		const DX9Caps *caps = DX9Wrapper::Get_Current_Caps();
 		return caps != nullptr && caps->Get_Vertex_Shader_Major_Version() >= 3 && caps->Get_Pixel_Shader_Major_Version() >= 3
 			&& EwShaders::Peek_Vertex(EwShaders::VS_WATER) != nullptr
 			&& EwShaders::Peek_Pixel(EwShaders::PS_WATER_TRAPEZOID) != nullptr
@@ -808,7 +808,7 @@ bool EwWater::Wants_Reflection()
 		ReflectionReason = "the water shader is off";
 		return false;
 	}
-	Device = DX8Wrapper::_Get_D3D_Device9();
+	Device = DX9Wrapper::_Get_D3D_Device9();
 	if (Device == nullptr || !Shaders_Supported())
 	{
 		ReflectionReason = "the water shader cannot run on this card";
@@ -819,7 +819,7 @@ bool EwWater::Wants_Reflection()
 
 bool EwWater::Begin_Reflection(IDirect3DSurface9 **target, IDirect3DSurface9 **depth)
 {
-	Device = DX8Wrapper::_Get_D3D_Device9();
+	Device = DX9Wrapper::_Get_D3D_Device9();
 	if (Device == nullptr)
 		return false;
 
@@ -889,7 +889,7 @@ bool EwWater::Begin(Kind kind, float water_level, float river_width, float river
 		return Skip(EwGraphics().WaterQuality < 1 ? "EwWaterQuality is 0 in Options.ini" : "switched off by a debug key");
 	if (TheGlobalData == nullptr)
 		return Skip("no global data");
-	Device = DX8Wrapper::_Get_D3D_Device9();
+	Device = DX9Wrapper::_Get_D3D_Device9();
 	if (Device == nullptr)
 		return Skip("no device");
 
@@ -908,7 +908,7 @@ bool EwWater::Begin(Kind kind, float water_level, float river_width, float river
 		return Skip("the pass has a vertex shader bound");
 	}
 
-	const DX8Caps *caps = DX8Wrapper::Get_Current_Caps();
+	const DX9Caps *caps = DX9Wrapper::Get_Current_Caps();
 	if (caps->Get_Vertex_Shader_Major_Version() < 3 || caps->Get_Pixel_Shader_Major_Version() < 3)
 		return Fallback(REASON_NO_SM3, (caps->Get_Vertex_Shader_Major_Version() << 8) | caps->Get_Pixel_Shader_Major_Version());
 
