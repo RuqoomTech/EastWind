@@ -207,6 +207,7 @@ def main():
             continue
         for name in sorted(os.listdir(folder)):
             if name.lower().endswith('.big') and os.path.abspath(os.path.join(folder, name)) != os.path.abspath(out):
+                print(f'reading {name}', flush=True)
                 files.update(read_big(os.path.join(folder, name)))
     print(f'{len(files)} archived files')
 
