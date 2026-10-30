@@ -88,6 +88,19 @@
             }
         },
         {
+            "name": "win64-vcpkg",
+            "inherits": "default-vcpkg",
+            "displayName": "Windows 64bit VCPKG Release (FFmpeg video)",
+            "architecture": {
+                "value": "x64",
+                "strategy": "external"
+            },
+            "cacheVariables": {
+                "RTS_FLAGS": "/W3",
+                "RTS_BUILD_OPTION_FFMPEG": "ON"
+            }
+        },
+        {
             "name": "win32-vcpkg",
             "inherits": "default-vcpkg",
             "hidden": false,
@@ -157,6 +170,13 @@
             "displayName": "Build Windows 64bit Debug",
             "description": "Build Windows 64bit Debug",
             "configuration": "Debug"
+        },
+        {
+            "name": "win64-vcpkg",
+            "configurePreset": "win64-vcpkg",
+            "displayName": "Build Windows 64bit VCPKG Release",
+            "description": "Build Windows 64bit VCPKG Release",
+            "configuration": "Release"
         },
         {
             "name": "win32-vcpkg",
@@ -232,6 +252,14 @@
             "displayName": "Test Windows 64bit Debug",
             "description": "Test Windows 64bit Debug",
             "configuration": "Debug"
+        },
+        {
+            "name": "win64-vcpkg",
+            "inherits": "default",
+            "configurePreset": "win64-vcpkg",
+            "displayName": "Test Windows 64bit VCPKG Release",
+            "description": "Test Windows 64bit VCPKG Release",
+            "configuration": "Release"
         },
         {
             "name": "win32-vcpkg",

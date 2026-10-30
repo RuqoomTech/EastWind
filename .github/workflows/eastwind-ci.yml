@@ -50,10 +50,17 @@ jobs:
     timeout-minutes: 30
     permissions:
       contents: read
+      packages: write # vcpkg binary cache uploads, as in upstream's vcpkg jobs
     strategy:
       matrix:
-        preset: ["win64", "win64-debug"]
+        preset: ["win64", "win64-debug", "win64-vcpkg"]
       fail-fast: false
+    env:
+      # Same vcpkg binary cache as the reusable workflow, so FFmpeg is built once and then restored.
+      VCPKG_BINARY_SOURCES: "clear;nuget,https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json,${{ github.event.pull_request.head.repo.fork && 'read' || 'readwrite' }}"
+      VCPKG_NUGET_REPOSITORY: "https://github.com/${{ github.repository }}.git"
+      VCPKG_FEATURE_FLAGS: manifests,versions,binarycaching
+      VCPKG_DISABLE_METRICS: "1"
     steps:
       - name: Checkout Code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -68,6 +75,28 @@ jobs:
         uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
         with:
           arch: x64
+
+      - name: Setup vcpkg
+        if: contains(matrix.preset, 'vcpkg')
+        uses: lukka/run-vcpkg@b1a0dd252f06b9e25b3c022a9a03bd7a427fb6a2 # v11.6
+        with:
+          runVcpkgInstall: false
+          doNotCache: true
+
+      - name: Configure NuGet Source for vcpkg Binary Cache
+        if: contains(matrix.preset, 'vcpkg')
+        shell: pwsh
+        run: |
+          $nuget = & "$env:VCPKG_ROOT\vcpkg.exe" fetch nuget | Select-Object -Last 1
+          & $nuget sources add `
+            -Source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" `
+            -StorePasswordInClearText `
+            -Name GitHubPackages `
+            -UserName "${{ github.repository_owner }}" `
+            -Password "${{ secrets.GITHUB_TOKEN }}"
+          & $nuget setapikey "${{ secrets.GITHUB_TOKEN }}" `
+            -Source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json"
+          "VCPKG_INSTALL_OPTIONS=--x-abi-tools-use-exact-versions" >> $env:GITHUB_ENV
 
       - name: Configure
         shell: pwsh
