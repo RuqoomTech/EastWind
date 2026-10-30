@@ -73,16 +73,13 @@ static void InitDbghelp()
   if (g_dbghelp)
     return;
 
-	// firstly check for dbghelp.dll in the EXE directory
-	char dbgHelpPath[256];
-	if (GetModuleFileName(nullptr,dbgHelpPath,sizeof(dbgHelpPath)))
+	// System dbghelp first: the retail one in the game folder is old and 32-bit only
+	char dbgHelpPath[MAX_PATH];
+	UINT len=GetSystemDirectory(dbgHelpPath,sizeof(dbgHelpPath));
+	if (len && len+sizeof("\\DBGHELP.DLL")<=sizeof(dbgHelpPath))
 	{
-		char *slash=strrpbrk(dbgHelpPath,"/\\");
-		if (slash)
-		{
-			strcpy(slash+1,"DBGHELP.DLL");
-			g_dbghelp=::LoadLibrary(dbgHelpPath);
-		}
+		strcpy(dbgHelpPath+len,"\\DBGHELP.DLL");
+		g_dbghelp=::LoadLibrary(dbgHelpPath);
 	}
 	if (!g_dbghelp)
 		// load any version we can
