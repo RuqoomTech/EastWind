@@ -985,8 +985,8 @@ void RTS3DScene::Render(RenderInfoClass & rinfo)
 	//USE_PERF_TIMER(NonTerrainRender)
 
 	// EastWind M3.4: the sun shadow map's caster pass (ShadowMap::Render). Only depth is drawn:
-	// the opaque units, buildings and props inside the light's box, then the trees. No terrain,
-	// no shadows, no particles; transparent (sorted) triangles are thrown away.
+	// the opaque units, buildings and props inside the light's box, then the trees and the terrain.
+	// No shadows, no particles; transparent (sorted) triangles are thrown away.
 	if (ShadowMap::Caster_Pass())
 	{
 		RefRenderObjListIterator it(&RenderList);
@@ -1020,6 +1020,8 @@ void RTS3DScene::Render(RenderInfoClass & rinfo)
 		}
 		TheDX9MeshRenderer.Flush();
 		DoTrees(rinfo);
+		if (TheTerrainRenderObject)
+			TheTerrainRenderObject->renderShadowCaster();
 
 		// Empty the sorted lists without drawing: both flags, since the sorting pool draws under the
 		// sorting renderer's flag and the other sorted draws under the wrapper's.

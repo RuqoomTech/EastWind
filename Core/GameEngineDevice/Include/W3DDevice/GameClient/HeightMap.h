@@ -76,6 +76,7 @@ public:
 	virtual void updateCenter(CameraClass *camera, const Vector3 *cameraPivot, RefRenderObjListIterator *pLightsIterator) override;
 
 	virtual void staticLightingChanged() override;
+	virtual void renderShadowCaster() override;
 	virtual	void adjustTerrainLOD(Int adj) override;
 	virtual void reset() override;
 	virtual void doPartialUpdate(const IRegion2D &partialRange, WorldHeightMap *htMap, RefRenderObjListIterator *pLightsIterator) override;

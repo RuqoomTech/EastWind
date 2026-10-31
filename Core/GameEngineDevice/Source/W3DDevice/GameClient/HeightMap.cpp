@@ -1868,6 +1868,26 @@ void HeightMapRenderObjClass::updateCenter(CameraClass *camera, const Vector3 *c
 	m_updating = false;
 }
 
+// EastWind M3.4: draws the terrain tiles, depth only, into the sun shadow map, so hills and
+// cliffs shadow what lies behind them. No material, so the draw stays fixed function.
+void HeightMapRenderObjClass::renderShadowCaster()
+{
+	if (Is_Hidden() || m_indexBuffer == nullptr)
+		return;
+	DX9Wrapper::Set_Material(nullptr);
+	DX9Wrapper::Set_Shader(ShaderClass::_PresetOpaqueSolidShader);
+	DX9Wrapper::Set_Texture(0, nullptr);
+	DX9Wrapper::Set_Texture(1, nullptr);
+	DX9Wrapper::Set_Transform(D3DTS_WORLD, Transform);
+	DX9Wrapper::Set_Index_Buffer(m_indexBuffer, 0);
+	for (Int j = 0; j < m_numVBTilesY; j++)
+		for (Int i = 0; i < m_numVBTilesX; i++)
+		{
+			DX9Wrapper::Set_Vertex_Buffer(getVertexBufferTile(i, j));
+			DX9Wrapper::Draw_Triangles(0, HEIGHTMAP_POLYGON_NUM, 0, HEIGHTMAP_VERTEX_NUM);
+		}
+}
+
 //=============================================================================
 // HeightMapRenderObjClass::Render
 //=============================================================================

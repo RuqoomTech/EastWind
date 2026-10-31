@@ -44,9 +44,9 @@ namespace
 	const float MIN_HALF_SIZE = 128.0f;
 
 	// Filtering and bias.
-	const float SOFT_EDGE = 2.5f;				// world units over which a shadow edge softens
+	const float SOFT_EDGE = 5.0f;				// world units over which a shadow edge softens
 	const float MIN_RADIUS_TEXELS = 1.5f;
-	const float MAX_RADIUS_TEXELS = 4.0f;
+	const float MAX_RADIUS_TEXELS = 12.0f;
 	const float NORMAL_OFFSET_TEXELS = 1.5f;	// receivers move along their normal by this, at grazing light
 	const float DEPTH_BIAS_WORLD = 1.5f;		// constant bias toward the light
 	const float SLOPE_BIAS = 2.0f;				// D3DRS_SLOPESCALEDEPTHBIAS in the caster pass
@@ -168,6 +168,7 @@ namespace
 			float *p2 = c[SHADOW_PS_PARAMS2 - SHADOW_PS_FIRST];
 			p2[0] = Format == DEPTH_D24 ? 1.0f : 0.0f;
 			p2[1] = DEPTH_BIAS_WORLD / depth_range;
+			p2[2] = radius * texel_world / depth_range;	// filter radius in depth units, for the slope bias
 			p2[3] = STRENGTH;
 		}
 		device->SetPixelShaderConstantF(SHADOW_PS_FIRST, &c[0][0], SHADOW_PS_COUNT);

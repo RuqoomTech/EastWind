@@ -119,6 +119,7 @@ public:
 	virtual void oversizeTerrain(Int tilesToOversize) = 0; ///< Oversize the visible terrain area.
 	virtual void setTerrainDrawSize(Int width, Int height) = 0; ///< Resize the visible terrain area. Always defaults to oversize dimensions when oversize is set.
 	virtual void reset();
+	virtual void renderShadowCaster() {}	///< EastWind M3.4: the terrain's depth into the sun shadow map
 
   void redirectToHeightmap( WorldHeightMap *pMap )
   {
