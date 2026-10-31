@@ -800,8 +800,6 @@ void W3DTreeBuffer::loadTreesInVertexAndIndexBuffers(RefRenderObjListIterator *p
 
 
 			Int startVertex = m_curNumTreeVertices[bNdx];
-			m_trees[curTree].firstIndex = startVertex;
-			m_trees[curTree].bufferNdx = bNdx;
 			Int i;
 			Int numVertex = m_treeTypes[type].m_mesh->Peek_Model()->Get_Vertex_Count();
 			Vector3 *pVert = m_treeTypes[type].m_mesh->Peek_Model()->Get_Vertex_Array();
@@ -817,6 +815,9 @@ void W3DTreeBuffer::loadTreesInVertexAndIndexBuffers(RefRenderObjListIterator *p
 			if (m_curNumTreeIndices[bNdx]+3*numIndex+6 >= MAX_TREE_INDEX) {
 				break;
 			}
+			// EastWind: claim the buffer only once the tree fits, so a tree that overflows the last one stays at -1.
+			m_trees[curTree].firstIndex = startVertex;
+			m_trees[curTree].bufferNdx = bNdx;
 
 			const Vector2*uvs=m_treeTypes[type].m_mesh->Peek_Model()->Get_UV_Array_By_Index(0);
 

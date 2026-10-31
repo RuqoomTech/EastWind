@@ -219,7 +219,7 @@ private:
 				MAX_TILES = 512,
 				NUM_SWAY_ENTRIES = 100,
 				MAX_SWAY_TYPES = 10,
-				MAX_BUFFERS = 1,
+				MAX_BUFFERS = 16, // EastWind: 1 buffer (30000 verts) fills with high-poly mod trees, and the rest are not drawn
 				SORT_ITERATIONS_PER_FRAME=10};
 	enum {PARTITION_WIDTH_HEIGHT = 100};
 	DX9VertexBufferClass	*m_vertexTree[MAX_BUFFERS];	///<Tree vertex buffer.
