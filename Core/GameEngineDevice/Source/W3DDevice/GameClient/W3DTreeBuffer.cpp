@@ -1512,6 +1512,11 @@ void W3DTreeBuffer::drawTrees(CameraClass * camera, RefRenderObjListIterator *pD
 		return;
 	}
 
+	// EastWind: the water reflection renders the scene with a mirrored camera before the main view.
+	// It only draws the trees as they are: culling here would leave the main view with the mirror's
+	// tree set (trees missing mid-screen), and stepping the sway or topple would run them twice.
+	const Bool mirrorPass = ShaderClass::Is_Backface_Culling_Inverted();
+
 	// if breeze changes, always process the full update, even if not visible,
 	// so that things offscreen won't 'pop' when first viewed
 	const BreezeInfo& info = TheScriptEngine->getBreezeInfo();
@@ -1526,6 +1531,10 @@ void W3DTreeBuffer::drawTrees(CameraClass * camera, RefRenderObjListIterator *pD
 	Int i;
 	for (i=0; i<MAX_SWAY_TYPES; i++)
 	{
+		if (mirrorPass) {
+			swayFactor[i] = m_lastSway[i];
+			continue;
+		}
 		m_curSwayOffset[i] += m_curSwayStep[i] * timeScale;
 		if (m_curSwayOffset[i] > NUM_SWAY_ENTRIES-1) {
 			m_curSwayOffset[i] -= NUM_SWAY_ENTRIES-1;
@@ -1549,13 +1558,13 @@ void W3DTreeBuffer::drawTrees(CameraClass * camera, RefRenderObjListIterator *pD
 	if (m_treeTexture==nullptr) {
 		return;
 	}
-	if (m_updateAllKeys) {
+	if (m_updateAllKeys && !mirrorPass) {
 		cull(camera);
 	}
 
 	Int curTree;
 	// Draw tree shadows. Not with the sun shadow map, where the trees cast into it.
-	if (m_shadow && TheW3DProjectedShadowManager && TheGlobalData->m_useShadowDecals && !ShadowMap::Active()) {
+	if (!mirrorPass && m_shadow && TheW3DProjectedShadowManager && TheGlobalData->m_useShadowDecals && !ShadowMap::Active()) {
 		for (curTree=0; curTree<m_numTrees; curTree++) {
 			Int type = m_trees[curTree].treeType;
 			if (type<0) {
@@ -1578,7 +1587,7 @@ void W3DTreeBuffer::drawTrees(CameraClass * camera, RefRenderObjListIterator *pD
 	}
 
 	// Update pushed aside and toppling trees.
-	for (curTree=0; curTree<m_numTrees; curTree++) {
+	for (curTree=0; curTree<m_numTrees && !mirrorPass; curTree++) {
 		Int type = m_trees[curTree].treeType;
 		if (type<0) {
 			// deleted.
@@ -1610,7 +1619,9 @@ void W3DTreeBuffer::drawTrees(CameraClass * camera, RefRenderObjListIterator *pD
 		}
 	}
 
-	if (m_anythingChanged) {
+	if (mirrorPass) {
+		// draw the buffers as the main view left them
+	} else if (m_anythingChanged) {
 		loadTreesInVertexAndIndexBuffers(pDynamicLightsIterator);
 		m_anythingChanged = false;
 	} else if (m_anyPushChanged) {
