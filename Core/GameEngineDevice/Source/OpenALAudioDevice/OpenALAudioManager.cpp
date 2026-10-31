@@ -1941,6 +1941,7 @@ void *OpenALAudioManager::playSample3D(AudioEventRTS *event, PlayingAudio *playi
 		const Bool global = (info->m_type & ST_GLOBAL) != 0;
 		alSourcef(source, AL_REFERENCE_DISTANCE, global ? getAudioSettings()->m_globalMinRange : info->m_minDistance);
 		alSourcef(source, AL_MAX_DISTANCE, global ? getAudioSettings()->m_globalMaxRange : info->m_maxDistance);
+		alSourcef(source, AL_ROLLOFF_FACTOR, 0.5f); // play-tested: 1.0 made on-screen battles too quiet
 		alSource3f(source, AL_POSITION, pos->x, pos->y, pos->z);
 		initFilters3D(source, event, pos);
 		alSourcePlay(source);
