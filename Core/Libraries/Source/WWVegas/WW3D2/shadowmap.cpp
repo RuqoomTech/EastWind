@@ -44,9 +44,11 @@ namespace
 	const float MIN_HALF_SIZE = 128.0f;
 
 	// Filtering and bias.
-	const float SOFT_EDGE = 5.0f;				// world units over which a shadow edge softens
+	const float SOFT_EDGE = 6.0f;				// world units over which a shadow edge softens (INTZ: at most)
 	const float MIN_RADIUS_TEXELS = 1.5f;
-	const float MAX_RADIUS_TEXELS = 12.0f;
+	const float MAX_RADIUS_TEXELS = 16.0f;
+	const float SOFT_AT_CONTACT = 0.75f;		// INTZ: edge width where the caster touches the receiver
+	const float SOFT_PER_UNIT = 0.06f;			// INTZ: edge width added per world unit from caster to receiver
 	const float NORMAL_OFFSET_TEXELS = 1.5f;	// receivers move along their normal by this, at grazing light
 	const float DEPTH_BIAS_WORLD = 1.5f;		// constant bias toward the light
 	const float SLOPE_BIAS = 2.0f;				// D3DRS_SLOPESCALEDEPTHBIAS in the caster pass
@@ -105,16 +107,18 @@ namespace
 	{
 		Free_Resources();
 
+		// INTZ first: the shader reads the casters' depth, so edges are sharp where a caster meets
+		// the ground and soften with distance. D24X8 (hardware PCF) keeps one fixed softness.
 		D3DFORMAT depth_format;
-		if (ShaderLibrary::Format_Supported(device, D3DUSAGE_DEPTHSTENCIL, D3DRTYPE_TEXTURE, D3DFMT_D24X8))
-		{
-			Format = DEPTH_D24;
-			depth_format = D3DFMT_D24X8;
-		}
-		else if (ShaderLibrary::Format_Supported(device, D3DUSAGE_DEPTHSTENCIL, D3DRTYPE_TEXTURE, FORMAT_INTZ))
+		if (ShaderLibrary::Format_Supported(device, D3DUSAGE_DEPTHSTENCIL, D3DRTYPE_TEXTURE, FORMAT_INTZ))
 		{
 			Format = DEPTH_INTZ;
 			depth_format = FORMAT_INTZ;
+		}
+		else if (ShaderLibrary::Format_Supported(device, D3DUSAGE_DEPTHSTENCIL, D3DRTYPE_TEXTURE, D3DFMT_D24X8))
+		{
+			Format = DEPTH_D24;
+			depth_format = D3DFMT_D24X8;
 		}
 		else
 			return "the card has no depth texture format (D24X8 or INTZ)";
@@ -146,7 +150,7 @@ namespace
 		return nullptr;
 	}
 
-	// Constants c200..c205: on/off, matrix, filter and bias.
+	// Constants c200..c205: on/off, matrix, filter, softness and bias.
 	void Set_Constants(IDirect3DDevice9Ex *device, const Matrix4x4 *uvz, float texel_world, float depth_range)
 	{
 		float c[SHADOW_PS_COUNT][4];
@@ -169,6 +173,11 @@ namespace
 			p2[0] = Format == DEPTH_D24 ? 1.0f : 0.0f;
 			p2[1] = DEPTH_BIAS_WORLD / depth_range;
 			p2[2] = radius * texel_world / depth_range;	// filter radius in depth units, for the slope bias
+			float *p3 = c[SHADOW_PS_PARAMS3 - SHADOW_PS_FIRST];
+			p3[0] = texel_world * (float)Size;
+			p3[1] = depth_range;
+			p3[2] = SOFT_AT_CONTACT;
+			p3[3] = SOFT_PER_UNIT;
 			p2[3] = STRENGTH;
 		}
 		device->SetPixelShaderConstantF(SHADOW_PS_FIRST, &c[0][0], SHADOW_PS_COUNT);
@@ -255,7 +264,7 @@ void ShadowMap::Count_Caster()
 bool ShadowMap::Last_Frame(int *size, const char **format, unsigned *casters, float *box, const char **why_not)
 {
 	*size = Size;
-	*format = Format == DEPTH_D24 ? "D24X8, hardware PCF" : Format == DEPTH_INTZ ? "INTZ" : "none";
+	*format = Format == DEPTH_D24 ? "D24X8, hardware PCF" : Format == DEPTH_INTZ ? "INTZ, contact-hardening" : "none";
 	*casters = Last.Casters;
 	*box = Last.Box;
 	*why_not = Last.WhyNot;

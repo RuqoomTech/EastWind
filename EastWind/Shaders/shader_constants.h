@@ -138,6 +138,7 @@
 // Every lit pixel shader (mesh, terrain, roads, trees, water) includes shader_shadow.h. The registers
 // sit far above all of their own constants, so the shadow constants stay bound for the frame.
 #define SHADOW_PS_MATRIX      200 // c200..c202: world -> shadow map u, v and depth
+#define SHADOW_PS_PARAMS3     203 // c203: x world units per map u, y world units per depth, z softness at contact, w softness per world unit to the caster
 #define SHADOW_PS_PARAMS      204 // c204: x on, y 1 / map size, z filter radius in texels, w normal offset (world units)
 #define SHADOW_PS_PARAMS2     205 // c205: x hardware depth compare (else INTZ), y depth bias, w strength
 #define SHADOW_PS_FIRST       200

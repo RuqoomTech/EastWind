@@ -6,9 +6,12 @@
 // shadows over the ground and units behind them.
 //
 // Two depth formats:
+//   - INTZ (preferred): the sampler returns the stored depth and the shader compares (point
+//     sampled). A first ring of taps finds how far the casters are; the edge is sharp where a
+//     caster meets the ground and widens with that distance, as real shadows do.
 //   - D24X8 depth texture: the sampler compares the depth itself and filters the result
-//     bilinearly (hardware PCF). The reference depth goes in the z coordinate of tex2Dlod.
-//   - INTZ: the sampler returns the stored depth, the shader compares (point sampled).
+//     bilinearly (hardware PCF), at one fixed softness. The reference depth goes in the z
+//     coordinate of tex2Dlod.
 // Each lookup takes a disc of taps around the pixel (a golden-angle spiral, turned by a
 // per-pixel angle so the taps do not show as steps), which softens the edge over a few world
 // units. Biases against acne: the receiver point moves along its normal by about a texel,
@@ -21,6 +24,7 @@
 #include "shader_constants.h"
 
 float4 ShadowMatrix[3] : SHADER_REG(SHADOW_PS_MATRIX);	// rows: u, v, depth
+float4 ShadowParams3   : SHADER_REG(SHADOW_PS_PARAMS3);	// x world per u, y world per depth, z softness at contact, w softness per unit
 float4 ShadowParams    : SHADER_REG(SHADOW_PS_PARAMS);	// x on, y 1 / size, z radius in texels, w normal offset
 float4 ShadowParams2   : SHADER_REG(SHADOW_PS_PARAMS2);	// x hardware compare, y depth bias, z radius in depth units, w strength
 sampler2D ShadowMap    : register(s12);
@@ -71,8 +75,28 @@ float Sun_Shadow(float3 p, float3 n, float3 l)
 	}
 	else
 	{
+		// Blockers: the average depth of the casters within the widest edge.
+		float blocker = 0.0;
+		float blockers = 0.0;
+		[unroll] for (int b = 0; b < SHADOW_TAPS; b += 2)
+		{
+			float d = tex2Dlod(ShadowMap, float4(uvz.xy + mul(spin, Shadow_Tap(b)) * radius, 0.0, 0.0)).r;
+			if (d < z)
+			{
+				blocker += d;
+				blockers += 1.0;
+			}
+		}
+		[branch] if (blockers == 0.0)
+			return 1.0;
+
+		// Edge width from the caster's distance, between one texel and the widest edge.
+		float reach = (z - blocker / blockers) * ShadowParams3.y;
+		float soft = ShadowParams3.z + reach * ShadowParams3.w;
+		float r = clamp(soft / ShadowParams3.x, ShadowParams.y, radius.x);
+		float zr = z + ShadowParams2.z * slope * (1.0 - r / radius.x);	// the slope bias of the smaller disc
 		[unroll] for (int k = 0; k < SHADOW_TAPS; ++k)
-			lit += (z <= tex2Dlod(ShadowMap, float4(uvz.xy + mul(spin, Shadow_Tap(k)) * radius, 0.0, 0.0)).r) ? 1.0 : 0.0;
+			lit += (zr <= tex2Dlod(ShadowMap, float4(uvz.xy + mul(spin, Shadow_Tap(k)) * r, 0.0, 0.0)).r) ? 1.0 : 0.0;
 	}
 	lit *= 1.0 / SHADOW_TAPS;
 	return lerp(1.0, lit, fade * ShadowParams2.w);
