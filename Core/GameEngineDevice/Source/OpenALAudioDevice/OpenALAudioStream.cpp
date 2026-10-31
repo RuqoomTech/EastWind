@@ -47,6 +47,9 @@ void OpenALAudioStream::bufferData(uint8_t *data, size_t size, ALenum format, in
 	alGenBuffers(1, &buffer);
 	alBufferData(buffer, format, data, (ALsizei)size, sampleRate);
 	alSourceQueueBuffers(m_source, 1, &buffer);
+
+	// The load screen's movie loop never calls play(), so start (or restart after an underrun) here.
+	play();
 }
 
 //-------------------------------------------------------------------------------------------------

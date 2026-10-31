@@ -671,11 +671,12 @@ void OpenALAudioManager::playAudioEvent(AudioRequest *req)
 			}
 
 			if (newPlaying->m_decoder) {
-				if ((info->m_soundType == AT_Streaming) && event->getUninterruptible()) {
-					setDisallowSpeech(TRUE);
-				}
 				playStream(event, newPlaying);
 				if (newPlaying->m_source) {
+					// Only once the stream really plays, or a failed start would mute all later speech.
+					if ((info->m_soundType == AT_Streaming) && event->getUninterruptible()) {
+						setDisallowSpeech(TRUE);
+					}
 					m_playingStreams.push_back(newPlaying);
 					newPlaying = nullptr;
 				}
@@ -1119,9 +1120,9 @@ void OpenALAudioManager::openDevice()
 	}
 
 	if (m_context && alcMakeContextCurrent(m_context)) {
-		// Miles passed the min and max distance in swapped order, so it had almost no distance rolloff of
-		// its own. The game's getEffectiveVolume fade is the only one, and AL only pans by position.
-		alDistanceModel(AL_NONE);
+		// Like Miles: full volume up to the event's min distance, then falloff toward its max distance
+		// (set per source in playSample3D). getEffectiveVolume adds the game's own fade and cutoff on top.
+		alDistanceModel(AL_INVERSE_DISTANCE_CLAMPED);
 
 		if (alcIsExtensionPresent(m_device, "ALC_EXT_EFX")) {
 			alGenFilters(1, &m_lowPassFilter);
@@ -1936,6 +1937,10 @@ void *OpenALAudioManager::playSample3D(AudioEventRTS *event, PlayingAudio *playi
 	OpenAudioFile *file = static_cast<OpenAudioFile *>(loadFileForRead(event));
 	if (file) {
 		alSourcei(source, AL_BUFFER, (ALint)file->m_buffer);
+		const AudioEventInfo *info = event->getAudioEventInfo();
+		const Bool global = (info->m_type & ST_GLOBAL) != 0;
+		alSourcef(source, AL_REFERENCE_DISTANCE, global ? getAudioSettings()->m_globalMinRange : info->m_minDistance);
+		alSourcef(source, AL_MAX_DISTANCE, global ? getAudioSettings()->m_globalMaxRange : info->m_maxDistance);
 		alSource3f(source, AL_POSITION, pos->x, pos->y, pos->z);
 		initFilters3D(source, event, pos);
 		alSourcePlay(source);
