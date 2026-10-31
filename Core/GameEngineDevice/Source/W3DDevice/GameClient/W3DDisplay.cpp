@@ -961,6 +961,32 @@ static void showGpuTimes()
 		if (part[p] >= 0)
 			TheInGameUI->message(L"   %s: %.2f ms", names[p], part[p]);
 	}
+
+	// The CPU side of the same frames. A frame takes the longer of the two: a CPU frame much longer
+	// than the GPU time means the CPU is the limit; a long present means the GPU or vsync is.
+	float cpu_frame = 0;
+	float cpu_mark[GpuTimer::POINT_COUNT];
+	float cpu_part[GpuTimer::CPU_PART_COUNT];
+	if (GpuTimer::Cpu_Average(&cpu_frame, cpu_mark, cpu_part) > 0)
+	{
+		float draw = 0;
+		for (int p = GpuTimer::FRAME_BEGIN + 1; p < GpuTimer::POINT_COUNT; ++p)
+			draw += cpu_mark[p];
+		const float present = cpu_part[GpuTimer::CPU_PRESENT];
+		const float logic = cpu_part[GpuTimer::CPU_LOGIC];
+		const float client = cpu_part[GpuTimer::CPU_CLIENT];
+		TheInGameUI->message(L"CPU time: %.2f ms a frame (%.0f FPS)", cpu_frame, cpu_frame > 0 ? 1000.0f / cpu_frame : 0.0f);
+		TheInGameUI->message(L"   Game logic: %.2f ms", logic);
+		TheInGameUI->message(L"   Game client update (drawables, particles, UI): %.2f ms", client - draw - present);
+		TheInGameUI->message(L"   Draw, sending the GPU parts above: %.2f ms", draw);
+		for (int p = GpuTimer::FRAME_BEGIN + 1; p < GpuTimer::POINT_COUNT; ++p)
+		{
+			if (cpu_mark[p] >= 0.05f)
+				TheInGameUI->message(L"      %s: %.2f ms", names[p], cpu_mark[p]);
+		}
+		TheInGameUI->message(L"   Present (waiting for the GPU or vsync): %.2f ms", present);
+		TheInGameUI->message(L"   The rest (audio, network, frame limiter): %.2f ms", cpu_frame - logic - client);
+	}
 }
 
 static void pollGraphicsDebugKeys()
@@ -2522,7 +2548,9 @@ AGAIN:
 #endif
 				GpuTimer::Mark(GpuTimer::FRAME_END);
 				// render is all done!
+				const double present_start = GpuTimer::Cpu_Ms();
 				WW3D::End_Render();
+				GpuTimer::Cpu_Add(GpuTimer::CPU_PRESENT, GpuTimer::Cpu_Ms() - present_start);
 			}
 			else
 			{

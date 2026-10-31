@@ -63,4 +63,20 @@ public:
 
 	// Releases the queries. Called before a device reset or release.
 	static void Release();
+
+	// CPU time: each mark also reads the CPU clock, so a part has a CPU time too (the time to send
+	// its commands). These parts lie outside the marks and are added by their callers.
+	enum CpuPart
+	{
+		CPU_LOGIC,			// game logic steps
+		CPU_CLIENT,			// game client update, which includes the draw and the present
+		CPU_PRESENT,		// WW3D::End_Render: the present, which waits when the GPU or vsync is behind
+		CPU_PART_COUNT
+	};
+	static double Cpu_Ms();	// the CPU clock in milliseconds
+	static void Cpu_Add(CpuPart part, double ms);
+
+	// The last finished 60-frame CPU average, like Average(). frame_ms is the whole frame, from one
+	// FRAME_BEGIN to the next. Returns the number of frames averaged.
+	static int Cpu_Average(float *frame_ms, float mark_ms[POINT_COUNT], float part_ms[CPU_PART_COUNT]);
 };

@@ -70,6 +70,7 @@
 #include "Common/GameLOD.h"
 #include "Common/Registry.h"
 #include "Common/GameCommon.h"	// FOR THE ALLOW_DEBUG_CHEATS_IN_RELEASE #define
+#include "WW3D2/gputimer.h"	// EastWind: CPU times for the Ctrl+Shift+T readout
 
 #include "GameLogic/Armor.h"
 #include "GameLogic/AI.h"
@@ -890,7 +891,9 @@ void GameEngine::update()
 			/// @todo Move audio init, update, etc, into GameClient update
 
 			TheAudio->UPDATE();
+			const double client_start = GpuTimer::Cpu_Ms();
 			TheGameClient->UPDATE();
+			GpuTimer::Cpu_Add(GpuTimer::CPU_CLIENT, GpuTimer::Cpu_Ms() - client_start);
 			TheMessageStream->propagateMessages();
 
 			if (TheNetwork != nullptr)
@@ -902,7 +905,9 @@ void GameEngine::update()
 		// TheSuperHackers @info Ignores frozen time because the script engine needs updating in the logic update regardless.
 		if (canUpdateGameLogic(FramePacer::IgnoreFrozenTime))
 		{
+			const double logic_start = GpuTimer::Cpu_Ms();
 			TheGameLogic->UPDATE();
+			GpuTimer::Cpu_Add(GpuTimer::CPU_LOGIC, GpuTimer::Cpu_Ms() - logic_start);
 
 			if (!TheFramePacer->isTimeFrozen())
 			{

@@ -50,6 +50,42 @@ namespace
 	float LastPart[GpuTimer::POINT_COUNT];
 	int LastFrames;
 
+	// The CPU side, summed over the frames of the current window.
+	double CpuPrevMark = -1;	// CPU clock at the previous mark of this frame
+	double CpuFrameBegin = -1;
+	double CpuSumFrame;
+	double CpuSumMark[GpuTimer::POINT_COUNT];
+	double CpuSumPart[GpuTimer::CPU_PART_COUNT];
+	int CpuFrames;
+	float CpuLastFrame;
+	float CpuLastMark[GpuTimer::POINT_COUNT];
+	float CpuLastPart[GpuTimer::CPU_PART_COUNT];
+	int CpuLastFrames;
+
+	// Called at each FRAME_BEGIN: closes the frame before it, and every WINDOW frames the window.
+	void Cpu_Frame_Begin(double now)
+	{
+		if (CpuFrameBegin >= 0)
+		{
+			CpuSumFrame += now - CpuFrameBegin;
+			if (++CpuFrames >= WINDOW)
+			{
+				CpuLastFrame = (float)(CpuSumFrame / CpuFrames);
+				for (int p = 0; p < GpuTimer::POINT_COUNT; ++p)
+					CpuLastMark[p] = (float)(CpuSumMark[p] / CpuFrames);
+				for (int p = 0; p < GpuTimer::CPU_PART_COUNT; ++p)
+					CpuLastPart[p] = (float)(CpuSumPart[p] / CpuFrames);
+				CpuLastFrames = CpuFrames;
+				CpuSumFrame = 0;
+				memset(CpuSumMark, 0, sizeof(CpuSumMark));
+				memset(CpuSumPart, 0, sizeof(CpuSumPart));
+				CpuFrames = 0;
+			}
+		}
+		CpuFrameBegin = now;
+		CpuPrevMark = now;
+	}
+
 	template <class T> void Release_Com(T *&p)
 	{
 		if (p != nullptr)
@@ -174,6 +210,13 @@ void GpuTimer::Mark(Point point)
 		return;
 	q.Stamp[point]->Issue(D3DISSUE_END);
 	q.Issued[point] = true;
+
+	const double now = Cpu_Ms();
+	if (point == FRAME_BEGIN)
+		Cpu_Frame_Begin(now);
+	else
+		CpuSumMark[point] += now - CpuPrevMark;
+	CpuPrevMark = now;
 	if (point == FRAME_END)
 	{
 		q.Disjoint->Issue(D3DISSUE_END);
@@ -190,6 +233,30 @@ int GpuTimer::Average(float *total_ms, float part_ms[POINT_COUNT])
 	*total_ms = LastTotal;
 	memcpy(part_ms, LastPart, sizeof(LastPart));
 	return LastFrames;
+}
+
+double GpuTimer::Cpu_Ms()
+{
+	static LARGE_INTEGER freq;
+	if (freq.QuadPart == 0)
+		QueryPerformanceFrequency(&freq);
+	LARGE_INTEGER now;
+	QueryPerformanceCounter(&now);
+	return (double)now.QuadPart * 1000.0 / (double)freq.QuadPart;
+}
+
+void GpuTimer::Cpu_Add(CpuPart part, double ms)
+{
+	if (Get_Graphics_Options().DebugKeys)
+		CpuSumPart[part] += ms;
+}
+
+int GpuTimer::Cpu_Average(float *frame_ms, float mark_ms[POINT_COUNT], float part_ms[CPU_PART_COUNT])
+{
+	*frame_ms = CpuLastFrame;
+	memcpy(mark_ms, CpuLastMark, sizeof(CpuLastMark));
+	memcpy(part_ms, CpuLastPart, sizeof(CpuLastPart));
+	return CpuLastFrames;
 }
 
 void GpuTimer::Release()
