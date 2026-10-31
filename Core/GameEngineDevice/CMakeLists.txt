@@ -250,3 +250,21 @@ if(RTS_BUILD_OPTION_FFMPEG)
         target_compile_definitions(corei_gameenginedevice_public INTERFACE RTS_HAS_FFMPEG)
     endif()
 endif()
+
+# EastWind: our own OpenAL audio system, replacing Miles. Bink can't take an OpenAL handle, so FFmpeg plays the videos.
+if(RTS_BUILD_OPTION_OPENAL)
+    if(NOT RTS_BUILD_OPTION_FFMPEG)
+        message(FATAL_ERROR "RTS_BUILD_OPTION_OPENAL needs RTS_BUILD_OPTION_FFMPEG")
+    endif()
+    find_package(OpenAL CONFIG REQUIRED)
+    find_path(DRLIBS_INCLUDE_DIR "dr_wav.h" REQUIRED)
+    target_sources(corei_gameenginedevice_private INTERFACE
+        Include/OpenALAudioDevice/OpenALAudioManager.h
+        Include/OpenALAudioDevice/OpenALAudioStream.h
+        Source/OpenALAudioDevice/OpenALAudioManager.cpp
+        Source/OpenALAudioDevice/OpenALAudioStream.cpp
+    )
+    target_include_directories(corei_gameenginedevice_private INTERFACE ${DRLIBS_INCLUDE_DIR})
+    target_link_libraries(corei_gameenginedevice_public INTERFACE OpenAL::OpenAL)
+    target_compile_definitions(corei_gameenginedevice_public INTERFACE RTS_HAS_OPENAL RTS_USE_OPENAL)
+endif()

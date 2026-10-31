@@ -90,14 +90,15 @@
         {
             "name": "win64-vcpkg",
             "inherits": "default-vcpkg",
-            "displayName": "Windows 64bit VCPKG Release (FFmpeg video)",
+            "displayName": "Windows 64bit VCPKG Release (FFmpeg video, OpenAL audio)",
             "architecture": {
                 "value": "x64",
                 "strategy": "external"
             },
             "cacheVariables": {
                 "RTS_FLAGS": "/W3",
-                "RTS_BUILD_OPTION_FFMPEG": "ON"
+                "RTS_BUILD_OPTION_FFMPEG": "ON",
+                "RTS_BUILD_OPTION_OPENAL": "ON"
             }
         },
         {
@@ -116,6 +117,15 @@
                 "jetbrains.com/clion": {
                     "toolchain": "Visual Studio"
                 }
+            }
+        },
+        {
+            "name": "win32-vcpkg-openal",
+            "inherits": "win32-vcpkg",
+            "displayName": "Windows 32bit VCPKG Release (FFmpeg video, OpenAL audio)",
+            "cacheVariables": {
+                "RTS_BUILD_OPTION_FFMPEG": "ON",
+                "RTS_BUILD_OPTION_OPENAL": "ON"
             }
         },
         {
@@ -183,6 +193,13 @@
             "configurePreset": "win32-vcpkg",
             "displayName": "Build Windows 32bit VCPKG Release",
             "description": "Build Windows 32bit VCPKG Release",
+            "configuration": "Release"
+        },
+        {
+            "name": "win32-vcpkg-openal",
+            "configurePreset": "win32-vcpkg-openal",
+            "displayName": "Build Windows 32bit VCPKG Release (OpenAL)",
+            "description": "Build Windows 32bit VCPKG Release (OpenAL)",
             "configuration": "Release"
         },
         {

@@ -9,6 +9,10 @@
     "ffmpeg": {
       "description": "Use FFmpeg instead of Bink for video rendering",
       "dependencies": [ "ffmpeg" ]
+    },
+    "openal": {
+      "description": "Use OpenAL Soft instead of Miles for audio",
+      "dependencies": [ "openal-soft", "drlibs" ]
     }
   }
 }
