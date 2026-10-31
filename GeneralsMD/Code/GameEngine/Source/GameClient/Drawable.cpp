@@ -80,6 +80,7 @@
 #include "GameClient/GameText.h"
 
 #include "WW3D2/ww3d.h"
+#include "WWMath/quat.h"
 
 #define VERY_TRANSPARENT_MATERIAL_PASS_OPACITY (0.001f)
 #define MATERIAL_PASS_OPACITY_FADE_SCALAR (0.8f)
@@ -392,6 +393,7 @@ Drawable::Drawable( const ThingTemplate *thingTemplate, DrawableStatusBits statu
 
 	m_locoInfo = nullptr;
 	m_physicsXform = nullptr;
+	m_logicXformSync = ~0u;
 
 	// sanity
 	if( TheGameClient == nullptr || thingTemplate == nullptr )
@@ -2627,6 +2629,33 @@ void Drawable::draw()
 
 	// call the database defined draw action method
 	Matrix3D transformMtx = *getTransformMatrix();
+
+	// EastWind: draw objects between their last two logic transforms, so they move smoothly when the render rate is
+	// above the logic rate. Snap when not drawn on the last logic step, on a teleport, or on a move outside a step.
+	if (getObject() != nullptr)
+	{
+		const Bool logicStep = WW3D::Get_Sync_Frame_Time() != 0;
+		if (logicStep || !(transformMtx == m_curLogicXform))
+		{
+			const Real MAX_BLEND_STEP_SQR = 100.0f * 100.0f;
+			const Bool continuous = logicStep && m_logicXformSync == WW3D::Get_Previous_Sync_Time()
+				&& (transformMtx.Get_Translation() - m_curLogicXform.Get_Translation()).Length2() < MAX_BLEND_STEP_SQR;
+			m_prevLogicXform = continuous ? m_curLogicXform : transformMtx;
+			m_curLogicXform = transformMtx;
+			m_logicXformSync = WW3D::Get_Sync_Time();
+		}
+
+		const Real t = TheFramePacer->getLogicFramePhase();
+		if (t < 1.0f && !(m_prevLogicXform == m_curLogicXform))
+		{
+			Quaternion rot;
+			Slerp(rot, Build_Quaternion(m_prevLogicXform), Build_Quaternion(m_curLogicXform), t);
+			Vector3 pos;
+			Vector3::Lerp(m_prevLogicXform.Get_Translation(), m_curLogicXform.Get_Translation(), t, &pos);
+			transformMtx = Matrix3D(rot, pos);
+		}
+	}
+
 	if (!isInstanceIdentity())
 	{
 #ifdef ALLOW_TEMPORARIES

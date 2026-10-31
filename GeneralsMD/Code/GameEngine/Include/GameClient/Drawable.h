@@ -712,6 +712,11 @@ private:
 
 	PhysicsXformInfo* m_physicsXform;
 
+	// EastWind: the object's transform at the last two logic steps, blended in draw() for smooth motion.
+	Matrix3D m_prevLogicXform;
+	Matrix3D m_curLogicXform;
+	UnsignedInt m_logicXformSync;	///< WW3D sync time m_curLogicXform was taken at.
+
 	RefCountPtr<DynamicAudioEventRTS> m_ambientSound;		///< sound module for ambient sound (lazily allocated)
 
 	Module** m_modules[NUM_DRAWABLE_MODULE_TYPES];
