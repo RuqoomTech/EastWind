@@ -952,6 +952,11 @@ static void showGpuTimes()
 		TheInGameUI->message(L"GPU time: still measuring, press Ctrl+Shift+T again in a moment");
 		return;
 	}
+	{
+		UnicodeString gpu;
+		gpu.translate(AsciiString(DX9Wrapper::Get_Current_Adapter_Identifier().Description));
+		TheInGameUI->message(L"GPU: %s", gpu.str());
+	}
 	const MeshShader::StatsStruct mesh = MeshShader::Take_Stats();
 	TheInGameUI->message(L"Mesh draws a frame: %.0f, by shader: %.0f lit, %.0f unlit; CPU: %.2f ms setup, %.2f ms setup and draw of the shader draws",
 		mesh.Calls, mesh.LitDraws, mesh.UnlitDraws, mesh.SetupMs, mesh.ShaderDrawMs);
@@ -1214,8 +1219,9 @@ void W3DDisplay::init()
 			// TheSuperHackers @feature Mauller 13/03/2026 Add native MSAA support, must be set before creating render device
 			WW3D::Set_MSAA_Mode((WW3D::MultiSampleModeEnum)TheWritableGlobalData->m_antiAliasLevel);
 
+			// EastWind: on a laptop that lists both GPUs, the fast one rather than Intel's built-in one.
 			renderDeviceError = WW3D::Set_Render_Device(
-				0,
+				DX9Wrapper::Get_Preferred_Render_Device(),
 				getWidth(),
 				getHeight(),
 				getBitDepth(),

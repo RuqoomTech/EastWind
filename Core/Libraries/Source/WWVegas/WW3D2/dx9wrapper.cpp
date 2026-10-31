@@ -1316,6 +1316,17 @@ int DX9Wrapper::Get_Render_Device()
 	return CurRenderDevice;
 }
 
+int DX9Wrapper::Get_Preferred_Render_Device()
+{
+	const unsigned INTEL_VENDOR_ID = 0x8086;
+	for (int i = 0; i < _RenderDeviceDescriptionTable.Count(); ++i)
+	{
+		if (_RenderDeviceDescriptionTable[i].AdapterIdentifier.VendorId != INTEL_VENDOR_ID)
+			return i;
+	}
+	return 0;
+}
+
 const RenderDeviceDescClass & DX9Wrapper::Get_Render_Device_Desc(int deviceidx)
 {
 	WWASSERT(IsInitted);

@@ -464,6 +464,7 @@ public:
 
 	static unsigned _Get_Main_Thread_ID() { return _MainThreadID; }
 	static const D3DADAPTER_IDENTIFIER9& Get_Current_Adapter_Identifier() { return CurrentAdapterIdentifier; }
+	static int	Get_Preferred_Render_Device(); // EastWind: the first adapter that is not Intel's built-in GPU, else 0
 
 	/*
 	** Statistics

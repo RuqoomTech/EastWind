@@ -73,6 +73,14 @@
 // GLOBALS ////////////////////////////////////////////////////////////////////
 HINSTANCE ApplicationHInstance = nullptr;  ///< our application instance
 HWND ApplicationHWnd = nullptr;  ///< our application window handle
+
+// EastWind: on laptops with two GPUs, the drivers run an exe that exports these on the fast GPU
+// instead of the built-in one, which is several times slower.
+extern "C"
+{
+	__declspec(dllexport) DWORD NvOptimusEnablement = 1;
+	__declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
+}
 Win32Mouse *TheWin32Mouse = nullptr;  ///< for the WndProc() only
 DWORD TheMessageTime = 0;	///< For getting the time that a message was posted from Windows.
 
