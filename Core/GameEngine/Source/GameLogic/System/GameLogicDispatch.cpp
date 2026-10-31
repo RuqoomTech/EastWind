@@ -888,7 +888,7 @@ bool GameLogic::onNewGame(MAYBE_UNUSED GameMessage *msg)
 		if (maxFPS < 1 || maxFPS > 1000)
 			maxFPS = TheGlobalData->m_framesPerSecondLimit;
 		DEBUG_LOG(("Setting max FPS limit to %d FPS", maxFPS));
-		TheFramePacer->setFramesPerSecondLimit(maxFPS);
+		TheFramePacer->setGameSpeedFps(maxFPS); // EastWind: the game speed, not the render cap
 		TheWritableGlobalData->m_useFpsLimit = true;
 	}
 

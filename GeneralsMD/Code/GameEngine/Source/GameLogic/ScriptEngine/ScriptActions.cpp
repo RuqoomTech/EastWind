@@ -7199,11 +7199,11 @@ void ScriptActions::executeAction( ScriptAction *pAction )
 		case ScriptAction::SET_FPS_LIMIT:
 			if (!pAction->getParameter(0)->getInt())
 			{
-				TheFramePacer->setFramesPerSecondLimit(TheGlobalData->m_framesPerSecondLimit);
+				TheFramePacer->setGameSpeedFps(TheGlobalData->m_framesPerSecondLimit);
 			}
 			else
 			{
-				TheFramePacer->setFramesPerSecondLimit(pAction->getParameter(0)->getInt());
+				TheFramePacer->setGameSpeedFps(pAction->getParameter(0)->getInt());
 			}
 			// Setting the fps limit doesn't do much good if we don't use it.  jba.
 			TheWritableGlobalData->m_useFpsLimit = true;

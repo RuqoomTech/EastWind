@@ -114,6 +114,7 @@ public:
 	Bool getUseHeatEffects();
 	Bool getDynamicLODEnabled();
 	Bool getFPSLimitEnabled();
+	Int getMaxRenderFps(); // EastWind
 	Bool getBuildingOcclusionEnabled();
 	Int getParticleCap();
 

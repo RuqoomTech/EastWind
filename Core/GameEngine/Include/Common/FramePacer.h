@@ -61,6 +61,7 @@ public:
 	Int  getLogicTimeScaleFps() const; ///< Get the raw logic time scale fps value.
 	void enableLogicTimeScale( Bool enable ); ///< Enable or disable the logic time scale setup. If disabled, the simulation time scale is bound to the render frame time or network update time.
 	Bool isLogicTimeScaleEnabled() const; ///< Check whether the logic time scale setup is enabled.
+	void setGameSpeedFps( Int fps ); ///< EastWind: set the game speed as the logic time scale, which leaves the render rate free.
 	Int  getActualLogicTimeScaleFps(LogicTimeQueryFlags flags = 0) const; ///< Get the real logic time scale fps, depending on the max render fps, network state and enabled state.
 	Real getActualLogicTimeScaleRatio(LogicTimeQueryFlags flags = 0) const; ///< Get the real logic time scale ratio, depending on the max render fps, network state and enabled state.
 	Real getActualLogicTimeScaleOverFpsRatio(LogicTimeQueryFlags flags = 0) const; ///< Get the real logic time scale over render fps ratio, used to scale down steps in render updates to match logic updates.
@@ -70,6 +71,8 @@ public:
 	Real getLogicFramePhase() const; ///< Get how far the current render step reaches into the current logic frame, in [0,1]. Used to interpolate render updates between logic updates.
 
 protected:
+
+	Bool isFastForward() const; ///< Scripts, the camera time multiplier or the fast mode cheat run the game faster than its speed.
 
 	FrameRateLimit m_frameRateLimit;
 

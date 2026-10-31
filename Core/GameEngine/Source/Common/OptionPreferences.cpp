@@ -35,6 +35,7 @@
 #include "Common/GameAudio.h"
 #include "Common/GameLOD.h"
 #include "Common/GlobalData.h"
+#include "Common/FrameRateLimit.h"
 #include "Common/OptionPreferences.h"
 
 #include "GameClient/ClientInstance.h"
@@ -672,6 +673,14 @@ Bool OptionPreferences::getFPSLimitEnabled()
 		return TRUE;
 	}
 	return FALSE;
+}
+
+// EastWind: the render frame cap. Missing or 0 means uncapped; vsync still holds it to the monitor's rate.
+Int OptionPreferences::getMaxRenderFps()
+{
+	OptionPreferences::const_iterator it = find("MaxRenderFps");
+	const Int fps = (it == end()) ? 0 : atoi(it->second.str());
+	return fps > 0 ? fps : (Int)RenderFpsPreset::UncappedFpsValue;
 }
 
 Bool OptionPreferences::get3DShadowsEnabled()

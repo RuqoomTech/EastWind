@@ -103,23 +103,26 @@ Bool FramePacer::isFramesPerSecondLimitEnabled() const
 	return m_enableFpsLimit;
 }
 
-Bool FramePacer::isActualFramesPerSecondLimitEnabled() const
+Bool FramePacer::isFastForward() const
 {
-	Bool allowFpsLimit = true;
-
-	if (TheTacticalView != nullptr)
-	{
-		allowFpsLimit &= TheTacticalView->getTimeMultiplier()<=1 && !TheScriptEngine->isTimeFast();
-	}
+	if (TheTacticalView != nullptr && (TheTacticalView->getTimeMultiplier() > 1 || TheScriptEngine->isTimeFast()))
+		return true;
 
 	if (TheGameLogic != nullptr)
 	{
 #if defined(_ALLOW_DEBUG_CHEATS_IN_RELEASE)
-		allowFpsLimit &= !(!TheGameLogic->isGamePaused() && TheGlobalData->m_TiVOFastMode);
+		return !TheGameLogic->isGamePaused() && TheGlobalData->m_TiVOFastMode;
 #else	//always allow this cheat key if we're in a replay game.
-		allowFpsLimit &= !(!TheGameLogic->isGamePaused() && TheGlobalData->m_TiVOFastMode && TheGameLogic->isInReplayGame());
+		return !TheGameLogic->isGamePaused() && TheGlobalData->m_TiVOFastMode && TheGameLogic->isInReplayGame();
 #endif
 	}
+
+	return false;
+}
+
+Bool FramePacer::isActualFramesPerSecondLimitEnabled() const
+{
+	Bool allowFpsLimit = !isFastForward();
 
 	allowFpsLimit &= TheGlobalData->m_useFpsLimit;
 	allowFpsLimit &= isFramesPerSecondLimitEnabled();
@@ -189,6 +192,14 @@ Bool FramePacer::isLogicTimeScaleEnabled() const
 	return m_enableLogicTimeScale;
 }
 
+// EastWind: the game speed (GameData FramesPerSecondLimit, the skirmish speed slider, scripts) used to be the
+// render cap, which held every frame to 30 FPS. Now it paces only the logic, and the render cap is the player's.
+void FramePacer::setGameSpeedFps( Int fps )
+{
+	setLogicTimeScaleFps(fps > 0 ? fps : LOGICFRAMES_PER_SECOND); // 0 would stop the logic
+	enableLogicTimeScale(TRUE);
+}
+
 Int FramePacer::getActualLogicTimeScaleFps(LogicTimeQueryFlags flags) const
 {
 	if (m_isTimeFrozen && (flags & IgnoreFrozenTime) == 0)
@@ -206,7 +217,8 @@ Int FramePacer::getActualLogicTimeScaleFps(LogicTimeQueryFlags flags) const
 		return TheNetwork->getFrameRate();
 	}
 
-	if (isLogicTimeScaleEnabled())
+	// EastWind: fast forward runs the logic as fast as the render, as it did when the game speed was the render cap.
+	if (isLogicTimeScaleEnabled() && !isFastForward())
 	{
 		return getLogicTimeScaleFps();
 	}
