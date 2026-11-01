@@ -327,18 +327,14 @@ template<typename T> inline bool endsWithNoCase(const T *str, const T *suffix)
 	return strnicmp_t(str + strlen - suffixlen, suffix, suffixlen) == 0;
 }
 
-// Memcchr. Multiple implementations: 1) VC6-compatible in x86 ASM; 2) SSE2 intrinsics; 3) portable.
+// Memcchr. Two implementations: 1) SSE2 intrinsics; 2) portable.
 // Return a pointer to the first byte that differs from a given value, or nullptr if there is no mismatch.
-#if defined(_MSC_VER) && _MSC_VER < 1300
-  #include "stringex_memcchr_x86asm.inl"
-#else
-  #if defined(__SSE2__) || defined(_M_X64) || (defined(_MSC_VER) && defined(_M_IX86))
-    #include <emmintrin.h>
-    #if defined(_MSC_VER)
-      #include <intrin.h>
-    #endif
-    #include "stringex_memcchr_sse2.inl"
-  #else
-    #include "stringex_memcchr.inl"
+#if defined(__SSE2__) || defined(_M_X64)
+  #include <emmintrin.h>
+  #if defined(_MSC_VER)
+    #include <intrin.h>
   #endif
+  #include "stringex_memcchr_sse2.inl"
+#else
+  #include "stringex_memcchr.inl"
 #endif

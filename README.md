@@ -69,8 +69,8 @@ Docker, CLion, and links to forks supporting additional versions.
 
 **Windows (Visual Studio 2022)**
 ```bash
-cmake --preset win32
-cmake --build build/win32 --config Release
+cmake --preset win64
+cmake --build build/win64 --config Release
 ```
 
 **Linux (via Docker)**
@@ -89,7 +89,7 @@ binaries instead of re-compiling everything. Pull requests from forks restore fr
 
 ### Profiling
 
-Tracy profiling is supported in the CMake preset `win32-profile`.
+Tracy profiling: configure the `win64` preset with `-DRTS_BUILD_OPTION_PROFILE=ON -DRTS_BUILD_OPTION_PROFILE_TRACY=ON`.
 Use `tracy-profiler.exe` from [Tracy v0.13.1](https://github.com/wolfpld/tracy/releases/tag/v0.13.1).
 If you get an error when using Tracy, try removing `dbghelp.dll` from the game binary directory.
 

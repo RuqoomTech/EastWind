@@ -4,7 +4,6 @@ set(UTILITY_SRC
     Utility/array_adapter.h
     Utility/atl_compat.h
     Utility/atomic_adapter.h
-    Utility/atomic_x86interlocked.inl
     Utility/arch_context.h
     Utility/bit_adapter.h
     Utility/compat.h
@@ -13,7 +12,6 @@ set(UTILITY_SRC
     Utility/fstream_adapter.h
     Utility/hash_map_adapter.h
     Utility/interlocked_adapter.h
-    Utility/interlocked_x86asm.inl
     Utility/intrin_compat.h
     Utility/iostream_adapter.h
     Utility/lazy_static.h
@@ -27,7 +25,6 @@ set(UTILITY_SRC
     Utility/stringex.h
     Utility/stringex_memcchr.inl
     Utility/stringex_memcchr_sse2.inl
-    Utility/stringex_memcchr_x86asm.inl
     Utility/tchar_compat.h
     Utility/thread_compat.h
     Utility/time_compat.h

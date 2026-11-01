@@ -598,50 +598,6 @@ void Dump_Exception_Info(EXCEPTION_POINTERS *e_info)
 	Add_Txt(scrap);
 
 
-#if defined(_M_IX86)
-	/*
-	** Now the FP registers.
-	*/
-	Add_Txt("\r\nFloating point status\r\n");
-	sprintf(scrap, "     Control word: %08x\r\n", context->FloatSave.ControlWord);
-	Add_Txt(scrap);
-	sprintf(scrap, "      Status word: %08x\r\n", context->FloatSave.StatusWord);
-	Add_Txt(scrap);
-	sprintf(scrap, "         Tag word: %08x\r\n", context->FloatSave.TagWord);
-	Add_Txt(scrap);
-	sprintf(scrap, "     Error Offset: %08x\r\n", context->FloatSave.ErrorOffset);
-	Add_Txt(scrap);
-	sprintf(scrap, "   Error Selector: %08x\r\n", context->FloatSave.ErrorSelector);
-	Add_Txt(scrap);
-	sprintf(scrap, "      Data Offset: %08x\r\n", context->FloatSave.DataOffset);
-	Add_Txt(scrap);
-	sprintf(scrap, "    Data Selector: %08x\r\n", context->FloatSave.DataSelector);
-	Add_Txt(scrap);
-#if !defined(WOW64_SIZE_OF_80387_REGISTERS)
-	sprintf(scrap, "      Cr0NpxState: %08x\r\n", context->FloatSave.Cr0NpxState);
-	Add_Txt(scrap);
-#endif
-
-	for (int fp=0 ; fp<SIZE_OF_80387_REGISTERS / 10 ; fp++) {
-		sprintf(scrap, "ST%d : ", fp);
-		Add_Txt(scrap);
-		for (int b=0 ; b<10 ; b++) {
-			sprintf(scrap, "%02X", context->FloatSave.RegisterArea[(fp*10) + b]);
-			Add_Txt(scrap);
-		}
-
-		void *fp_data_ptr = (void*)(&context->FloatSave.RegisterArea[fp*10]);
-
-		// TheSuperHackers @refactor Replaced MSVC inline assembly with portable C++ cast for MinGW compatibility
-		/*
-		** Convert FP dump from temporary real value (10 bytes) to double (8 bytes).
-		** On x86, long double is the 10-byte x87 format, so we can just cast.
-		*/
-		double fp_value = (double)(*(long double*)fp_data_ptr);
-		sprintf(scrap, "   %+#.17e\r\n", fp_value);
-		Add_Txt(scrap);
-	}
-#endif
 
 	/*
 	** Dump the bytes at EIP. This will make it easier to match the crash address with later versions of the game.

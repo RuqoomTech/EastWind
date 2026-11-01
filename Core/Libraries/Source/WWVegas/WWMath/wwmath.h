@@ -264,57 +264,6 @@ WWINLINE float WWMath::Inv_Sqrt_Legacy(float a)
 {
 #if USE_DETERMINISTIC_MATH
 	return 1.0f / gm_sqrtf(a);
-
-#elif defined(_MSC_VER) && defined(_M_IX86)
-	// Some 30% faster inverse square root than regular C++ compiled, from Intel's math library
-	float retval;
-
-	__asm {
-		mov		eax, 0be6eb508h
-		mov		DWORD PTR [esp-12],03fc00000h ;  1.5 on the stack
-		sub		eax, DWORD PTR [a]; a
-		sub		DWORD PTR [a], 800000h ; a/2 a=Y0
-		shr		eax, 1     ; firs approx in eax=R0
-		mov		DWORD PTR [esp-8], eax
-
-		fld		DWORD PTR [esp-8] ;r
-		fmul	st, st            ;r*r
-		fld		DWORD PTR [esp-8] ;r
-		fxch	st(1)
-		fmul	DWORD PTR [a];a ;r*r*y0
-		fld		DWORD PTR [esp-12];load 1.5
-		fld		st(0)
-		fsub	st,st(2)			   ;r1 = 1.5 - y1
-		;x1 = st(3)
-		;y1 = st(2)
-		;1.5 = st(1)
-		;r1 = st(0)
-
-		fld		st(1)
-		fxch	st(1)
-		fmul	st(3),st			; y2=y1*r1*...
-		fmul	st(3),st			; y2=y1*r1*r1
-		fmulp	st(4),st            ; x2=x1*r1
-		fsub	st,st(2)               ; r2=1.5-y2
-		;x2=st(3)
-		;y2=st(2)
-		;1.5=st(1)
-		;r2 = st(0)
-
-		fmul	st(2),st			;y3=y2*r2*...
-		fmul	st(3),st			;x3=x2*r2
-		fmulp	st(2),st			;y3=y2*r2*r2
-		fxch	st(1)
-		fsubp	st(1),st			;r3= 1.5 - y3
-		;x3 = st(1)
-		;r3 = st(0)
-		fmulp	st(1), st
-
-		fstp retval
-	}
-
-	return retval;
-
 #else
 	return 1.0f / (float)sqrt((double)a);
 #endif
@@ -594,16 +543,6 @@ WWINLINE float WWMath::Cosf_Legacy(float val)
 {
 #if USE_DETERMINISTIC_MATH
 	return gm_cosf(val);
-
-#elif defined(_MSC_VER) && defined(_M_IX86)
-	float retval;
-	__asm {
-		fld [val]
-		fcos
-		fstp [retval]
-	}
-	return retval;
-
 #else
 	return cosf(val);
 #endif
@@ -640,16 +579,6 @@ WWINLINE float WWMath::Sinf_Legacy(float val)
 {
 #if USE_DETERMINISTIC_MATH
 	return gm_sinf(val);
-
-#elif defined(_MSC_VER) && defined(_M_IX86)
-	float retval;
-	__asm {
-		fld [val]
-		fsin
-		fstp [retval]
-	}
-	return retval;
-
 #else
 	return sinf(val);
 #endif
@@ -767,12 +696,6 @@ WWINLINE float WWMath::Fabsf_Legacy(float val)
 {
 #if USE_DETERMINISTIC_MATH
 	return gm_fabsf(val);
-
-#elif defined(_MSC_VER) && defined(_M_IX86)
-	int value=std::bit_cast<int>(val);
-	value&=0x7fffffff;
-	return std::bit_cast<float>(value);
-
 #else
 	return fabsf(val);
 #endif
@@ -993,15 +916,6 @@ WWINLINE long WWMath::Float_To_Long(float f)
 {
 #if USE_DETERMINISTIC_MATH
 	return gm_lrintf(f);
-
-#elif defined(_MSC_VER) && defined(_M_IX86)
-	long i;
-	__asm {
-		fld [f]
-		fistp [i]
-	}
-	return i;
-
 #else
 	return (long)f;
 #endif
@@ -1011,15 +925,6 @@ WWINLINE long WWMath::Float_To_Long(double f)
 {
 #if USE_DETERMINISTIC_MATH
 	return gm_lrint(f);
-
-#elif defined(_MSC_VER) && defined(_M_IX86)
-	long retval;
-	__asm {
-		fld	qword ptr [f]
-		fistp dword ptr [retval]
-	}
-	return retval;
-
 #else
 	return (long)f;
 #endif

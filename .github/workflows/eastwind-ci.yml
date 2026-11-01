@@ -20,32 +20,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build-generalsmd-win32:
-    name: Build GeneralsMD${{ matrix.preset && '' }}
-    permissions:
-      contents: read
-    strategy:
-      matrix:
-        include:
-          # vcpkg presets, because FFmpeg and OpenAL come from vcpkg. The reusable workflow only sets vcpkg up for those.
-          - preset: "win32-vcpkg"
-            tools: true
-            extras: true
-          - preset: "win32-vcpkg-debug"
-            tools: true
-            extras: true
-      fail-fast: false
-    uses: ./.github/workflows/reusable-build-toolchain.yml
-    with:
-      game: "GeneralsMD"
-      preset: ${{ matrix.preset }}
-      tools: ${{ matrix.tools }}
-      extras: ${{ matrix.extras }}
-      tests: true
-    secrets: inherit
-
-  # The reusable workflow only sets up MSVC for win32 presets, so win64 has its own steps here.
-  build-generalsmd-win64:
+  # x64 only. Upstream's reusable build workflow sets MSVC up for x86, so this job has its own steps.
+  build-generalsmd:
     name: Build GeneralsMD (${{ matrix.preset }}+t+e)
     runs-on: windows-2022
     timeout-minutes: 60
@@ -54,7 +30,7 @@ jobs:
       packages: write # vcpkg binary cache uploads, as in upstream's vcpkg jobs
     strategy:
       matrix:
-        preset: ["win64-vcpkg", "win64-debug"]
+        preset: ["win64", "win64-debug"]
       fail-fast: false
     env:
       # Same vcpkg binary cache as the reusable workflow, so FFmpeg is built once and then restored.

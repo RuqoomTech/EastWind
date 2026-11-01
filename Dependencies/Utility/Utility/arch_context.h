@@ -33,17 +33,6 @@
 #define CTX_SI(ctx) ((ctx).Rsi)
 #define CTX_DI(ctx) ((ctx).Rdi)
 #define CTX_STACKWALK_MACHINE IMAGE_FILE_MACHINE_AMD64
-#elif defined(_M_IX86)
-#define CTX_PC(ctx) ((ctx).Eip)
-#define CTX_STACK(ctx) ((ctx).Esp)
-#define CTX_FRAME(ctx) ((ctx).Ebp)
-#define CTX_AX(ctx) ((ctx).Eax)
-#define CTX_BX(ctx) ((ctx).Ebx)
-#define CTX_CX(ctx) ((ctx).Ecx)
-#define CTX_DX(ctx) ((ctx).Edx)
-#define CTX_SI(ctx) ((ctx).Esi)
-#define CTX_DI(ctx) ((ctx).Edi)
-#define CTX_STACKWALK_MACHINE IMAGE_FILE_MACHINE_I386
 #else
 #error "arch_context.h: unsupported architecture"
 #endif

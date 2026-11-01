@@ -16,15 +16,10 @@
 **	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// This file provides the Interlocked functions of the Windows SDK. The VC6 headers have them neither for volatile
-// pointers nor for 8, 16 and 64 bit values, so VC6 gets its own implementations.
+// This file provides the Interlocked functions of the Windows SDK.
 #pragma once
 
-#if defined(_MSC_VER) && _MSC_VER < 1300
-
-	#include "interlocked_x86asm.inl"
-
-#elif defined(_WIN32)
+#if defined(_WIN32)
 
 	#include <windows.h>
 

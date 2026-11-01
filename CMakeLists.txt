@@ -36,17 +36,7 @@ project(genzh LANGUAGES C CXX)
 # This file handles extra settings wanted/needed for different compilers.
 include(cmake/compilers.cmake)
 
-# Debug symbol stripping for Release builds (MinGW)
-include(cmake/debug_strip.cmake)
-
 include(FetchContent)
-
-# MinGW-w64 specific configuration
-if(MINGW)
-    include(cmake/mingw.cmake)
-    include(cmake/reactos-atl.cmake)
-    include(cmake/widl.cmake)
-endif()
 
 # Find/Add build dependencies and stubs shared by all projects
 # Direct3D 9 and DirectInput 8 come with the Windows SDK.

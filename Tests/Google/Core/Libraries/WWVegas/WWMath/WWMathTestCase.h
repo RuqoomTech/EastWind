@@ -31,7 +31,7 @@
 
 // The game simulation must compute the same bits from one build to the next.
 // Every call has a dump of its bits, with one column per build configuration.
-// VC6 does not build the tests, so the retail-compatible branch is checked on win32.
+// The retail-compatible column holds the old x87 win32 results; no x64 build checks it.
 enum WWMathColumn
 {
 	WWMATH_COLUMN_NONE = -1,
@@ -42,8 +42,6 @@ enum WWMathColumn
 
 #if USE_DETERMINISTIC_MATH
 static const WWMathColumn wwmathColumn = WWMATH_COLUMN_DETERMINISTIC;
-#elif defined(_MSC_VER) && defined(_M_IX86)
-static const WWMathColumn wwmathColumn = WWMATH_COLUMN_RETAIL_COMPATIBLE;
 #else
 static const WWMathColumn wwmathColumn = WWMATH_COLUMN_NONE;
 #endif

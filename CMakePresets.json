@@ -20,54 +20,6 @@
             }
         },
         {
-            "name": "default-vcpkg",
-            "displayName": "Default Config for vcpkg (don't use directly!)",
-            "generator": "Ninja Multi-Config",
-            "hidden": true,
-            "binaryDir": "${sourceDir}/build/${presetName}",
-            "cacheVariables": {
-                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-                "CMAKE_MSVC_DEBUG_INFORMATION_FORMAT": "$<$<CONFIG:Release,Debug,RelWithDebInfo>:Embedded>",
-                "CMAKE_MSVC_RUNTIME_LIBRARY": "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL",
-                "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
-            }
-        },
-        {
-            "name": "win32",
-            "inherits": "default",
-            "hidden": false,
-            "displayName": "Windows 32bit Release",
-            "architecture": {
-                "value": "Win32",
-                "strategy": "external"
-            },
-            "cacheVariables": {
-                "RTS_FLAGS": "/W3"
-            },
-            "vendor": {
-                "jetbrains.com/clion": {
-                    "toolchain": "Visual Studio"
-                }
-            }
-        },
-        {
-            "name": "win32-profile",
-            "inherits": "win32",
-            "displayName": "Windows 32bit Profile",
-            "cacheVariables": {
-                "RTS_BUILD_OPTION_PROFILE": "ON",
-                "RTS_BUILD_OPTION_PROFILE_TRACY": "ON"
-            }
-        },
-        {
-            "name": "win32-debug",
-            "inherits": "win32",
-            "displayName": "Windows 32bit Debug",
-            "cacheVariables": {
-                "RTS_BUILD_OPTION_DEBUG": "ON"
-            }
-        },
-        {
             "name": "win64",
             "inherits": "default",
             "hidden": false,
@@ -87,76 +39,9 @@
             "cacheVariables": {
                 "RTS_BUILD_OPTION_DEBUG": "ON"
             }
-        },
-        {
-            "name": "win64-vcpkg",
-            "inherits": "default-vcpkg",
-            "displayName": "Windows 64bit VCPKG Release",
-            "architecture": {
-                "value": "x64",
-                "strategy": "external"
-            },
-            "cacheVariables": {
-                "RTS_FLAGS": "/W3"
-            }
-        },
-        {
-            "name": "win32-vcpkg",
-            "inherits": "default-vcpkg",
-            "hidden": false,
-            "displayName": "Windows 32bit VCPKG Release",
-            "architecture": {
-                "value": "Win32",
-                "strategy": "external"
-            },
-            "cacheVariables": {
-                "RTS_FLAGS": "/W3"
-            },
-            "vendor": {
-                "jetbrains.com/clion": {
-                    "toolchain": "Visual Studio"
-                }
-            }
-        },
-        {
-            "name": "win32-vcpkg-profile",
-            "inherits": "win32-vcpkg",
-            "displayName": "Windows 32bit VCPKG Profile",
-            "cacheVariables": {
-                "RTS_BUILD_OPTION_PROFILE": "ON"
-            }
-        },
-        {
-            "name": "win32-vcpkg-debug",
-            "inherits": "win32-vcpkg",
-            "displayName": "Windows 32bit VCPKG Debug",
-            "cacheVariables": {
-                "RTS_BUILD_OPTION_DEBUG": "ON"
-            }
         }
     ],
     "buildPresets": [
-        {
-            "name": "win32",
-            "configurePreset": "win32",
-            "displayName": "Build Windows 32bit Release",
-            "description": "Build Windows 32bit Release",
-            "configuration": "Release"
-        },
-        {
-            "name": "win32-profile",
-            "configurePreset": "win32-profile",
-            "displayName": "Build Windows 32bit Profile",
-            "description": "Build Windows 32bit Profile",
-            "configuration": "Release"
-        },
-        {
-            "name": "win32-debug",
-            "configurePreset": "win32-debug",
-            "displayName": "Build Windows 32bit Debug",
-            "description": "Build Windows 32bit Debug",
-            "configuration": "Debug"
-        },
         {
             "name": "win64",
             "configurePreset": "win64",
@@ -169,34 +54,6 @@
             "configurePreset": "win64-debug",
             "displayName": "Build Windows 64bit Debug",
             "description": "Build Windows 64bit Debug",
-            "configuration": "Debug"
-        },
-        {
-            "name": "win64-vcpkg",
-            "configurePreset": "win64-vcpkg",
-            "displayName": "Build Windows 64bit VCPKG Release",
-            "description": "Build Windows 64bit VCPKG Release",
-            "configuration": "Release"
-        },
-        {
-            "name": "win32-vcpkg",
-            "configurePreset": "win32-vcpkg",
-            "displayName": "Build Windows 32bit VCPKG Release",
-            "description": "Build Windows 32bit VCPKG Release",
-            "configuration": "Release"
-        },
-        {
-            "name": "win32-vcpkg-profile",
-            "configurePreset": "win32-vcpkg-profile",
-            "displayName": "Build Windows 32bit VCPKG Profile",
-            "description": "Build Windows 32bit VCPKG Profile",
-            "configuration": "Release"
-        },
-        {
-            "name": "win32-vcpkg-debug",
-            "configurePreset": "win32-vcpkg-debug",
-            "displayName": "Build Windows 32bit VCPKG Debug",
-            "description": "Build Windows 32bit VCPKG Debug",
             "configuration": "Debug"
         }
     ],
@@ -214,30 +71,6 @@
             }
         },
         {
-            "name": "win32",
-            "inherits": "default",
-            "configurePreset": "win32",
-            "displayName": "Test Windows 32bit Release",
-            "description": "Test Windows 32bit Release",
-            "configuration": "Release"
-        },
-        {
-            "name": "win32-profile",
-            "inherits": "default",
-            "configurePreset": "win32-profile",
-            "displayName": "Test Windows 32bit Profile",
-            "description": "Test Windows 32bit Profile",
-            "configuration": "Release"
-        },
-        {
-            "name": "win32-debug",
-            "inherits": "default",
-            "configurePreset": "win32-debug",
-            "displayName": "Test Windows 32bit Debug",
-            "description": "Test Windows 32bit Debug",
-            "configuration": "Debug"
-        },
-        {
             "name": "win64",
             "inherits": "default",
             "configurePreset": "win64",
@@ -252,116 +85,32 @@
             "displayName": "Test Windows 64bit Debug",
             "description": "Test Windows 64bit Debug",
             "configuration": "Debug"
-        },
-        {
-            "name": "win64-vcpkg",
-            "inherits": "default",
-            "configurePreset": "win64-vcpkg",
-            "displayName": "Test Windows 64bit VCPKG Release",
-            "description": "Test Windows 64bit VCPKG Release",
-            "configuration": "Release"
-        },
-        {
-            "name": "win32-vcpkg",
-            "inherits": "default",
-            "configurePreset": "win32-vcpkg",
-            "displayName": "Test Windows 32bit VCPKG Release",
-            "description": "Test Windows 32bit VCPKG Release",
-            "configuration": "Release"
-        },
-        {
-            "name": "win32-vcpkg-profile",
-            "inherits": "default",
-            "configurePreset": "win32-vcpkg-profile",
-            "displayName": "Test Windows 32bit VCPKG Profile",
-            "description": "Test Windows 32bit VCPKG Profile",
-            "configuration": "Release"
-        },
-        {
-            "name": "win32-vcpkg-debug",
-            "inherits": "default",
-            "configurePreset": "win32-vcpkg-debug",
-            "displayName": "Test Windows 32bit VCPKG Debug",
-            "description": "Test Windows 32bit VCPKG Debug",
-            "configuration": "Debug"
         }
     ],
     "workflowPresets": [
         {
-            "name": "win32",
+            "name": "win64",
             "steps": [
                 {
                     "type": "configure",
-                    "name": "win32"
+                    "name": "win64"
                 },
                 {
                     "type": "build",
-                    "name": "win32"
+                    "name": "win64"
                 }
             ]
         },
         {
-            "name": "win32-profile",
+            "name": "win64-debug",
             "steps": [
                 {
                     "type": "configure",
-                    "name": "win32-profile"
+                    "name": "win64-debug"
                 },
                 {
                     "type": "build",
-                    "name": "win32-profile"
-                }
-            ]
-        },
-        {
-            "name": "win32-debug",
-            "steps": [
-                {
-                    "type": "configure",
-                    "name": "win32-debug"
-                },
-                {
-                    "type": "build",
-                    "name": "win32-debug"
-                }
-            ]
-        },
-        {
-            "name": "win32-vcpkg",
-            "steps": [
-                {
-                    "type": "configure",
-                    "name": "win32-vcpkg"
-                },
-                {
-                    "type": "build",
-                    "name": "win32-vcpkg"
-                }
-            ]
-        },
-        {
-            "name": "win32-vcpkg-profile",
-            "steps": [
-                {
-                    "type": "configure",
-                    "name": "win32-vcpkg-profile"
-                },
-                {
-                    "type": "build",
-                    "name": "win32-vcpkg-profile"
-                }
-            ]
-        },
-        {
-            "name": "win32-vcpkg-debug",
-            "steps": [
-                {
-                    "type": "configure",
-                    "name": "win32-vcpkg-debug"
-                },
-                {
-                    "type": "build",
-                    "name": "win32-vcpkg-debug"
+                    "name": "win64-debug"
                 }
             ]
         }

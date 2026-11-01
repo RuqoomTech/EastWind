@@ -139,54 +139,10 @@ void DebugExceptionhandler::LogRegisters(Debug &dbg, struct _EXCEPTION_POINTERS 
       << " GS:" << Debug::Width(4) << ctx.SegGs << "\n" << Debug::FillChar() << Debug::Dec();
 }
 
-void DebugExceptionhandler::LogFPURegisters(Debug &dbg, struct _EXCEPTION_POINTERS *exptr)
+void DebugExceptionhandler::LogFPURegisters(Debug &dbg, struct _EXCEPTION_POINTERS *)
 {
-  struct _CONTEXT &ctx=*exptr->ContextRecord;
-
-#if defined(_M_IX86)
-  if (!(ctx.ContextFlags&CONTEXT_FLOATING_POINT))
-#endif
-  {
-    dbg << "FP registers not available\n";
-    return;
-  }
-
-#if defined(_M_IX86)
-
-  FLOATING_SAVE_AREA &flt=ctx.FloatSave;
-  dbg << Debug::Bin() << Debug::FillChar('0')
-      << "CW:" << Debug::Width(16) << (flt.ControlWord&0xffff) << "\n"
-      << "SW:" << Debug::Width(16) << (flt.StatusWord&0xffff) << "\n"
-      << "TW:" << Debug::Width(16) << (flt.TagWord&0xffff) << "\n"
-      << Debug::Hex()
-      << "ErrOfs:      " << Debug::Width(8) << flt.ErrorOffset
-      << " ErrSel:  "    << Debug::Width(8) << flt.ErrorSelector << "\n"
-      << "DataOfs:     " << Debug::Width(8) << flt.DataOffset
-      << " DataSel: "    << Debug::Width(8) << flt.DataSelector << "\n"
-#if !defined(WOW64_SIZE_OF_80387_REGISTERS)
-      << "Cr0NpxState: " << Debug::Width(8) << flt.Cr0NpxState << "\n"
-#endif
-  ;
-
-  for (unsigned k=0;k<SIZE_OF_80387_REGISTERS/10;++k)
-  {
-    dbg << Debug::Dec() << "ST(" << k << ") ";
-    dbg.SetPrefixAndRadix("",16);
-
-    BYTE *value=flt.RegisterArea+k*10;
-    for (unsigned i=0;i<10;i++)
-      dbg << Debug::Width(2) << value[i];
-
-    // TheSuperHackers @refactor Replaced MSVC inline assembly with portable C++ cast for MinGW compatibility
-    // Convert from temporary real (10 byte) to double (8 bytes).
-    // On x86, long double is the 10-byte x87 format, so we can just cast.
-    double fpVal = (double)(*(long double*)value);
-    dbg << " " << fpVal;
-
-    dbg << "\n";
-  }
-  dbg << Debug::FillChar() << Debug::Dec();
-#endif
+  // x64 has no x87 FPU state in CONTEXT.
+  dbg << "FP registers not available\n";
 }
 
 // include exception dialog box
