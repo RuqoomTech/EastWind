@@ -30,11 +30,8 @@
 #include "Lib/Debug.h"
 #include "WWLib/verchk.h"
 #include "WWMath/wwmath.h"
-#include "WWAudio/WWAudio.h"
 #include "ViewerAssetMgr.h"
 #include "Globals.h"
-#include "AnimatedSoundOptionsDialog.h"
-#include "WW3D2/animatedsoundmgr.h"
 
 
 #undef STRICT
@@ -208,7 +205,6 @@ BOOL CW3DViewApp::InitInstance ()
 		//	Initialize the libraries
 		//
 		WWMath::Init ();
-		AnimatedSoundOptionsDialogClass::Load_Animated_Sound_Settings ();
 
 		//
 		//	Disable the 3DFX logo
@@ -386,11 +382,6 @@ CW3DViewApp::ExitInstance()
 	//
 	if (m_bInitialized) {
 
-	//
-		//	Shutdown the audio system
-		//
-		WWAudioClass::Get_Instance ()->Shutdown ();
-
 		//
 		//	Shutdown W3D
 		//
@@ -401,7 +392,6 @@ CW3DViewApp::ExitInstance()
 		//	Shutdown the libraries
 		//
 		WWMath::Shutdown ();
-		AnimatedSoundMgrClass::Shutdown ();
 
 		//
 		//	Free the asset manager

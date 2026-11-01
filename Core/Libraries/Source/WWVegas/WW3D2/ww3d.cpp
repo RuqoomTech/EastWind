@@ -115,7 +115,6 @@
 #include "WWLib/thread.h"
 #include "WWLib/cpudetect.h"
 #include "dx9texman.h"
-#include "animatedsoundmgr.h"
 #include "static_sort_list.h"
 #include "shdlib.h"
 #include "framgrab.h"
@@ -303,11 +302,7 @@ WW3DErrorType WW3D::Init(void *hwnd, char *defaultpal, bool lite)
 	DefaultStaticSortLists = W3DNEW DefaultStaticSortListClass();
 	Reset_Current_Static_Sort_Lists_To_Default();
 
-	/*
-	** Initialize the animation-triggered sound system
-	*/
 	if (!lite) {
-		AnimatedSoundMgrClass::Initialize ();
 		IsInitted = true;
 	}
 	WWDEBUG_SAY(("WW3D Init completed"));
@@ -370,11 +365,6 @@ WW3DErrorType WW3D::Shutdown()
 	** Clear the default static sort lists
 	*/
 	delete DefaultStaticSortLists;
-
-	/*
-	** Release the animation-triggered sound data
-	*/
-	AnimatedSoundMgrClass::Shutdown ();
 
 	IsInitted = false;
 	return WW3D_ERROR_OK;

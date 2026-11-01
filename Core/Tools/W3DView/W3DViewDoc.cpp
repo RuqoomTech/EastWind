@@ -58,7 +58,6 @@
 #include "WWLib/textfile.h"
 #include "WW3D2/hmorphanim.h"
 #include "mmsystem.h"
-#include "WW3D2/soundrobj.h"
 #include "WW3D2/dazzle.h"
 
 
@@ -2038,108 +2037,6 @@ CW3DViewDoc::Save_Current_Emitter (const CString &filename)
 		}
 	}
 	// Return the true/false result code
-	return retval;
-}
-
-
-///////////////////////////////////////////////////////////////
-//
-//  Save_Selected_Sound_Object
-//
-///////////////////////////////////////////////////////////////
-bool
-CW3DViewDoc::Save_Selected_Sound_Object ()
-{
-	bool retval = false;
-
-	//
-	// Is this a sound render object?
-	//
-	if ((m_pCRenderObj != nullptr) &&
-		 m_pCRenderObj->Class_ID () == RenderObjClass::CLASSID_SOUND)
-	{
-		//
-		// Build the default filename from the name of the emitter
-		//
-		CString default_filename = GetDataTreeView ()->GetCurrentSelectionName ();
-		default_filename += ".w3d";
-
-		RestrictedFileDialogClass dialog (FALSE,
-								  ".w3d",
-								  (LPCTSTR)default_filename,
-								  OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT | OFN_EXPLORER,
-								  "Westwood 3D Files (*.w3d)|*.~xyzabc||",
-								  AfxGetMainWnd ());
-
-		//
-		// Ask the user what filename they wish to save as.
-		//
-		dialog.m_ofn.lpstrTitle = "Export Sound Object";
-		if (dialog.DoModal () == IDOK) {
-
-			//
-			// Save the sound object to the requested file
-			//
-			retval = Save_Current_Sound_Object (dialog.GetPathName ());
-		}
-	}
-
-	return retval;
-}
-
-
-///////////////////////////////////////////////////////////////
-//
-//  Save_Current_Sound_Object
-//
-///////////////////////////////////////////////////////////////
-bool
-CW3DViewDoc::Save_Current_Sound_Object (const CString &filename)
-{
-	bool retval = false;
-
-	//
-	// Get the prototype for this sound object
-	//
-	SoundRenderObjPrototypeClass *proto = nullptr;
-	proto = (SoundRenderObjPrototypeClass *)WW3DAssetManager::Get_Instance ()->Find_Prototype (m_pCRenderObj->Get_Name ());
-
-	ASSERT (proto != nullptr);
-	if (proto != nullptr) {
-
-		//
-		// Get the definition from the prototype
-		//
-		SoundRenderObjDefClass *definition = proto->Peek_Definition ();
-		ASSERT (definition != nullptr);
-		if (definition != nullptr) {
-
-			//
-			// Get a file object for the new file
-			//
-			FileClass *file = _TheFileFactory->Get_File (filename);
-			if (file) {
-
-				//
-				// Open the file for writing
-				//
-				file->Open (FileClass::WRITE);
-
-				//
-				// Save the definition to the file
-				//
-				ChunkSaveClass csave (file);
-				retval = (definition->Save_W3D (csave) == WW3D_ERROR_OK);
-
-				//
-				// Close the file
-				//
-				file->Close ();
-				_TheFileFactory->Return_File (file);
-			}
-		}
-	}
-
 	return retval;
 }
 

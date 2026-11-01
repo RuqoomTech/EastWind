@@ -68,13 +68,9 @@
 #include "RingPropertySheet.h"
 #include "AddToLineupDialog.h"
 #include "CameraDistanceDialog.h"
-#include "SoundEditDialog.h"
-#include "WWAudio/WWAudio.h"
-#include "WW3D2/soundrobj.h"
 #include "WW3D2/rddesc.h"
 #include "ScaleDialog.h"
 #include "GammaDialog.h"
-#include "AnimatedSoundOptionsDialog.h"
 
 
 //#undef STRICT
@@ -256,11 +252,6 @@ BEGIN_MESSAGE_MAP(CMainFrame, CFrameWnd)
 	ON_UPDATE_COMMAND_UI(IDM_BIND_SUBOBJECT_LOD, OnUpdateBindSubobjectLod)
 	ON_COMMAND(IDM_SET_CAMERA_DISTANCE, OnSetCameraDistance)
 	ON_COMMAND(IDM_OBJECT_ALTERNATE_MATERIALS, OnObjectAlternateMaterials)
-	ON_COMMAND(IDM_CREATE_SOUND_OBJECT, OnCreateSoundObject)
-	ON_COMMAND(IDM_EDIT_SOUND_OBJECT, OnEditSoundObject)
-	ON_UPDATE_COMMAND_UI(IDM_EDIT_SOUND_OBJECT, OnUpdateEditSoundObject)
-	ON_COMMAND(IDM_EXPORT_SOUND_OBJ, OnExportSoundObj)
-	ON_UPDATE_COMMAND_UI(IDM_EXPORT_SOUND_OBJ, OnUpdateExportSoundObj)
 	ON_COMMAND(IDM_WIREFRAME_MODE, OnWireframeMode)
 	ON_UPDATE_COMMAND_UI(IDM_WIREFRAME_MODE, OnUpdateWireframeMode)
 	ON_UPDATE_COMMAND_UI(IDM_BACKGROUND_FOG, OnUpdateBackgroundFog)
@@ -294,7 +285,6 @@ BEGIN_MESSAGE_MAP(CMainFrame, CFrameWnd)
 	ON_COMMAND(IDM_ENABLE_GAMMA_CORRECTION, OnEnableGammaCorrection)
 	ON_UPDATE_COMMAND_UI(IDM_ENABLE_GAMMA_CORRECTION, OnUpdateEnableGammaCorrection)
 	ON_COMMAND(IDM_SET_GAMMA, OnSetGamma)
-	ON_COMMAND(IDM_EDIT_ANIMATED_SOUNDS_OPTIONS, OnEditAnimatedSoundsOptions)
 	//}}AFX_MSG_MAP
 END_MESSAGE_MAP()
 
@@ -492,12 +482,6 @@ CMainFrame::OnCreateClient
 	CCreateContext* pContext
 )
 {
-	//
-	// Start up the audio system
-	//
-	WWAudioClass *audio_mgr = new WWAudioClass;
-	audio_mgr->Initialize ();
-
 	// Create the main splitter window for the application
 	BOOL bReturn = m_wndSplitter.CreateStatic (this, 1, 2);
 	ASSERT (bReturn);
@@ -561,7 +545,6 @@ CMainFrame::OnCreateClient
 				WW3DAssetManager::Get_Instance()->Register_Prototype_Loader (&_AggregateLoader);
 				WW3DAssetManager::Get_Instance()->Register_Prototype_Loader (&_RingLoader);
 				WW3DAssetManager::Get_Instance()->Register_Prototype_Loader (&_SphereLoader);
-				WW3DAssetManager::Get_Instance()->Register_Prototype_Loader (&_SoundRenderObjLoader);
 
 				//
 				// Restore the N-Patch Subdivision Level and Gap-Filling settings from the last session.
@@ -769,10 +752,6 @@ CMainFrame::ShowObjectProperties ()
                 propertySheet.DoModal ();
             }
             break;
-
-				case TypeSound:
-					OnEditSoundObject ();
-					break;
 
 				case TypeEmitter:
 					OnEditEmitter ();
@@ -3867,86 +3846,6 @@ CMainFrame::OnObjectAlternateMaterials ()
 
 //////////////////////////////////////////////////////////////////////////
 //
-//  OnCreateSoundObject
-//
-//////////////////////////////////////////////////////////////////////////
-void
-CMainFrame::OnCreateSoundObject ()
-{
-	SoundEditDialogClass dialog (this);
-	dialog.DoModal ();
-}
-
-
-//////////////////////////////////////////////////////////////////////////
-//
-//  OnEditSoundObject
-//
-//////////////////////////////////////////////////////////////////////////
-void
-CMainFrame::OnEditSoundObject ()
-{
-	//
-	// Get a pointer to the doc object
-	//
-	CW3DViewDoc *doc = (CW3DViewDoc *)GetActiveDocument ();
-	if (doc != nullptr) {
-
-		//
-		//	Get a pointer to the currently displayed sound object
-		//
-		SoundRenderObjClass *sound_obj = (SoundRenderObjClass *)doc->GetDisplayedObject ();
-		if (sound_obj != nullptr) {
-
-			//
-			//	Display the sound edit dialog
-			//
-			SoundEditDialogClass dialog (this);
-			dialog.Set_Sound (sound_obj);
-			dialog.DoModal ();
-		}
-	}
-}
-
-
-//////////////////////////////////////////////////////////////////////////
-//
-//  OnUpdateEditSoundObject
-//
-//////////////////////////////////////////////////////////////////////////
-void
-CMainFrame::OnUpdateEditSoundObject (CCmdUI *pCmdUI)
-{
-	pCmdUI->Enable (m_currentAssetType == TypeSound);
-}
-
-
-//////////////////////////////////////////////////////////////////////////
-//
-//  OnExportSoundObj
-//
-//////////////////////////////////////////////////////////////////////////
-void
-CMainFrame::OnExportSoundObj ()
-{
-	((CW3DViewDoc *)GetActiveDocument ())->Save_Selected_Sound_Object ();
-}
-
-
-//////////////////////////////////////////////////////////////////////////
-//
-//  OnUpdateExportSoundObj
-//
-//////////////////////////////////////////////////////////////////////////
-void
-CMainFrame::OnUpdateExportSoundObj (CCmdUI *pCmdUI)
-{
-	pCmdUI->Enable (m_currentAssetType == TypeSound);
-}
-
-
-//////////////////////////////////////////////////////////////////////////
-//
 //  OnWireframeMode
 //
 //////////////////////////////////////////////////////////////////////////
@@ -4229,15 +4128,3 @@ void CMainFrame::OnSetGamma()
 	}
 }
 
-
-//////////////////////////////////////////////////////////////////////////
-//
-//  OnEditAnimatedSoundsOptions
-//
-//////////////////////////////////////////////////////////////////////////
-void
-CMainFrame::OnEditAnimatedSoundsOptions ()
-{
-	AnimatedSoundOptionsDialogClass dialog (this);
-	dialog.DoModal ();
-}

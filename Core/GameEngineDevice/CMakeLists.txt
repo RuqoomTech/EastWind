@@ -1,6 +1,4 @@
 set(GAMEENGINEDEVICE_SRC
-    Include/MilesAudioDevice/MilesAudioManager.h
-    Include/VideoDevice/Bink/BinkVideoPlayer.h
     Include/W3DDevice/Common/W3DConvert.h
     Include/W3DDevice/Common/W3DFunctionLexicon.h
     Include/W3DDevice/Common/W3DModuleFactory.h
@@ -93,8 +91,6 @@ set(GAMEENGINEDEVICE_SRC
     Include/Win32Device/GameClient/Win32DIKeyboard.h
     #Include/Win32Device/GameClient/Win32DIMouse.h
     Include/Win32Device/GameClient/Win32Mouse.h
-    Source/MilesAudioDevice/MilesAudioManager.cpp
-    Source/VideoDevice/Bink/BinkVideoPlayer.cpp
     Source/W3DDevice/Common/System/W3DFunctionLexicon.cpp
     Source/W3DDevice/Common/System/W3DRadar.cpp
     Source/W3DDevice/Common/Thing/W3DModuleFactory.cpp
@@ -230,41 +226,29 @@ target_link_libraries(corei_gameenginedevice_private INTERFACE
 
 target_link_libraries(corei_gameenginedevice_public INTERFACE
     corei_gameengine_public
-    deps_bink
-    deps_miles
 )
 
-if(RTS_BUILD_OPTION_FFMPEG)
-    find_package(FFMPEG REQUIRED)
+# EastWind: Miles and Bink are gone. FFmpeg plays the videos and our own OpenAL system plays the sound, on every build.
+find_package(FFMPEG REQUIRED)
+target_sources(corei_gameenginedevice_private INTERFACE
+    Include/VideoDevice/FFmpeg/FFmpegFile.h
+    Include/VideoDevice/FFmpeg/FFmpegVideoPlayer.h
+    Source/VideoDevice/FFmpeg/FFmpegFile.cpp
+    Source/VideoDevice/FFmpeg/FFmpegVideoPlayer.cpp
+)
+target_include_directories(corei_gameenginedevice_private INTERFACE ${FFMPEG_INCLUDE_DIRS})
+target_link_directories(corei_gameenginedevice_private INTERFACE ${FFMPEG_LIBRARY_DIRS})
+target_link_libraries(corei_gameenginedevice_private INTERFACE ${FFMPEG_LIBRARIES})
 
-    if(FFMPEG_FOUND)
-        target_sources(corei_gameenginedevice_private INTERFACE
-            Include/VideoDevice/FFmpeg/FFmpegFile.h
-            Include/VideoDevice/FFmpeg/FFmpegVideoPlayer.h
-            Source/VideoDevice/FFmpeg/FFmpegFile.cpp
-            Source/VideoDevice/FFmpeg/FFmpegVideoPlayer.cpp
-        )
-        target_include_directories(corei_gameenginedevice_private INTERFACE ${FFMPEG_INCLUDE_DIRS})
-        target_link_directories(corei_gameenginedevice_private INTERFACE ${FFMPEG_LIBRARY_DIRS})
-        target_link_libraries(corei_gameenginedevice_private INTERFACE ${FFMPEG_LIBRARIES})
-        target_compile_definitions(corei_gameenginedevice_public INTERFACE RTS_HAS_FFMPEG)
-    endif()
-endif()
-
-# EastWind: our own OpenAL audio system, replacing Miles. Bink can't take an OpenAL handle, so FFmpeg plays the videos.
-if(RTS_BUILD_OPTION_OPENAL)
-    if(NOT RTS_BUILD_OPTION_FFMPEG)
-        message(FATAL_ERROR "RTS_BUILD_OPTION_OPENAL needs RTS_BUILD_OPTION_FFMPEG")
-    endif()
-    find_package(OpenAL CONFIG REQUIRED)
-    find_path(DRLIBS_INCLUDE_DIR "dr_wav.h" REQUIRED)
-    target_sources(corei_gameenginedevice_private INTERFACE
-        Include/OpenALAudioDevice/OpenALAudioManager.h
-        Include/OpenALAudioDevice/OpenALAudioStream.h
-        Source/OpenALAudioDevice/OpenALAudioManager.cpp
-        Source/OpenALAudioDevice/OpenALAudioStream.cpp
-    )
-    target_include_directories(corei_gameenginedevice_private INTERFACE ${DRLIBS_INCLUDE_DIR})
-    target_link_libraries(corei_gameenginedevice_public INTERFACE OpenAL::OpenAL)
-    target_compile_definitions(corei_gameenginedevice_public INTERFACE RTS_HAS_OPENAL RTS_USE_OPENAL)
-endif()
+find_package(OpenAL CONFIG REQUIRED)
+find_path(DRLIBS_INCLUDE_DIR "dr_wav.h" REQUIRED)
+target_sources(corei_gameenginedevice_private INTERFACE
+    Include/OpenALAudioDevice/OpenALAudioManager.h
+    Include/OpenALAudioDevice/OpenALAudioStream.h
+    Source/OpenALAudioDevice/OpenALAudioManager.cpp
+    Source/OpenALAudioDevice/OpenALAudioStream.cpp
+)
+target_include_directories(corei_gameenginedevice_private INTERFACE ${DRLIBS_INCLUDE_DIR})
+target_link_libraries(corei_gameenginedevice_public INTERFACE OpenAL::OpenAL)
+# Upstream's FFmpeg player checks these names.
+target_compile_definitions(corei_gameenginedevice_public INTERFACE RTS_HAS_FFMPEG RTS_HAS_OPENAL RTS_USE_OPENAL)

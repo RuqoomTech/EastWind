@@ -5,8 +5,6 @@ set(WW3D2_SRC
     #aabtreebuilder.h
     agg_def.cpp
     agg_def.h
-    animatedsoundmgr.cpp
-    animatedsoundmgr.h
     #animobj.cpp
     #animobj.h
     #assetmgr.cpp
@@ -195,8 +193,6 @@ set(WW3D2_SRC
     sortingrenderer.cpp
     sortingrenderer.h
     soundlibrarybridge.h
-    soundrobj.cpp
-    soundrobj.h
     sphereobj.cpp
     sphereobj.h
     static_sort_list.cpp

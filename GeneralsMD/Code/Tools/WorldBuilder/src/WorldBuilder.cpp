@@ -75,7 +75,7 @@
 
 #include "W3DDevice/Common/W3DModuleFactory.h"
 #include "W3DDevice/GameClient/W3DParticleSys.h"
-#include "MilesAudioDevice/MilesAudioManager.h"
+#include "OpenALAudioDevice/OpenALAudioManager.h"
 
 #include <io.h>
 #include "Win32Device/GameClient/Win32Mouse.h"
@@ -403,7 +403,7 @@ BOOL CWorldBuilderApp::InitInstance()
 	//  [2/11/2003]
 	ini.loadFileDirectory( "Data\\Scripts\\Scripts", INI_LOAD_OVERWRITE, nullptr );
 
-	initSubsystem(TheAudio, (AudioManager*)new MilesAudioManager());
+	initSubsystem(TheAudio, (AudioManager*)new OpenALAudioManager());
 	initSubsystem(TheVideoPlayer, (VideoPlayerInterface*)(new NullVideoPlayer()));
 	initSubsystem(TheModuleFactory, (ModuleFactory*)(new W3DModuleFactory()));
 	initSubsystem(TheSidesList, new SidesList());

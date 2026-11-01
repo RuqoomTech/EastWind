@@ -4,7 +4,6 @@ add_library(core_wwcommon INTERFACE)
 target_link_libraries(core_wwcommon INTERFACE
     d3d9lib
     deps_dbghelp
-    deps_miles
     deps_usp10
     stlport
 )
@@ -14,7 +13,6 @@ target_include_directories(core_wwcommon INTERFACE
 )
 
 add_subdirectory(WW3D2)
-add_subdirectory(WWAudio)
 add_subdirectory(WWDebug)
 add_subdirectory(WWDownload)
 add_subdirectory(WWLib)
@@ -30,7 +28,6 @@ target_include_directories(core_wwvegas INTERFACE
 
 target_link_libraries(core_wwvegas INTERFACE
     # core_ww3d2
-    # core_wwaudio
     core_wwdebug
     # core_wwdownload
     core_wwlib

@@ -201,11 +201,6 @@ protected:
 	afx_msg void OnUpdateBindSubobjectLod(CCmdUI* pCmdUI);
 	afx_msg void OnSetCameraDistance();
 	afx_msg void OnObjectAlternateMaterials();
-	afx_msg void OnCreateSoundObject();
-	afx_msg void OnEditSoundObject();
-	afx_msg void OnUpdateEditSoundObject(CCmdUI* pCmdUI);
-	afx_msg void OnExportSoundObj();
-	afx_msg void OnUpdateExportSoundObj(CCmdUI* pCmdUI);
 	afx_msg void OnWireframeMode();
 	afx_msg void OnUpdateWireframeMode(CCmdUI* pCmdUI);
 	afx_msg void OnUpdateBackgroundFog(CCmdUI* pCmdUI);
@@ -239,7 +234,6 @@ protected:
 	afx_msg void OnEnableGammaCorrection();
 	afx_msg void OnUpdateEnableGammaCorrection(CCmdUI* pCmdUI);
 	afx_msg void OnSetGamma();
-	afx_msg void OnEditAnimatedSoundsOptions();
 	//}}AFX_MSG
 	DECLARE_MESSAGE_MAP()
 

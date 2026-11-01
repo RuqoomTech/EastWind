@@ -214,12 +214,6 @@ public:
 	bool					Save_Current_Aggregate (const CString &filename);
 
 	//
-	//	Sound object methods
-	//
-	bool					Save_Selected_Sound_Object ();
-	bool					Save_Current_Sound_Object (const CString &filename);
-
-	//
 	//  LOD methods
 	//
 	bool					Save_Current_LOD (const CString &filename);

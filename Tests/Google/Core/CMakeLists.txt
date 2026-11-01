@@ -11,7 +11,6 @@ set(COREI_GOOGLETEST_SRC
     GameEngineDevice/StdDevice/Common/StdLocalFileSystemTest.cpp
     Libraries/Compression/CompressionManagerTest.cpp
     Libraries/WWVegas/WW3D2/hlod_test.cpp
-    Libraries/WWVegas/WW3D2/soundrobj_test.cpp
     Libraries/WWVegas/WWMath/WWMathCalls.h
     Libraries/WWVegas/WWMath/WWMathDumps.h
     Libraries/WWVegas/WWMath/WWMathKeys.h

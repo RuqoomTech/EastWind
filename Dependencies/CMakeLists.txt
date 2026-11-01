@@ -7,8 +7,6 @@ target_link_libraries(depsi_always INTERFACE
 )
 
 add_subdirectory(Utility)
-add_subdirectory(Bink)
-add_subdirectory(Miles)
 
 if (WIN32)
     add_subdirectory(DbgHelp)

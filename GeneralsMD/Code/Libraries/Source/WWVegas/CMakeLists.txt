@@ -9,7 +9,6 @@ target_include_directories(z_wwcommon INTERFACE
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-add_subdirectory(WWAudio)
 add_subdirectory(WW3D2)
 add_subdirectory(WWDownload)
 

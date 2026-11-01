@@ -54,7 +54,6 @@
 #include "WWLib/chunkio.h"
 #include "WWDebug/wwmemlog.h"
 #include "w3dexclusionlist.h"
-#include "animatedsoundmgr.h"
 
 
 /***********************************************************************************************

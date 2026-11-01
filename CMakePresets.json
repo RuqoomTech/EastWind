@@ -15,7 +15,8 @@
             "cacheVariables": {
                 "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
                 "CMAKE_MSVC_DEBUG_INFORMATION_FORMAT": "$<$<CONFIG:Release,Debug,RelWithDebInfo>:Embedded>",
-                "CMAKE_MSVC_RUNTIME_LIBRARY": "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL"
+                "CMAKE_MSVC_RUNTIME_LIBRARY": "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL",
+                "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
             }
         },
         {
@@ -90,15 +91,13 @@
         {
             "name": "win64-vcpkg",
             "inherits": "default-vcpkg",
-            "displayName": "Windows 64bit VCPKG Release (FFmpeg video, OpenAL audio)",
+            "displayName": "Windows 64bit VCPKG Release",
             "architecture": {
                 "value": "x64",
                 "strategy": "external"
             },
             "cacheVariables": {
-                "RTS_FLAGS": "/W3",
-                "RTS_BUILD_OPTION_FFMPEG": "ON",
-                "RTS_BUILD_OPTION_OPENAL": "ON"
+                "RTS_FLAGS": "/W3"
             }
         },
         {
@@ -117,15 +116,6 @@
                 "jetbrains.com/clion": {
                     "toolchain": "Visual Studio"
                 }
-            }
-        },
-        {
-            "name": "win32-vcpkg-openal",
-            "inherits": "win32-vcpkg",
-            "displayName": "Windows 32bit VCPKG Release (FFmpeg video, OpenAL audio)",
-            "cacheVariables": {
-                "RTS_BUILD_OPTION_FFMPEG": "ON",
-                "RTS_BUILD_OPTION_OPENAL": "ON"
             }
         },
         {
@@ -193,13 +183,6 @@
             "configurePreset": "win32-vcpkg",
             "displayName": "Build Windows 32bit VCPKG Release",
             "description": "Build Windows 32bit VCPKG Release",
-            "configuration": "Release"
-        },
-        {
-            "name": "win32-vcpkg-openal",
-            "configurePreset": "win32-vcpkg-openal",
-            "displayName": "Build Windows 32bit VCPKG Release (OpenAL)",
-            "description": "Build Windows 32bit VCPKG Release (OpenAL)",
             "configuration": "Release"
         },
         {

@@ -5,11 +5,9 @@ target_link_libraries(z_w3dview PRIVATE
     corei_w3dview # this interface gets the source files for the tool
     d3d9lib
     imm32
-    deps_miles
     Version
     vfw32
     winmm
-    z_wwaudio
     z_wwvegas
     zi_always
 )

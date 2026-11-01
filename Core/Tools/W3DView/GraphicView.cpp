@@ -42,8 +42,6 @@
 #include "WW3D2/coltest.h"
 #include "WWLib/MPU.h"
 #include "WW3D2/dazzle.h"
-#include "WWAudio/SoundScene.h"
-#include "WWAudio/WWAudio.h"
 #include "WW3D2/metalmap.h"
 #include "WW3D2/dx9wrapper.h"
 #include "WWMath/matrix3.h"
@@ -221,11 +219,6 @@ CGraphicView::InitializeGraphicView ()
 	        // Point the camera in this direction (I think)
             m_pCamera->Set_Transform (transform);
         }
-
-		  //
-		  //	Attach the 'listener' to the camera
-		  //
-		  WWAudioClass::Get_Instance ()->Get_Sound_Scene ()->Attach_Listener_To_Obj (m_pCamera.Peek());
     }
 
 	Reset_FOV ();
@@ -309,11 +302,6 @@ CGraphicView::OnDestroy ()
 {
 	// Allow the base class to process this message
 	CView::OnDestroy ();
-
-	//
-	//	Remove the listener from the camera
-	//
-	WWAudioClass::Get_Instance ()->Get_Sound_Scene ()->Attach_Listener_To_Obj (nullptr);
 
 	//
 	// Free the camera object
@@ -533,11 +521,6 @@ CGraphicView::RepaintView
 			// Finish out the rendering process
 			WW3D::End_Render ();
 		}
-
-		//
-		//	Let the audio class think
-		//
-		WWAudioClass::Get_Instance ()->On_Frame_Update (WW3D::Get_Logic_Frame_Time_Milliseconds());
 
 		//
 		//	Update the count of particles and polys in the status bar
