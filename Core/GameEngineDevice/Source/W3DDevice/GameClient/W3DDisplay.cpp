@@ -915,6 +915,21 @@ static void showGraphicsStatus()
 	}
 }
 
+// With EASTWIND_PERF_LOG=<file> set, the timing readout is also written to that file every 10 seconds.
+static FILE *s_perfLog = nullptr;
+
+static void sayTime(const WideChar *format, ...)
+{
+	va_list args;
+	va_start(args, format);
+	UnicodeString line;
+	line.format_va(format, args);
+	va_end(args);
+	TheInGameUI->messageNoFormat(line);
+	if (s_perfLog != nullptr)
+		fprintf(s_perfLog, "%ls\n", line.str());
+}
+
 // The GPU time of each part of the frame, averaged over the last 60 measured frames.
 static void showGpuTimes()
 {
@@ -944,27 +959,27 @@ static void showGpuTimes()
 	const int frames = GpuTimer::Average(&total, part);
 	if (frames < 0)
 	{
-		TheInGameUI->message(L"GPU time: not available - the device has no timestamp queries");
+		sayTime(L"GPU time: not available - the device has no timestamp queries");
 		return;
 	}
 	if (frames == 0)
 	{
-		TheInGameUI->message(L"GPU time: still measuring, press Ctrl+Shift+T again in a moment");
+		sayTime(L"GPU time: still measuring, press Ctrl+Shift+T again in a moment");
 		return;
 	}
 	{
 		UnicodeString gpu;
 		gpu.translate(AsciiString(DX9Wrapper::Get_Current_Adapter_Identifier().Description));
-		TheInGameUI->message(L"GPU: %s", gpu.str());
+		sayTime(L"GPU: %s", gpu.str());
 	}
 	const MeshShader::StatsStruct mesh = MeshShader::Take_Stats();
-	TheInGameUI->message(L"Mesh draws a frame: %.0f, by shader: %.0f lit, %.0f unlit; CPU: %.2f ms setup, %.2f ms setup and draw of the shader draws",
+	sayTime(L"Mesh draws a frame: %.0f, by shader: %.0f lit, %.0f unlit; CPU: %.2f ms setup, %.2f ms setup and draw of the shader draws",
 		mesh.Calls, mesh.LitDraws, mesh.UnlitDraws, mesh.SetupMs, mesh.ShaderDrawMs);
-	TheInGameUI->message(L"GPU time (average of %d frames): %.2f ms a frame", frames, total);
+	sayTime(L"GPU time (average of %d frames): %.2f ms a frame", frames, total);
 	for (int p = GpuTimer::FRAME_BEGIN + 1; p < GpuTimer::POINT_COUNT; ++p)
 	{
 		if (part[p] >= 0)
-			TheInGameUI->message(L"   %s: %.2f ms", names[p], part[p]);
+			sayTime(L"   %s: %.2f ms", names[p], part[p]);
 	}
 
 	// The CPU side of the same frames. A frame takes the longer of the two: a CPU frame much longer
@@ -980,23 +995,49 @@ static void showGpuTimes()
 		const float present = cpu_part[GpuTimer::CPU_PRESENT];
 		const float logic = cpu_part[GpuTimer::CPU_LOGIC];
 		const float client = cpu_part[GpuTimer::CPU_CLIENT];
-		TheInGameUI->message(L"CPU time: %.2f ms a frame (%.0f FPS)", cpu_frame, cpu_frame > 0 ? 1000.0f / cpu_frame : 0.0f);
-		TheInGameUI->message(L"   Game logic: %.2f ms", logic);
-		TheInGameUI->message(L"   Game client update (drawables, particles, UI): %.2f ms", client - draw - present);
-		TheInGameUI->message(L"   Draw, sending the GPU parts above: %.2f ms", draw);
+		sayTime(L"CPU time: %.2f ms a frame (%.0f FPS)", cpu_frame, cpu_frame > 0 ? 1000.0f / cpu_frame : 0.0f);
+		sayTime(L"   Game logic: %.2f ms", logic);
+		sayTime(L"   Game client update (drawables, particles, UI): %.2f ms", client - draw - present);
+		sayTime(L"   Draw, sending the GPU parts above: %.2f ms", draw);
 		for (int p = GpuTimer::FRAME_BEGIN + 1; p < GpuTimer::POINT_COUNT; ++p)
 		{
 			if (cpu_mark[p] >= 0.05f)
-				TheInGameUI->message(L"      %s: %.2f ms", names[p], cpu_mark[p]);
+				sayTime(L"      %s: %.2f ms", names[p], cpu_mark[p]);
 		}
-		TheInGameUI->message(L"   Present (waiting for the GPU or vsync): %.2f ms", present);
-		TheInGameUI->message(L"   The rest (audio, network, frame limiter): %.2f ms", cpu_frame - logic - client);
+		sayTime(L"   Present (waiting for the GPU or vsync): %.2f ms", present);
+		sayTime(L"   The rest (audio, network, frame limiter): %.2f ms", cpu_frame - logic - client);
 	}
 }
 
 static void pollGraphicsDebugKeys()
 {
 	GraphicsOptions &o = Get_Graphics_Options();
+	static bool perf_log_checked = false;
+	if (!perf_log_checked)
+	{
+		perf_log_checked = true;
+		const char *path = getenv("EASTWIND_PERF_LOG");
+		if (path != nullptr && *path != '\0')
+		{
+			s_perfLog = fopen(path, "w");
+			o.DebugKeys = s_perfLog != nullptr;	// the timers only run with the debug keys on
+		}
+	}
+	if (s_perfLog != nullptr)
+	{
+		static DWORD next_log = 0;
+		const DWORD now = ::GetTickCount();
+		if (now >= next_log)
+		{
+			if (next_log != 0)
+			{
+				fprintf(s_perfLog, "--- %u s, logic frame %u\n", (unsigned)(now / 1000), TheGameLogic ? TheGameLogic->getFrame() : 0);
+				showGpuTimes();
+				fflush(s_perfLog);
+			}
+			next_log = now + 10000;
+		}
+	}
 	if (!o.DebugKeys)
 		return;
 

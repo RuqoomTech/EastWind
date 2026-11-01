@@ -89,6 +89,10 @@ float Sun_Shadow(float3 p, float3 n, float3 l)
 		}
 		[branch] if (blockers == 0.0)
 			return 1.0;
+		// Every tap of the widest disc is covered: deep shadow. The filter disc lies inside it and
+		// compares at zr >= z, so it finds the same, short of a lit gap narrower than the taps.
+		[branch] if (blockers == SHADOW_TAPS / 2)
+			return lerp(1.0, 0.0, fade * ShadowParams2.w);
 
 		// Edge width from the caster's distance, between one texel and the widest edge.
 		float reach = (z - blocker / blockers) * ShadowParams3.y;
