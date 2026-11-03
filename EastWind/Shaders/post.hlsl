@@ -25,7 +25,7 @@
 // up to the scene size by the four nearest AO texels whose depth matches the pixel's.
 //
 // PostFinalPS draws the scene onto the back buffer with what is on, in this order:
-//   ambient occlusion  darkens the scene (M3.5, AmbientOcclusion)
+//   ambient occlusion  darkens the scene, bright colours less (multi-bounce) (M3.5, AmbientOcclusion)
 //   bloom          the three blurred sizes, screen-blended over the scene (M3.2b, Bloom)
 //   tone mapping   a filmic curve (M3.2c, ToneMapping)
 //   colour grading a colour LUT (M3.2c, ColorGrading)
@@ -317,7 +317,14 @@ float4 PostFinalPS(float2 uv : TEXCOORD0) : COLOR0
 		float ao = Ao_At(uv);
 		[branch] if (AoFinal.x > 0.5)
 			return float4(ao.xxx, scene.a);
-		c *= ao;
+		// Multi-bounce (the GTAO fit, Jimenez 2016): light bounces between bright surfaces, so they
+		// lose less of it in corners and white walls do not go grey. The albedo is the pixel's own
+		// colour in linear light; the scene holds gamma values whether linear lighting is on or not.
+		float3 albedo = pow(saturate(c), 2.2);
+		float3 a = 2.0404 * albedo - 0.3324;
+		float3 b = -4.7951 * albedo + 0.6417;
+		float3 d = 2.7552 * albedo + 0.6903;
+		c *= max(ao, ((ao * a + b) * ao + d) * ao);
 	}
 
 	c = To_Linear(c);
