@@ -189,6 +189,7 @@ bool														WW3D::PauseRecord;
 bool														WW3D::RecordNextFrame;
 
 int														WW3D::FrameCount = 0;
+unsigned int											WW3D::PoseFrame = 1;
 long														WW3D::UserStat0 = 0;
 long														WW3D::UserStat1 = 0;
 long														WW3D::UserStat2 = 0;
@@ -1099,6 +1100,8 @@ WW3DErrorType WW3D::End_Render(bool flip_frame)
 	}
 
 	FrameCount++;
+	if (flip_frame)
+		++PoseFrame;
 
 	{
 		WWPROFILE("End_Statistics");
@@ -1182,6 +1185,8 @@ void WW3D::Update_Logic_Frame_Time(float milliseconds)
 void WW3D::Sync(bool step)
 {
 	PreviousSyncTime = SyncTime;
+	// A display frame can be skipped after its shadow map was drawn, so time moving starts a new pose too.
+	++PoseFrame;
 
 	if (step)
 	{

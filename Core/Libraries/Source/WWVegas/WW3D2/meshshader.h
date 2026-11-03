@@ -70,13 +70,16 @@ public:
 	// Begin(); ShaderDrawMs runs from Begin() to End() of the shader draws, so it includes the draw call.
 	// InstancedDraws are the Begin_Instanced() draws among the lit ones, InstancedCopies the copies they drew;
 	// CasterDraws and CasterCopies the same for the shadow caster pass, whose draws are not lit or unlit ones.
+	// SkinsDeformed and SkinsReused are the skinned meshes drawn, by whether their deform was reused.
 	struct StatsStruct
 	{
-		float Calls, LitDraws, UnlitDraws, SetupMs, ShaderDrawMs, InstancedDraws, InstancedCopies, CasterDraws, CasterCopies;
+		float Calls, LitDraws, UnlitDraws, SetupMs, ShaderDrawMs, InstancedDraws, InstancedCopies, CasterDraws, CasterCopies,
+			SkinsDeformed, SkinsReused;
 		StatsStruct() : Calls(0), LitDraws(0), UnlitDraws(0), SetupMs(0), ShaderDrawMs(0), InstancedDraws(0), InstancedCopies(0),
-			CasterDraws(0), CasterCopies(0) {}
+			CasterDraws(0), CasterCopies(0), SkinsDeformed(0), SkinsReused(0) {}
 	};
 	static StatsStruct Take_Stats();
+	static void Count_Skins(unsigned deformed, unsigned reused);	// from the skin renderer
 
 	static void Begin_Batch();
 	static void End_Batch();

@@ -42,6 +42,7 @@
 #include "WWLib/bittype.h"
 #include "WW3D2/w3derr.h"
 #include "lightenvironment.h"	//added for 'Generals'
+#include "WW3D2/skincache.h"
 
 class MeshBuilderClass;
 class HModelClass;
@@ -135,6 +136,9 @@ public:
 
 	void								Get_Deformed_Vertices(Vector3 *dst_vert, Vector3 *dst_norm);
 	void								Get_Deformed_Vertices(Vector3 *dst_vert);
+	// EastWind: as above, deformed once per pose frame into the mesh's own buffers; the later
+	// passes of the frame reuse them. True when they were reused.
+	bool								Get_Frame_Deformed_Vertices(const Vector3 *&dst_vert, const Vector3 *&dst_norm);
 
 	void								Set_Lighting_Environment(LightEnvironmentClass * light_env) { if (light_env) {m_localLightEnv=*light_env;LightEnvironment = &m_localLightEnv;} else {LightEnvironment = nullptr;} }
 	LightEnvironmentClass *		Get_Lighting_Environment() { return LightEnvironment; }
@@ -179,6 +183,7 @@ protected:
 	float					m_materialPassAlphaOverride;	//added for 'Generals' to allow variable alpha on additional render passes.
 	int								BaseVertexOffset;		// offset to our first vertex in whatever vb this mesh is in.
 	MeshClass *						NextVisibleSkin;		// linked list of visible skins
+	SkinCacheClass					SkinCache;
 
 	unsigned							MeshDebugId;
 	bool								IsDisabledByDebugger;

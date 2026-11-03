@@ -62,6 +62,7 @@
 #include "stripoptimizer.h"
 #include "meshgeometry.h"
 #include <algorithm>
+#include <atomic>
 #include <execution>
 #include <functional>
 #include <vector>
@@ -1356,23 +1357,24 @@ void DX9SkinFVFCategoryContainer::Render()
 			}
 
 			// M8 R7: skin each mesh on the worker pool. Each writes only its own part of the
-			// locked buffer and reads only its model and the bone transforms set before the flush.
-			auto skin = [dest_verts](MeshClass *mesh) {
-				thread_local std::vector<Vector3> loc_buffer, norm_buffer;
+			// locked buffer and its own skin cache, and reads only its model and the bone
+			// transforms set before the flush. A skin already deformed this frame (shadow
+			// casters, water reflection) is only copied.
+			std::atomic<unsigned> reused(0);
+			auto skin = [dest_verts, &reused](MeshClass *mesh) {
 				MeshModelClass * mmc = mesh->Peek_Model();
 				const int mesh_vertex_count=mmc->Get_Vertex_Count();
-				if (loc_buffer.size() < size_t(mesh_vertex_count)) loc_buffer.resize(mesh_vertex_count);
-				if (norm_buffer.size() < size_t(mesh_vertex_count)) norm_buffer.resize(mesh_vertex_count);
 
-				Vector3* loc=loc_buffer.data();
-				Vector3* norm=norm_buffer.data();
+				const Vector3* loc;
+				const Vector3* norm;
 				const Vector2* uv0=mmc->Get_UV_Array_By_Index(0);
 				const Vector2* uv1=mmc->Get_UV_Array_By_Index(1);
 				const unsigned* diffuse=mmc->Get_Color_Array(0,false);
 
 				VertexFormatXYZNDUV2* verts=dest_verts+mesh->Get_Base_Vertex_Offset();
 
-				mesh->Get_Deformed_Vertices(loc,norm);
+				if (mesh->Get_Frame_Deformed_Vertices(loc,norm))
+					++reused;
 
 				for (int v=0;v<mesh_vertex_count;++v) {
 					verts[v].x=(*loc)[0];
@@ -1415,6 +1417,7 @@ void DX9SkinFVFCategoryContainer::Render()
 				std::for_each(skins.begin(), skins.end(), skin);
 			else
 				std::for_each(std::execution::par, skins.begin(), skins.end(), skin);
+			MeshShader::Count_Skins(unsigned(skins.size()) - reused, reused);
 		}
 
 		SNAPSHOT_SAY(("Set vb: %x ib: %x",&vb.FVF_Info(),index_buffer));

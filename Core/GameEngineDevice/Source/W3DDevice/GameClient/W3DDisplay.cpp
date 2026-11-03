@@ -984,6 +984,8 @@ static void showGpuTimes()
 		mesh.Calls, mesh.LitDraws, mesh.UnlitDraws, mesh.SetupMs, mesh.ShaderDrawMs);
 	sayTime(L"   Instanced: %.0f draws of %.0f copies; shadow casters: %.0f draws of %.0f copies",
 		mesh.InstancedDraws, mesh.InstancedCopies, mesh.CasterDraws, mesh.CasterCopies);
+	sayTime(L"   Skinned meshes: %.0f deformed, %.0f reused from an earlier pass of the frame",
+		mesh.SkinsDeformed, mesh.SkinsReused);
 	sayTime(L"GPU time (average of %d frames): %.2f ms a frame", frames, total);
 	for (int p = GpuTimer::FRAME_BEGIN + 1; p < GpuTimer::POINT_COUNT; ++p)
 	{

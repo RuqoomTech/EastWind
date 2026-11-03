@@ -925,11 +925,22 @@ MeshShader::StatsStruct MeshShader::Take_Stats()
 	s.InstancedCopies /= frames;
 	s.CasterDraws /= frames;
 	s.CasterCopies /= frames;
+	s.SkinsDeformed /= frames;
+	s.SkinsReused /= frames;
 	s.SetupMs *= to_ms;
 	s.ShaderDrawMs *= to_ms;
 	Stats = StatsStruct();
 	StatsFrame = frame;
 	return s;
+}
+
+void MeshShader::Count_Skins(unsigned deformed, unsigned reused)
+{
+	if (Get_Graphics_Options().DebugKeys)
+	{
+		Stats.SkinsDeformed += float(deformed);
+		Stats.SkinsReused += float(reused);
+	}
 }
 
 void MeshShader::Begin_Batch()

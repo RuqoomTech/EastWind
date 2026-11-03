@@ -225,6 +225,7 @@ MeshClass & MeshClass::operator = (const MeshClass & that)
 		// just dont copy the decals or light environment
 		REF_PTR_RELEASE(DecalMesh);
 		LightEnvironment = nullptr;
+		SkinCache.Reset();
 	}
 	return * this;
 }
@@ -521,6 +522,17 @@ void MeshClass::Get_Deformed_Vertices(Vector3 *dst_vert)
 	WWASSERT(Container->Get_HTree() != nullptr);
 
 	Model->get_deformed_vertices(dst_vert,Container->Get_HTree());
+}
+
+bool MeshClass::Get_Frame_Deformed_Vertices(const Vector3 *&dst_vert, const Vector3 *&dst_norm)
+{
+	Vector3 *loc, *norm;
+	const bool reused = SkinCache.Fetch(WW3D::Get_Pose_Frame(), Model, Model->Get_Vertex_Count(), loc, norm);
+	if (!reused)
+		Get_Deformed_Vertices(loc, norm);
+	dst_vert = loc;
+	dst_norm = norm;
+	return reused;
 }
 
 /***********************************************************************************************

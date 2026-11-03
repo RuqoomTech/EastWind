@@ -201,6 +201,11 @@ public:
 	// Returns the render frame count.
 	static unsigned int		Get_Frame_Count() { return FrameCount; }
 
+	// EastWind: changes at each Sync and each displayed frame, so the off-screen passes of a frame
+	// (shadow map, water reflection) share it with the main view; Get_Frame_Count changes after each.
+	// MeshClass keys its deformed skin by it.
+	static unsigned int		Get_Pose_Frame() { return PoseFrame; }
+
 	static unsigned int		Get_Last_Frame_Poly_Count();
 	static unsigned int		Get_Last_Frame_Vertex_Count();
 
@@ -393,6 +398,7 @@ private:
 	static bool							PauseRecord;
 	static bool							RecordNextFrame;
 	static int							FrameCount;
+	static unsigned int				PoseFrame;
 
 	static VertexMaterialClass *	DefaultDebugMaterial;
 	static VertexMaterialClass *	BackfaceDebugMaterial;
