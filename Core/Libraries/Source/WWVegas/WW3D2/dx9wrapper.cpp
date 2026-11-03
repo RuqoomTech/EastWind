@@ -1165,7 +1165,8 @@ bool DX9Wrapper::Set_Render_Device(int dev, int width, int height, int bits, int
 	/*
 	** Check the devices support for the requested MSAA mode then setup the multi sample type
 	*/
-	if (MultiSampleAntiAliasing > D3DMULTISAMPLE_NONE) {
+	// A mode the card lacks steps down (8x, 4x, 2x) before MSAA is turned off.
+	while (MultiSampleAntiAliasing > D3DMULTISAMPLE_NONE) {
 
 		HRESULT hrBack = D3DInterface->CheckDeviceMultiSampleType(
 			CurRenderDevice,
@@ -1185,12 +1186,12 @@ bool DX9Wrapper::Set_Render_Device(int dev, int width, int height, int bits, int
 			nullptr
 		);
 
-		if (FAILED(hrBack) || FAILED(hrDepth)) {
-			// IF we fail then disable MSAA entirely.
-			// External code needs to retrieve the configured MSAA mode after device creation
-			WWDEBUG_SAY(("Requested MSAA Mode Not Supported"));
-			MultiSampleAntiAliasing = D3DMULTISAMPLE_NONE;
-		}
+		if (SUCCEEDED(hrBack) && SUCCEEDED(hrDepth))
+			break;
+		// External code needs to retrieve the configured MSAA mode after device creation
+		WWDEBUG_SAY(("Requested MSAA Mode %d Not Supported", (int)MultiSampleAntiAliasing));
+		const int half = (int)MultiSampleAntiAliasing / 2;	// type 1 is NONMASKABLE, not 1 sample
+		MultiSampleAntiAliasing = half >= 2 ? (D3DMULTISAMPLE_TYPE)half : D3DMULTISAMPLE_NONE;
 	}
 
 	_PresentParameters.MultiSampleType = MultiSampleAntiAliasing;
