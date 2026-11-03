@@ -56,6 +56,10 @@ public:
 	// Binds the mesh shaders for the next draw if this draw qualifies.
 	// Returns true if it did; the caller then calls End() after the draw.
 	static bool Begin();
+
+	// As Begin(), with the instanced vertex shader (M8 R6): lit draws with a normal only, the
+	// copies' world rows in stream 1 and the device world at identity. False: draw each copy.
+	static bool Begin_Instanced(int copies);
 	static void End();
 
 	// Between these, End() leaves the shaders bound for the next draw, and Begin() unbinds them
@@ -63,10 +67,11 @@ public:
 	// (the mesh and sorting renderers' flushes): other code would draw with our shaders.
 	// Ctrl+Shift+T (DebugKeys): per-frame averages since the last call. SetupMs is the CPU time in
 	// Begin(); ShaderDrawMs runs from Begin() to End() of the shader draws, so it includes the draw call.
+	// InstancedDraws are the Begin_Instanced() draws among the lit ones, InstancedCopies the copies they drew.
 	struct StatsStruct
 	{
-		float Calls, LitDraws, UnlitDraws, SetupMs, ShaderDrawMs;
-		StatsStruct() : Calls(0), LitDraws(0), UnlitDraws(0), SetupMs(0), ShaderDrawMs(0) {}
+		float Calls, LitDraws, UnlitDraws, SetupMs, ShaderDrawMs, InstancedDraws, InstancedCopies;
+		StatsStruct() : Calls(0), LitDraws(0), UnlitDraws(0), SetupMs(0), ShaderDrawMs(0), InstancedDraws(0), InstancedCopies(0) {}
 	};
 	static StatsStruct Take_Stats();
 
@@ -76,6 +81,7 @@ public:
 	// Sets the house colour for the draws of object (a mesh) until Clear_Object(). The colour
 	// is taken from the first container that has one.
 	static void Set_Object(const RenderObjClass *object);
+	static unsigned Object_Color(const RenderObjClass *object);	// the colour Set_Object sets
 	static void Clear_Object();
 
 	// Soft particles (SoftParticles): W3DPostProcess bound the scene's view depth on

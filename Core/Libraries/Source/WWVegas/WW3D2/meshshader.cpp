@@ -812,6 +812,21 @@ bool MeshShader::Begin()
 	return shader;
 }
 
+static bool Instanced = false;
+
+bool MeshShader::Begin_Instanced(int copies)
+{
+	Instanced = true;
+	const bool shader = Begin();
+	Instanced = false;
+	if (shader && Get_Graphics_Options().DebugKeys)
+	{
+		++Stats.InstancedDraws;
+		Stats.InstancedCopies += float(copies);
+	}
+	return shader;
+}
+
 MeshShader::StatsStruct MeshShader::Take_Stats()
 {
 	LARGE_INTEGER frequency;
@@ -823,6 +838,8 @@ MeshShader::StatsStruct MeshShader::Take_Stats()
 	s.Calls /= frames;
 	s.LitDraws /= frames;
 	s.UnlitDraws /= frames;
+	s.InstancedDraws /= frames;
+	s.InstancedCopies /= frames;
 	s.SetupMs *= to_ms;
 	s.ShaderDrawMs *= to_ms;
 	Stats = StatsStruct();
@@ -852,6 +869,8 @@ static bool Begin_Draw()
 	// is drawn as any other unlit draw.
 	const bool lit = Render_State(D3DRS_LIGHTING) != FALSE;
 	DrawLit = lit;
+	if (Instanced && !lit)
+		return false;
 	if (!lit && SceneDepthInvWidth > 0.0f && DX9Wrapper::Get_Soft_Particle() && Begin_Particle())
 		return true;
 
@@ -888,8 +907,11 @@ static bool Begin_Draw()
 	if ((fvf & D3DFVF_POSITION_MASK) != D3DFVF_XYZ || (lit && !has_normal) || (fvf & ~allowed) || texcoord_sets > 2)
 		return Fallback(REASON_FVF, fvf);
 
-	IDirect3DVertexShader9 *vertex_shader = ShaderLibrary::Peek_Vertex(
-		ShaderLibrary::Mesh_Vertex_Id(has_normal, (fvf & D3DFVF_DIFFUSE) != 0, (fvf & D3DFVF_SPECULAR) != 0, texcoord_sets));
+	const bool has_diffuse = (fvf & D3DFVF_DIFFUSE) != 0;
+	const bool has_specular = (fvf & D3DFVF_SPECULAR) != 0;
+	IDirect3DVertexShader9 *vertex_shader = ShaderLibrary::Peek_Vertex(Instanced
+		? ShaderLibrary::Mesh_Instanced_Vertex_Id(has_diffuse, has_specular, texcoord_sets)
+		: ShaderLibrary::Mesh_Vertex_Id(has_normal, has_diffuse, has_specular, texcoord_sets));
 	IDirect3DPixelShader9 *pixel_shader = ShaderLibrary::Peek_Pixel(lit ? ShaderLibrary::PS_MESH : ShaderLibrary::PS_UNLIT);
 	if (vertex_shader == nullptr || pixel_shader == nullptr)
 		return Fallback(REASON_NO_SHADER, lit ? 0 : 3);
@@ -1137,7 +1159,7 @@ void MeshShader::End()
 	}
 }
 
-void MeshShader::Set_Object(const RenderObjClass *object)
+unsigned MeshShader::Object_Color(const RenderObjClass *object)
 {
 	// The game sets the team colour on the top object of a model, not on its meshes.
 	unsigned colour = 0;
@@ -1150,7 +1172,12 @@ void MeshShader::Set_Object(const RenderObjClass *object)
 				break;
 		}
 	}
-	DX9Wrapper::Set_House_Color(colour);
+	return colour;
+}
+
+void MeshShader::Set_Object(const RenderObjClass *object)
+{
+	DX9Wrapper::Set_House_Color(Object_Color(object));
 }
 
 void MeshShader::Clear_Object()

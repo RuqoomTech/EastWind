@@ -67,6 +67,19 @@ public:
 		VS_MESH_D_T2,
 		VS_MESH_S_T2,
 		VS_MESH_DS_T2,
+		// mesh.hlsl instanced lit variants (M8 R6), in the order of the lit ones.
+		VS_MESH_I_N_T0,
+		VS_MESH_I_ND_T0,
+		VS_MESH_I_NS_T0,
+		VS_MESH_I_NDS_T0,
+		VS_MESH_I_N_T1,
+		VS_MESH_I_ND_T1,
+		VS_MESH_I_NS_T1,
+		VS_MESH_I_NDS_T1,
+		VS_MESH_I_N_T2,
+		VS_MESH_I_ND_T2,
+		VS_MESH_I_NS_T2,
+		VS_MESH_I_NDS_T2,
 		VS_COUNT
 	};
 
@@ -125,6 +138,12 @@ public:
 	static VertexShaderId Mesh_Vertex_Id(bool normal, bool diffuse, bool specular, int texcoord_sets)
 	{
 		return VertexShaderId((normal ? VS_MESH_N_T0 : VS_MESH_T0) + texcoord_sets * 4 + (diffuse ? 1 : 0) + (specular ? 2 : 0));
+	}
+
+	// The instanced variant of a lit mesh (always with a normal).
+	static VertexShaderId Mesh_Instanced_Vertex_Id(bool diffuse, bool specular, int texcoord_sets)
+	{
+		return VertexShaderId(VS_MESH_I_N_T0 + texcoord_sets * 4 + (diffuse ? 1 : 0) + (specular ? 2 : 0));
 	}
 
 	// Releases the store's references. Called before the device is released.

@@ -272,7 +272,21 @@ class DX9Wrapper
 		unsigned short min_vertex_index=0,
 		unsigned short vertex_count=0);
 
+	// EastWind M8 R6: Draw with instances set.
+	static void Draw_Instanced(
+		unsigned primitive_type,
+		unsigned short start_index,
+		unsigned short polygon_count,
+		unsigned short min_vertex_index,
+		unsigned short vertex_count);
+
 public:
+	// EastWind M8 R6: until cleared with (nullptr, 0), each indexed draw draws the bound mesh once
+	// at each of these world transforms: one instanced draw when the mesh shader takes it, else a
+	// draw per copy. The transforms must stay alive until cleared.
+	static void Set_Instances(const Matrix3D *const *transforms, int count);
+	static void Release_Instancing();
+
 #ifdef EXTENDED_STATS
 	static DX9_Stats stats;
 #endif

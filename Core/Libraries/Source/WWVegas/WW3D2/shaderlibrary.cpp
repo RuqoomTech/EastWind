@@ -88,6 +88,18 @@
 #include "mesh_d_t2_vs.h"
 #include "mesh_s_t2_vs.h"
 #include "mesh_ds_t2_vs.h"
+#include "mesh_i_n_t0_vs.h"
+#include "mesh_i_nd_t0_vs.h"
+#include "mesh_i_ns_t0_vs.h"
+#include "mesh_i_nds_t0_vs.h"
+#include "mesh_i_n_t1_vs.h"
+#include "mesh_i_nd_t1_vs.h"
+#include "mesh_i_ns_t1_vs.h"
+#include "mesh_i_nds_t1_vs.h"
+#include "mesh_i_n_t2_vs.h"
+#include "mesh_i_nd_t2_vs.h"
+#include "mesh_i_ns_t2_vs.h"
+#include "mesh_i_nds_t2_vs.h"
 #include "unlit_ps.h"
 
 namespace
@@ -132,6 +144,18 @@ namespace
 		{ g_shader_mesh_d_t2_vs, "mesh_d_t2_vs" },
 		{ g_shader_mesh_s_t2_vs, "mesh_s_t2_vs" },
 		{ g_shader_mesh_ds_t2_vs, "mesh_ds_t2_vs" },
+		{ g_shader_mesh_i_n_t0_vs, "mesh_i_n_t0_vs" },
+		{ g_shader_mesh_i_nd_t0_vs, "mesh_i_nd_t0_vs" },
+		{ g_shader_mesh_i_ns_t0_vs, "mesh_i_ns_t0_vs" },
+		{ g_shader_mesh_i_nds_t0_vs, "mesh_i_nds_t0_vs" },
+		{ g_shader_mesh_i_n_t1_vs, "mesh_i_n_t1_vs" },
+		{ g_shader_mesh_i_nd_t1_vs, "mesh_i_nd_t1_vs" },
+		{ g_shader_mesh_i_ns_t1_vs, "mesh_i_ns_t1_vs" },
+		{ g_shader_mesh_i_nds_t1_vs, "mesh_i_nds_t1_vs" },
+		{ g_shader_mesh_i_n_t2_vs, "mesh_i_n_t2_vs" },
+		{ g_shader_mesh_i_nd_t2_vs, "mesh_i_nd_t2_vs" },
+		{ g_shader_mesh_i_ns_t2_vs, "mesh_i_ns_t2_vs" },
+		{ g_shader_mesh_i_nds_t2_vs, "mesh_i_nds_t2_vs" },
 	};
 	static_assert(sizeof(VertexCode) / sizeof(VertexCode[0]) == ShaderLibrary::VS_COUNT, "VertexCode must match ShaderLibrary::VertexShaderId");
 

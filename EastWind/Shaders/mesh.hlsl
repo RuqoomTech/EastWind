@@ -171,6 +171,37 @@ VsOut MeshVS_D_T2(VsIn i)  { return MeshVS(i, false, true,  false, 2); }
 VsOut MeshVS_S_T2(VsIn i)  { return MeshVS(i, false, false, true,  2); }
 VsOut MeshVS_DS_T2(VsIn i) { return MeshVS(i, false, true,  true,  2); }
 
+// Instanced (M8 R6): many copies of one lit mesh in one draw. Each copy's world rows come from
+// stream 1; the world constants hold identity, so the copy's transform runs first and the rest
+// is MeshVS unchanged. Copies are rigid (no scale), so the rows also turn the normal.
+struct VsInstance
+{
+	float4 row0 : TEXCOORD4;
+	float4 row1 : TEXCOORD5;
+	float4 row2 : TEXCOORD6;
+};
+
+VsOut MeshInstancedVS(VsIn i, VsInstance w, bool hasDiffuse, bool hasSpecular, int texSets)
+{
+	float4 p = float4(i.position.xyz, 1.0);
+	i.position = float4(dot(p, w.row0), dot(p, w.row1), dot(p, w.row2), 1.0);
+	i.normal = float3(dot(i.normal, w.row0.xyz), dot(i.normal, w.row1.xyz), dot(i.normal, w.row2.xyz));
+	return MeshVS(i, true, hasDiffuse, hasSpecular, texSets);
+}
+
+VsOut MeshVS_I_N_T0(VsIn i, VsInstance w)   { return MeshInstancedVS(i, w, false, false, 0); }
+VsOut MeshVS_I_ND_T0(VsIn i, VsInstance w)  { return MeshInstancedVS(i, w, true,  false, 0); }
+VsOut MeshVS_I_NS_T0(VsIn i, VsInstance w)  { return MeshInstancedVS(i, w, false, true,  0); }
+VsOut MeshVS_I_NDS_T0(VsIn i, VsInstance w) { return MeshInstancedVS(i, w, true,  true,  0); }
+VsOut MeshVS_I_N_T1(VsIn i, VsInstance w)   { return MeshInstancedVS(i, w, false, false, 1); }
+VsOut MeshVS_I_ND_T1(VsIn i, VsInstance w)  { return MeshInstancedVS(i, w, true,  false, 1); }
+VsOut MeshVS_I_NS_T1(VsIn i, VsInstance w)  { return MeshInstancedVS(i, w, false, true,  1); }
+VsOut MeshVS_I_NDS_T1(VsIn i, VsInstance w) { return MeshInstancedVS(i, w, true,  true,  1); }
+VsOut MeshVS_I_N_T2(VsIn i, VsInstance w)   { return MeshInstancedVS(i, w, false, false, 2); }
+VsOut MeshVS_I_ND_T2(VsIn i, VsInstance w)  { return MeshInstancedVS(i, w, true,  false, 2); }
+VsOut MeshVS_I_NS_T2(VsIn i, VsInstance w)  { return MeshInstancedVS(i, w, false, true,  2); }
+VsOut MeshVS_I_NDS_T2(VsIn i, VsInstance w) { return MeshInstancedVS(i, w, true,  true,  2); }
+
 // ---------------------------------------------------------------------------------------------
 // Pixel shader
 // ---------------------------------------------------------------------------------------------

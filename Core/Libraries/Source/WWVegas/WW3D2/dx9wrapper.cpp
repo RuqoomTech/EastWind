@@ -556,6 +556,7 @@ void DX9Wrapper::Do_Onetime_Device_Dependent_Shutdowns()
 	SortingRendererClass::Deinit();
 	DynamicVBAccessClass::_Deinit();
 	DynamicIBAccessClass::_Deinit();
+	Release_Instancing();
 	ShatterSystem::Shutdown();
 	PointGroupClass::_Shutdown();
 	VertexMaterialClass::Shutdown();
@@ -711,6 +712,7 @@ bool DX9Wrapper::Reset_Device(bool reload_assets)
 		}
 		DynamicVBAccessClass::_Deinit();
 		DynamicIBAccessClass::_Deinit();
+		Release_Instancing();
 		DX9TextureManagerClass::Release_Textures();
 		SHD_SHUTDOWN_SHADERS;
 
@@ -2131,6 +2133,9 @@ void DX9Wrapper::Draw_Sorting_IB_VB(
 //
 // ----------------------------------------------------------------------------
 
+static const Matrix3D *const *Instances = nullptr;	// EastWind M8 R6, see Set_Instances
+static int InstanceCount = 0;
+
 void DX9Wrapper::Draw(
 	unsigned primitive_type,
 	unsigned short start_index,
@@ -2226,6 +2231,10 @@ void DX9Wrapper::Draw(
 					///@todo: MUST FIND OUT WHY THIS HAPPENS WITH LOTS OF PARTICLES ON BIG FIGHT!  -MW
 					break;
 				}*/
+				if (InstanceCount > 0) {
+					Draw_Instanced(primitive_type,start_index,polygon_count,min_vertex_index,vertex_count);
+					break;
+				}
 				DX9_RECORD_RENDER(polygon_count,vertex_count,render_state.shader);
 				DX9_RECORD_DRAW_CALLS();
 				const bool mesh_shader = MeshShader::Begin();
@@ -2268,6 +2277,173 @@ void DX9Wrapper::Draw(
 	case BUFFER_TYPE_INVALID:
 		WWASSERT(0);
 		break;
+	}
+}
+
+// ----------------------------------------------------------------------------
+// EastWind M8 R6: instancing. Copies of one mesh (same buffers, material, lights and house
+// colour) draw in one call: stream 0 holds the mesh, stream 1 one world matrix (3 rows) per copy.
+// ----------------------------------------------------------------------------
+
+static const unsigned INSTANCE_SIZE = sizeof(Matrix3D);	// 3 float4 rows
+static const unsigned INSTANCE_CAPACITY = 4096;
+static IDirect3DVertexBuffer9 *InstanceBuffer = nullptr;
+static unsigned InstanceBufferUsed = 0;
+struct InstanceDeclarationStruct { DWORD Fvf; IDirect3DVertexDeclaration9 *Declaration; };
+static InstanceDeclarationStruct InstanceDeclarations[16];
+static_assert(sizeof(Matrix3D) == 48, "a copy's world matrix is three float4 rows");
+
+void DX9Wrapper::Set_Instances(const Matrix3D *const *transforms, int count)
+{
+	Instances = transforms;
+	InstanceCount = count;
+}
+
+void DX9Wrapper::Release_Instancing()
+{
+	if (InstanceBuffer != nullptr)
+		InstanceBuffer->Release();
+	InstanceBuffer = nullptr;
+	InstanceBufferUsed = 0;
+	for (InstanceDeclarationStruct &d : InstanceDeclarations)
+	{
+		if (d.Declaration != nullptr)
+			d.Declaration->Release();
+		d = InstanceDeclarationStruct();
+	}
+}
+
+// The FVF's elements on stream 0 and the world rows as TEXCOORD4..6 on stream 1. Null for an
+// FVF the mesh shader would not take anyway.
+static IDirect3DVertexDeclaration9 *Instance_Declaration(IDirect3DDevice9 *device, DWORD fvf, unsigned stride)
+{
+	const DWORD allowed = D3DFVF_XYZ | D3DFVF_NORMAL | D3DFVF_DIFFUSE | D3DFVF_SPECULAR | D3DFVF_TEXCOUNT_MASK;
+	const unsigned texcoord_sets = (fvf & D3DFVF_TEXCOUNT_MASK) >> D3DFVF_TEXCOUNT_SHIFT;
+	if ((fvf & D3DFVF_POSITION_MASK) != D3DFVF_XYZ || !(fvf & D3DFVF_NORMAL) || (fvf & ~allowed) || texcoord_sets > 2)
+		return nullptr;
+
+	for (const InstanceDeclarationStruct &d : InstanceDeclarations)
+	{
+		if (d.Declaration != nullptr && d.Fvf == fvf)
+			return d.Declaration;
+	}
+
+	D3DVERTEXELEMENT9 elements[12];
+	int n = 0;
+	WORD offset = 0;
+	elements[n++] = { 0, offset, D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_POSITION, 0 };
+	offset += 12;
+	elements[n++] = { 0, offset, D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_NORMAL, 0 };
+	offset += 12;
+	if (fvf & D3DFVF_DIFFUSE)
+	{
+		elements[n++] = { 0, offset, D3DDECLTYPE_D3DCOLOR, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_COLOR, 0 };
+		offset += 4;
+	}
+	if (fvf & D3DFVF_SPECULAR)
+	{
+		elements[n++] = { 0, offset, D3DDECLTYPE_D3DCOLOR, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_COLOR, 1 };
+		offset += 4;
+	}
+	for (unsigned t = 0; t < texcoord_sets; ++t)
+	{
+		elements[n++] = { 0, offset, D3DDECLTYPE_FLOAT2, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD, BYTE(t) };
+		offset += 8;
+	}
+	if (offset != stride)
+		return nullptr;
+	for (BYTE r = 0; r < 3; ++r)
+		elements[n++] = { 1, WORD(r * 16), D3DDECLTYPE_FLOAT4, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD, BYTE(4 + r) };
+	elements[n++] = D3DDECL_END();
+
+	for (InstanceDeclarationStruct &d : InstanceDeclarations)
+	{
+		if (d.Declaration == nullptr)
+		{
+			if (FAILED(device->CreateVertexDeclaration(elements, &d.Declaration)))
+				d.Declaration = nullptr;
+			d.Fvf = fvf;
+			return d.Declaration;
+		}
+	}
+	return nullptr;	// shortcut: 16 FVFs cached, the mesh FVFs are far fewer; more draw per copy
+}
+
+void DX9Wrapper::Draw_Instanced(
+	unsigned primitive_type,
+	unsigned short start_index,
+	unsigned short polygon_count,
+	unsigned short min_vertex_index,
+	unsigned short vertex_count)
+{
+	const unsigned fvf = render_state.vertex_buffers[0]->FVF_Info().Get_FVF();
+	const unsigned stride = render_state.vertex_buffers[0]->FVF_Info().Get_FVF_Size();
+	IDirect3DVertexDeclaration9 *declaration = (render_state.vertex_buffers[1] == nullptr)
+		? Instance_Declaration(D3DDevice, fvf, stride) : nullptr;
+	if (declaration != nullptr && InstanceBuffer == nullptr)
+	{
+		if (FAILED(D3DDevice->CreateVertexBuffer(INSTANCE_CAPACITY * INSTANCE_SIZE, D3DUSAGE_DYNAMIC | D3DUSAGE_WRITEONLY,
+				0, D3DPOOL_DEFAULT, &InstanceBuffer, nullptr)))
+			InstanceBuffer = nullptr;
+		InstanceBufferUsed = 0;
+	}
+
+	if (declaration != nullptr && InstanceBuffer != nullptr)
+	{
+		// The shader takes each copy's world from stream 1, so the device world is identity.
+		Set_World_Identity();
+		Apply_Render_State_Changes();
+		if (MeshShader::Begin_Instanced(InstanceCount))
+		{
+			DX9CALL(SetVertexDeclaration(declaration));
+			for (int first = 0; first < InstanceCount; )
+			{
+				const unsigned count = unsigned(InstanceCount - first) < INSTANCE_CAPACITY ? unsigned(InstanceCount - first) : INSTANCE_CAPACITY;
+				DWORD lock = D3DLOCK_NOOVERWRITE;
+				if (InstanceBufferUsed + count > INSTANCE_CAPACITY)
+				{
+					InstanceBufferUsed = 0;
+					lock = D3DLOCK_DISCARD;
+				}
+				void *data = nullptr;
+				if (FAILED(InstanceBuffer->Lock(InstanceBufferUsed * INSTANCE_SIZE, count * INSTANCE_SIZE, &data, lock)))
+					break;
+				for (unsigned k = 0; k < count; ++k)
+					memcpy(static_cast<char *>(data) + k * INSTANCE_SIZE, Instances[first + k], INSTANCE_SIZE);
+				InstanceBuffer->Unlock();
+
+				DX9CALL(SetStreamSource(1, InstanceBuffer, InstanceBufferUsed * INSTANCE_SIZE, INSTANCE_SIZE));
+				DX9CALL(SetStreamSourceFreq(0, D3DSTREAMSOURCE_INDEXEDDATA | count));
+				DX9CALL(SetStreamSourceFreq(1, D3DSTREAMSOURCE_INSTANCEDATA | 1u));
+				DX9_RECORD_RENDER(polygon_count * count, vertex_count * count, render_state.shader);
+				DX9_RECORD_DRAW_CALLS();
+				DX9CALL(DrawIndexedPrimitive((D3DPRIMITIVETYPE)primitive_type, _Base_Vertex_Index, min_vertex_index,
+					vertex_count, start_index + render_state.iba_offset, polygon_count));
+				InstanceBufferUsed += count;
+				first += count;
+			}
+			// Back to the wrapper's state: one stream, the FVF it set with the vertex buffer.
+			DX9CALL(SetStreamSourceFreq(0, 1));
+			DX9CALL(SetStreamSourceFreq(1, 1));
+			DX9CALL(SetStreamSource(1, nullptr, 0, 0));
+			DX9CALL(SetFVF(fvf));
+			MeshShader::End();
+			return;
+		}
+	}
+
+	// A draw per copy: fixed function, the shadow caster pass, the water reflection.
+	for (int k = 0; k < InstanceCount; ++k)
+	{
+		Set_Transform(D3DTS_WORLD, *Instances[k]);
+		Apply_Render_State_Changes();
+		DX9_RECORD_RENDER(polygon_count, vertex_count, render_state.shader);
+		DX9_RECORD_DRAW_CALLS();
+		const bool mesh_shader = MeshShader::Begin();
+		DX9CALL(DrawIndexedPrimitive((D3DPRIMITIVETYPE)primitive_type, _Base_Vertex_Index, min_vertex_index,
+			vertex_count, start_index + render_state.iba_offset, polygon_count));
+		if (mesh_shader)
+			MeshShader::End();
 	}
 }
 

@@ -975,6 +975,7 @@ static void showGpuTimes()
 	const MeshShader::StatsStruct mesh = MeshShader::Take_Stats();
 	sayTime(L"Mesh draws a frame: %.0f, by shader: %.0f lit, %.0f unlit; CPU: %.2f ms setup, %.2f ms setup and draw of the shader draws",
 		mesh.Calls, mesh.LitDraws, mesh.UnlitDraws, mesh.SetupMs, mesh.ShaderDrawMs);
+	sayTime(L"   Instanced: %.0f draws of %.0f copies", mesh.InstancedDraws, mesh.InstancedCopies);
 	sayTime(L"GPU time (average of %d frames): %.2f ms a frame", frames, total);
 	for (int p = GpuTimer::FRAME_BEGIN + 1; p < GpuTimer::POINT_COUNT; ++p)
 	{

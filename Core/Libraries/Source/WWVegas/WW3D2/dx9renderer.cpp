@@ -61,6 +61,10 @@
 #include "camera.h"
 #include "stripoptimizer.h"
 #include "meshgeometry.h"
+#include <algorithm>
+#include <execution>
+#include <functional>
+#include <vector>
 
 /*
 ** Global Instance of the DX9MeshRender
@@ -69,8 +73,6 @@ DX9MeshRendererClass TheDX9MeshRenderer;
 bool DX9TextureCategoryClass::m_gForceMultiply = false; // Forces opaque materials to use the multiply blend - pseudo transparent effect.  jba.
 // ----------------------------------------------------------------------------
 
-static DynamicVectorClass<Vector3>				_TempVertexBuffer;
-static DynamicVectorClass<Vector3>				_TempNormalBuffer;
 
 static MultiListClass<MeshModelClass>			_RegisteredMeshList;
 static TextureCategoryList							texture_category_delete_list;
@@ -1321,6 +1323,8 @@ void DX9SkinFVFCategoryContainer::Render()
 			VertexFormatXYZNDUV2 * dest_verts = l.Get_Formatted_Vertex_Array();
 			unsigned vertex_offset=0;
 			remainingMesh = nullptr;
+			static std::vector<MeshClass *> skins;
+			skins.clear();
 
 			while (mesh != nullptr) {
 
@@ -1343,16 +1347,30 @@ void DX9SkinFVFCategoryContainer::Render()
 		WWASSERT((vertex_offset+mesh_vertex_count)<=VisibleVertexCount);
 			DX9_RECORD_SKIN_RENDER(mesh->Get_Num_Polys(),mesh_vertex_count);
 
-				if (_TempVertexBuffer.Length() < mesh_vertex_count) _TempVertexBuffer.Resize(mesh_vertex_count);
-				if (_TempNormalBuffer.Length() < mesh_vertex_count) _TempNormalBuffer.Resize(mesh_vertex_count);
+				skins.push_back(mesh);
+				mesh->Set_Base_Vertex_Offset(vertex_offset);
+				vertex_offset+=mesh_vertex_count;
+				renderedVertexCount += mesh_vertex_count;
 
-				Vector3* loc=&(_TempVertexBuffer[0]);
-				Vector3* norm=&(_TempNormalBuffer[0]);
+				mesh = mesh->Peek_Next_Visible_Skin();
+			}
+
+			// M8 R7: skin each mesh on the worker pool. Each writes only its own part of the
+			// locked buffer and reads only its model and the bone transforms set before the flush.
+			auto skin = [dest_verts](MeshClass *mesh) {
+				thread_local std::vector<Vector3> loc_buffer, norm_buffer;
+				MeshModelClass * mmc = mesh->Peek_Model();
+				const int mesh_vertex_count=mmc->Get_Vertex_Count();
+				if (loc_buffer.size() < size_t(mesh_vertex_count)) loc_buffer.resize(mesh_vertex_count);
+				if (norm_buffer.size() < size_t(mesh_vertex_count)) norm_buffer.resize(mesh_vertex_count);
+
+				Vector3* loc=loc_buffer.data();
+				Vector3* norm=norm_buffer.data();
 				const Vector2* uv0=mmc->Get_UV_Array_By_Index(0);
 				const Vector2* uv1=mmc->Get_UV_Array_By_Index(1);
 				const unsigned* diffuse=mmc->Get_Color_Array(0,false);
 
-				VertexFormatXYZNDUV2* verts=dest_verts+vertex_offset;
+				VertexFormatXYZNDUV2* verts=dest_verts+mesh->Get_Base_Vertex_Offset();
 
 				mesh->Get_Deformed_Vertices(loc,norm);
 
@@ -1391,13 +1409,12 @@ void DX9SkinFVFCategoryContainer::Render()
 					loc++;
 					norm++;
 				}
-
-				mesh->Set_Base_Vertex_Offset(vertex_offset);
-				vertex_offset+=mesh_vertex_count;
-				renderedVertexCount += mesh_vertex_count;
-
-				mesh = mesh->Peek_Next_Visible_Skin();
-			}
+			};
+			// A few small skins cost less than waking the pool.
+			if (vertex_offset < 4096)
+				std::for_each(skins.begin(), skins.end(), skin);
+			else
+				std::for_each(std::execution::par, skins.begin(), skins.end(), skin);
 		}
 
 		SNAPSHOT_SAY(("Set vb: %x ib: %x",&vb.FVF_Info(),index_buffer));
@@ -1677,6 +1694,45 @@ unsigned DX9TextureCategoryClass::Add_Mesh(
 }
 
 // ----------------------------------------------------------------------------
+// EastWind M8 R6: a mesh that can be drawn as one copy among others: placed by its own transform
+// alone (not camera-aligned, not a skin, not scaled), with no per-object material change, and
+// with a light environment to compare.
+static bool Instancable(MeshClass *mesh)
+{
+	MeshModelClass *model = mesh->Peek_Model();
+	return mesh->Get_Lighting_Environment() != nullptr
+		&& !model->Get_Flag(MeshGeometryClass::SORT)
+		&& !model->Get_Flag(MeshModelClass::ALIGNED)
+		&& !model->Get_Flag(MeshModelClass::ORIENTED)
+		&& !model->Get_Flag(MeshModelClass::SKIN)
+		&& mesh->Get_ObjectScale() == 1.0f
+		&& mesh->Get_Alpha_Override() == 1.0f
+		&& !(mesh->Get_User_Data() && *(int *)mesh->Get_User_Data() == RenderObjClass::USER_DATA_MATERIAL_OVERRIDE)
+		&& mesh->Get_Base_Vertex_Offset() != VERTEX_BUFFER_OVERFLOW;
+}
+
+// Whether DX9Wrapper::Set_Light_Environment sets the same lights for both.
+static bool Same_Lights(const LightEnvironmentClass &a, const LightEnvironmentClass &b)
+{
+	const int count = a.Get_Light_Count();
+	if (count != b.Get_Light_Count() || !(a.Get_Equivalent_Ambient() == b.Get_Equivalent_Ambient()))
+		return false;
+	for (int l = 0; l < count; ++l)
+	{
+		if (a.isPointLight(l) != b.isPointLight(l))
+			return false;
+		if (a.isPointLight(l))
+		{
+			if (!(a.getPointDiffuse(l) == b.getPointDiffuse(l)) || !(a.getPointAmbient(l) == b.getPointAmbient(l))
+				|| !(a.getPointCenter(l) == b.getPointCenter(l)) || a.getPointOrad(l) != b.getPointOrad(l)
+				|| a.getPointIrad(l) != b.getPointIrad(l))
+				return false;
+		}
+		else if (!(a.Get_Light_Diffuse(l) == b.Get_Light_Diffuse(l)) || !(a.Get_Light_Direction(l) == b.Get_Light_Direction(l)))
+			return false;
+	}
+	return true;
+}
 
 void DX9TextureCategoryClass::Render()
 {
@@ -1724,6 +1780,25 @@ void DX9TextureCategoryClass::Render()
 
 
 	bool renderTasksRemaining=false;
+
+	// EastWind M8 R6: the tasks that can share a draw are made adjacent, so the copy scan below
+	// stops at the end of its run instead of walking the rest of the list.
+	if (!DX9RendererDebugger::Is_Enabled() && render_task_head != nullptr && render_task_head->Get_Next_Visible() != nullptr)
+	{
+		static std::vector<PolyRenderTaskClass *> tasks;
+		tasks.clear();
+		for (PolyRenderTaskClass *t = render_task_head; t != nullptr; t = t->Get_Next_Visible())
+			tasks.push_back(t);
+		std::stable_sort(tasks.begin(), tasks.end(), [](PolyRenderTaskClass *a, PolyRenderTaskClass *b) {
+			if (a->Peek_Polygon_Renderer() != b->Peek_Polygon_Renderer())
+				return std::less<DX9PolygonRendererClass *>()(a->Peek_Polygon_Renderer(), b->Peek_Polygon_Renderer());
+			return a->Peek_Mesh()->Get_Base_Vertex_Offset() < b->Peek_Mesh()->Get_Base_Vertex_Offset();
+		});
+		for (size_t i = 0; i + 1 < tasks.size(); ++i)
+			tasks[i]->Set_Next_Visible(tasks[i + 1]);
+		tasks.back()->Set_Next_Visible(nullptr);
+		render_task_head = tasks.front();
+	}
 
 	PolyRenderTaskClass * prt = render_task_head;
 	PolyRenderTaskClass * last_prt = nullptr;
@@ -1865,6 +1940,41 @@ void DX9TextureCategoryClass::Render()
 		if (mesh->Get_ObjectScale() != 1.0f)
 			DX9Wrapper::Set_DX9_Render_State(D3DRS_NORMALIZENORMALS, TRUE);
 //--------------------------------------------------------------------
+
+		// EastWind M8 R6: the later tasks that draw the same mesh with the same lights and house
+		// colour go along as copies in one draw. Their tasks leave the list and are deleted after
+		// the draw, which keeps their meshes alive until then. Draw order within a texture
+		// category was never defined (tasks are prepended), so sorting the list above and pulling
+		// copies forward is safe. The sort puts this mesh's run right after prt.
+		static std::vector<const Matrix3D *> copies;
+		copies.clear();
+		PolyRenderTaskClass *copy_tasks = nullptr;
+		if (!DX9RendererDebugger::Is_Enabled() && Instancable(mesh))
+		{
+			const unsigned colour = MeshShader::Object_Color(mesh);
+			PolyRenderTaskClass *before = prt;
+			for (PolyRenderTaskClass *other = prt->Get_Next_Visible(); other != nullptr && other->Peek_Polygon_Renderer() == renderer
+				&& other->Peek_Mesh()->Get_Base_Vertex_Offset() == mesh->Get_Base_Vertex_Offset(); )
+			{
+				PolyRenderTaskClass *next = other->Get_Next_Visible();
+				MeshClass *m = other->Peek_Mesh();
+				if (Instancable(m) && MeshShader::Object_Color(m) == colour && Same_Lights(*lenv, *m->Get_Lighting_Environment()))
+				{
+					if (copies.empty())
+						copies.push_back(world_transform);
+					copies.push_back(&m->Get_Transform());
+					before->Set_Next_Visible(next);
+					other->Set_Next_Visible(copy_tasks);
+					copy_tasks = other;
+				}
+				else
+					before = other;
+				other = next;
+			}
+		}
+		if (!copies.empty())
+			DX9Wrapper::Set_Instances(copies.data(), int(copies.size()));
+
 		/*
 		** Render mesh using either sorting or immediate pipeline
 		*/
@@ -1946,6 +2056,14 @@ void DX9TextureCategoryClass::Render()
 
         }
 
+		DX9Wrapper::Set_Instances(nullptr, 0);
+		while (copy_tasks != nullptr)
+		{
+			PolyRenderTaskClass *next = copy_tasks->Get_Next_Visible();
+			delete copy_tasks;
+			copy_tasks = next;
+		}
+
 		/*
 		** Move to the next render task.  Note that the delete should be fast because prt's are pooled
 		*/
@@ -2007,8 +2125,6 @@ void DX9MeshRendererClass::Shutdown()
 	visible_decal_meshes = nullptr;
 	Invalidate(true);
 	Clear_Pending_Delete_Lists();
-	_TempVertexBuffer.Clear();	//free memory
-	_TempNormalBuffer.Clear();
 }
 
 // ----------------------------------------------------------------------------
