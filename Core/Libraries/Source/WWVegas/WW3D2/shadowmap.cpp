@@ -38,10 +38,16 @@ namespace
 	const D3DFORMAT FORMAT_NULL = (D3DFORMAT)MAKEFOURCC('N', 'U', 'L', 'L');
 
 	// Light box fit, in world units.
-	const float MAX_VIEW_DISTANCE = 3000.0f;	// the corner rays of the view are cut off here
+	// The corner rays of the view are cut off at this view depth. The default camera (310 high, 37.5
+	// degrees down) meets flat ground at about 950 in the top corners; past the far box the shader fades
+	// to lit.
+	const float MAX_VIEW_DISTANCE = 1500.0f;
 	const float CASTER_HEIGHT = 400.0f;			// casters this far above the ground (toward the sun) still cast
 	const float BOX_STEP = 32.0f;				// the box size changes in steps, so the texel size stays put
 	const float MIN_HALF_SIZE = 128.0f;
+	const float SHRINK_BELOW = 0.85f;			// a held box side shrinks only when the view needs less than this of it
+	const int ROLL_STEPS = 72;					// roll angles tried over a quarter turn
+	const float ROLL_KEEP = 0.95f;				// the held roll stays unless another gives a box this much smaller
 
 	// Filtering and bias.
 	const float SOFT_EDGE = 1.5f;				// world units over which a shadow edge softens (INTZ: at most)
@@ -81,7 +87,13 @@ namespace
 
 	// Light-space box of this frame, for Caster_Visible.
 	Vector3 BoxAxisX, BoxAxisY, BoxAxisZ;
-	float BoxCenterX = 0, BoxCenterY = 0, BoxHalf = 0, BoxZMin = 0, BoxZMax = 0;
+	float BoxCenterX = 0, BoxCenterY = 0, BoxHalfX = 0, BoxHalfY = 0, BoxZMin = 0, BoxZMax = 0;
+
+	// The light box fit held across frames, so the map does not re-register as the view moves a little.
+	// A zero FitToLight (no sun yet, or the resources were made again) makes Render() fit afresh.
+	Vector3 FitToLight(0, 0, 0);
+	int FitRoll = 0;
+	float FitHalfX[2] = { 0, 0 }, FitHalfY[2] = { 0, 0 };	// [0] near, [1] far
 
 	template <class T> void Release_Com(T *&p)
 	{
@@ -99,6 +111,7 @@ namespace
 		Release_Com(ColorSurface);
 		Format = DEPTH_NONE;
 		Size = 0;
+		FitToLight.Set(0, 0, 0);
 	}
 
 	// Makes the depth texture and a colour target of the same size (the camera sizes its
@@ -246,6 +259,16 @@ namespace
 		}
 		return origin + dir * t;
 	}
+
+	// A held box half size: grows at once to what the view needs, shrinks only when it needs clearly
+	// less, so the texel size stays put while the view scrolls and zooms a little.
+	void Hold_Half(float &held, float needed)
+	{
+		if (needed < MIN_HALF_SIZE) needed = MIN_HALF_SIZE;
+		needed = ceilf(needed / BOX_STEP) * BOX_STEP;
+		if (needed > held || needed < held * SHRINK_BELOW)
+			held = needed;
+	}
 }
 
 void ShadowMap::New_Frame()
@@ -276,8 +299,9 @@ bool ShadowMap::Caster_Visible(const Vector3 &center, float radius)
 	const float x = Vector3::Dot_Product(center, BoxAxisX) - BoxCenterX;
 	const float y = Vector3::Dot_Product(center, BoxAxisY) - BoxCenterY;
 	const float z = Vector3::Dot_Product(center, BoxAxisZ);
-	const float reach = BoxHalf + radius;
-	return x > -reach && x < reach && y > -reach && y < reach && z + radius > BoxZMin && z - radius < BoxZMax;
+	const float reach_x = BoxHalfX + radius;
+	const float reach_y = BoxHalfY + radius;
+	return x > -reach_x && x < reach_x && y > -reach_y && y < reach_y && z + radius > BoxZMin && z - radius < BoxZMax;
 }
 
 void ShadowMap::Count_Caster()
@@ -361,8 +385,13 @@ void ShadowMap::Render(SceneClass *scene, CameraClass *view, const Vector3 &sun_
 		return;
 	}
 	ToLight = to_light;
+	if (Vector3::Dot_Product(to_light, FitToLight) < 0.9999f)
+	{
+		FitToLight = to_light;
+		FitRoll = -1;
+	}
 
-	// Light basis: z toward the sun, x level with the ground.
+	// Light basis: z toward the sun, x level with the ground (rolled below).
 	Vector3 axis_z = to_light;
 	Vector3 axis_x;
 	Vector3::Cross_Product(Vector3(0, 0, 1), axis_z, &axis_x);
@@ -387,44 +416,103 @@ void ShadowMap::Render(SceneClass *scene, CameraClass *view, const Vector3 &sun_
 	float near_t = (Ray_At_Height(origin, centre_dir, 0.5f * (ground_min + ground_max), max_t) - origin).Length();
 	if (near_t > max_t) near_t = max_t;
 
+	Vector3 points[2][8];	// per cascade: the corner rays at the lowest and highest ground
+	for (int i = 0; i < 4; ++i)
+	{
+		const Vector3 dir = view_tm.Rotate_Vector(Vector3(corners[i].X, corners[i].Y, -1.0f));
+		for (int h = 0; h < 2; ++h)
+			for (int c = 0; c < 2; ++c)
+				points[c][2 * i + h] = Ray_At_Height(origin, dir, h == 0 ? ground_min : ground_max, c == 0 ? near_t : max_t);
+	}
+
+	// Roll the basis around z to the angle whose far box has the shortest longer side, which sets the
+	// texel size the shader sees: the view's ground is a trapezoid sheared by the sun, so no fixed angle
+	// fits it well. A rectangle repeats every quarter turn. Both
+	// cascades take this one roll, the far one's, since it holds most of the texels' waste. The held
+	// roll stays unless another is clearly better, as a new roll re-registers the whole map.
+	{
+		float px[8], py[8];
+		for (int i = 0; i < 8; ++i)
+		{
+			px[i] = Vector3::Dot_Product(points[1][i], axis_x);
+			py[i] = Vector3::Dot_Product(points[1][i], axis_y);
+		}
+		float best_side = 1.0e30f, held_side = 1.0e30f;
+		int best_roll = 0;
+		for (int a = 0; a < ROLL_STEPS; ++a)
+		{
+			const float angle = (float)a * (0.5f * WWMATH_PI / (float)ROLL_STEPS);
+			const float ca = cosf(angle), sa = sinf(angle);
+			float min_a = 1.0e30f, max_a = -1.0e30f, min_b = 1.0e30f, max_b = -1.0e30f;
+			for (int i = 0; i < 8; ++i)
+			{
+				const float va = ca * px[i] + sa * py[i];
+				const float vb = ca * py[i] - sa * px[i];
+				if (va < min_a) min_a = va;
+				if (va > max_a) max_a = va;
+				if (vb < min_b) min_b = vb;
+				if (vb > max_b) max_b = vb;
+			}
+			const float side = (max_a - min_a) > (max_b - min_b) ? (max_a - min_a) : (max_b - min_b);
+			if (side < best_side)
+			{
+				best_side = side;
+				best_roll = a;
+			}
+			if (a == FitRoll)
+				held_side = side;
+		}
+		if (FitRoll < 0 || best_side < held_side * ROLL_KEEP)
+		{
+			FitRoll = best_roll;
+			// The map re-registers anyway: fit its size afresh too.
+			FitHalfX[0] = FitHalfX[1] = FitHalfY[0] = FitHalfY[1] = 0.0f;
+		}
+		const float angle = (float)FitRoll * (0.5f * WWMATH_PI / (float)ROLL_STEPS);
+		const float ca = cosf(angle), sa = sinf(angle);
+		const Vector3 rolled_x = axis_x * ca + axis_y * sa;
+		axis_y = axis_y * ca - axis_x * sa;
+		axis_x = rolled_x;
+	}
+
 	struct Cascade
 	{
 		float MinX, MaxX, MinY, MaxY, MinZ, MaxZ;
-		float Half, CenterX, CenterY, Texel;
+		float HalfX, HalfY, CenterX, CenterY;
+		float Texel;	// the coarser axis' texel, for the shader's one texel size
 		Matrix4x4 Uvz;
 	};
 	Cascade cascades[2];	// [0] near, [1] far
 	for (int c = 0; c < 2; ++c)
 	{
 		Cascade &k = cascades[c];
-		const float reach = c == 0 ? near_t : max_t;
 		k.MinX = k.MinY = k.MinZ = 1.0e30f;
 		k.MaxX = k.MaxY = k.MaxZ = -1.0e30f;
-		for (int i = 0; i < 4; ++i)
+		for (int i = 0; i < 8; ++i)
 		{
-			const Vector3 dir = view_tm.Rotate_Vector(Vector3(corners[i].X, corners[i].Y, -1.0f));
-			for (int h = 0; h < 2; ++h)
-			{
-				const Vector3 p = Ray_At_Height(origin, dir, h == 0 ? ground_min : ground_max, reach);
-				const float x = Vector3::Dot_Product(p, axis_x);
-				const float y = Vector3::Dot_Product(p, axis_y);
-				const float z = Vector3::Dot_Product(p, axis_z);
-				if (x < k.MinX) k.MinX = x;
-				if (x > k.MaxX) k.MaxX = x;
-				if (y < k.MinY) k.MinY = y;
-				if (y > k.MaxY) k.MaxY = y;
-				if (z < k.MinZ) k.MinZ = z;
-				if (z > k.MaxZ) k.MaxZ = z;
-			}
+			const Vector3 &p = points[c][i];
+			const float x = Vector3::Dot_Product(p, axis_x);
+			const float y = Vector3::Dot_Product(p, axis_y);
+			const float z = Vector3::Dot_Product(p, axis_z);
+			if (x < k.MinX) k.MinX = x;
+			if (x > k.MaxX) k.MaxX = x;
+			if (y < k.MinY) k.MinY = y;
+			if (y > k.MaxY) k.MaxY = y;
+			if (z < k.MinZ) k.MinZ = z;
+			if (z > k.MaxZ) k.MaxZ = z;
 		}
 
-		// Square box in steps, centre on whole texels: the shadows do not crawl as the view scrolls.
-		float half = 0.5f * ((k.MaxX - k.MinX) > (k.MaxY - k.MinY) ? (k.MaxX - k.MinX) : (k.MaxY - k.MinY));
-		if (half < MIN_HALF_SIZE) half = MIN_HALF_SIZE;
-		k.Half = ceilf(half / BOX_STEP) * BOX_STEP;
-		k.Texel = 2.0f * k.Half / (float)Size;
-		k.CenterX = floorf(0.5f * (k.MinX + k.MaxX) / k.Texel + 0.5f) * k.Texel;
-		k.CenterY = floorf(0.5f * (k.MinY + k.MaxY) / k.Texel + 0.5f) * k.Texel;
+		// Box sides held in steps, centre on whole texels per axis: the shadows do not crawl as the
+		// view scrolls.
+		Hold_Half(FitHalfX[c], 0.5f * (k.MaxX - k.MinX));
+		Hold_Half(FitHalfY[c], 0.5f * (k.MaxY - k.MinY));
+		k.HalfX = FitHalfX[c];
+		k.HalfY = FitHalfY[c];
+		const float texel_x = 2.0f * k.HalfX / (float)Size;
+		const float texel_y = 2.0f * k.HalfY / (float)Size;
+		k.Texel = texel_x > texel_y ? texel_x : texel_y;
+		k.CenterX = floorf(0.5f * (k.MinX + k.MaxX) / texel_x + 0.5f) * texel_x;
+		k.CenterY = floorf(0.5f * (k.MinY + k.MaxY) / texel_y + 0.5f) * texel_y;
 	}
 
 	// Both cascades share the far one's depth range, so depth bias and softness match across them.
@@ -466,13 +554,14 @@ void ShadowMap::Render(SceneClass *scene, CameraClass *view, const Vector3 &sun_
 		Cascade &k = cascades[c];
 		BoxCenterX = k.CenterX;
 		BoxCenterY = k.CenterY;
-		BoxHalf = k.Half;
+		BoxHalfX = k.HalfX;
+		BoxHalfY = k.HalfY;
 
 		const Vector3 position = axis_x * k.CenterX + axis_y * k.CenterY + axis_z * camera_z;
 		LightCamera->Set_Transform(Matrix3D(axis_x, axis_y, axis_z, position));
 		LightCamera->Set_Projection_Type(CameraClass::ORTHO);
 		LightCamera->Set_Viewport(Vector2(0.5f * c, 0), Vector2(0.5f * c + 0.5f, 1));
-		LightCamera->Set_View_Plane(Vector2(-k.Half, -k.Half), Vector2(k.Half, k.Half));
+		LightCamera->Set_View_Plane(Vector2(-k.HalfX, -k.HalfY), Vector2(k.HalfX, k.HalfY));
 		LightCamera->Set_Clip_Planes(near_plane, far_plane);
 		LightCamera->Set_Depth_Range(0.0f, 1.0f);
 		WW3D::Render(scene, LightCamera);
@@ -503,6 +592,6 @@ void ShadowMap::Render(SceneClass *scene, CameraClass *view, const Vector3 &sun_
 	Bind(device, true);
 	IsActive = true;
 	This.Drawn = true;
-	This.Box = 2.0f * cascades[1].Half;
+	This.Box = 2.0f * (cascades[1].HalfX > cascades[1].HalfY ? cascades[1].HalfX : cascades[1].HalfY);
 	This.WhyNot = nullptr;
 }
