@@ -91,7 +91,7 @@
 #define POST_PS_BLOOM         1   // c1: x threshold, y 1 / (1 - threshold), z strength
 #define POST_PS_BLOOM_WEIGHTS 2   // c2: xyz weights of the 1/4, 1/8 and 1/16 size levels
 #define POST_PS_FINAL         3   // c3: final pass, x bloom on, y tone mapping on, z colour grading on, w ambient occlusion on
-#define POST_PS_TONE          4   // c4: x exposure, y 1 / curve(exposure), so white stays white
+#define POST_PS_TONE          4   // c4: x exposure, y 1 / curve(exposure), so white stays white, z exposure * white
 #define POST_PS_CLAMP         5   // c5: FXAA and AO, xy lowest and zw highest uv inside the view rectangle
 // Ambient occlusion (M3.5): the AO pass, its blur and the final pass read these.
 #define POST_PS_DEPTH         6   // c6: view depth = x / (y - z * stored depth); w: no occlusion from this depth on

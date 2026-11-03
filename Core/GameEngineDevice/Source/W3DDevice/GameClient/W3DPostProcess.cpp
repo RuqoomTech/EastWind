@@ -1121,7 +1121,7 @@ void W3DPostProcess::End_Scene(int x, int y, int width, int height, const Camera
 		// The curve works on linear light; 1 / (the curve at white) keeps white at white.
 		const float exposure = SceneHdr ? TONE_HDR_EXPOSURE : TONE_EXPOSURE;
 		const float white = SceneHdr ? powf(TONE_HDR_WHITE, 2.2f) : 1.0f;
-		const float tone_params[4] = { exposure, 1.0f / Filmic_Curve(exposure * white), 0.0f, 0.0f };
+		const float tone_params[4] = { exposure, 1.0f / Filmic_Curve(exposure * white), exposure * white, 0.0f };
 		device->SetPixelShaderConstantF(POST_PS_FINAL, final_flags, 1);
 		device->SetPixelShaderConstantF(POST_PS_TONE, tone_params, 1);
 		device->SetPixelShader(ShaderLibrary::Peek_Pixel(ShaderLibrary::PS_POST_FINAL));

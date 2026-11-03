@@ -139,9 +139,17 @@ float3 FilmicCurve(float3 x)
 // The scene holds display (gamma) values in 0..1. The curve works on linear light, and
 // dividing by the curve at full white (Tone.y) keeps white at white, so nothing clips.
 // The larger the exposure (Tone.x), the stronger the curve; near 0 it does nothing.
+// The brightest channel is bent and the others scaled with it, so a colour keeps its hue and
+// saturation (bent one by one, a sunlit orange goes yellow and paler). Past white (Tone.z, Hdr
+// only) it runs to the channel-by-channel bend by twice white, so fire and beams still burn white.
 float3 ToneCurve(float3 linear_light)
 {
-	return saturate(FilmicCurve(linear_light * Tone.x) * Tone.y);
+	float3 x = linear_light * Tone.x;
+	float m = max(x.r, max(x.g, x.b));
+	float3 kept = x * (FilmicCurve(m) / max(m, 1.0e-5));
+	float3 each = FilmicCurve(x);
+	float spill = saturate((m - Tone.z) / Tone.z);
+	return saturate(lerp(kept, each, spill) * Tone.y);
 }
 
 float3 ToneMap(float3 c)
