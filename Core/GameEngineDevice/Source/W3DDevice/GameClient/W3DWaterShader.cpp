@@ -823,7 +823,7 @@ bool W3DWaterShader::Begin_Reflection(IDirect3DSurface9 **target, IDirect3DSurfa
 	if (Device == nullptr)
 		return false;
 
-	// WaterQuality 1: half the back buffer, sharp enough once the waves move it, at a quarter of
+	// WaterQuality 1: half the back buffer (at most 1024 wide), sharp enough once the waves move it, at a quarter of
 	// the cost. 2 and up: the full back buffer.
 	IDirect3DSurface9 *back_buffer = nullptr;
 	if (FAILED(Device->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &back_buffer)) || back_buffer == nullptr)
@@ -837,6 +837,12 @@ bool W3DWaterShader::Begin_Reflection(IDirect3DSurface9 **target, IDirect3DSurfa
 	const unsigned divisor = (Get_Graphics_Options().WaterQuality >= 2) ? 1 : 2;
 	int width = int(desc.Width / divisor);
 	int height = int(desc.Height / divisor);
+	// EastWind: half size at most 1024 wide, same shape; at 4K half is 1920 and its pixels are the cost.
+	if (divisor > 1 && width > 1024)
+	{
+		height = (height * 1024) / width;
+		width = 1024;
+	}
 	if (width < 16)
 		width = 16;
 	if (height < 16)
@@ -881,6 +887,12 @@ void W3DWaterShader::End_Reflection(float level)
 void W3DWaterShader::Skip_Reflection(const char *why)
 {
 	ReflectionReason = why;
+}
+
+bool W3DWaterShader::Has_Reflection(float *level)
+{
+	*level = ReflectionLevel;
+	return HasReflection;
 }
 
 bool W3DWaterShader::Begin(Kind kind, float water_level, float river_width, float river_alpha)

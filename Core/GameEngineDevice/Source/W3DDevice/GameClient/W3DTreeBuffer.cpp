@@ -91,6 +91,7 @@ enum
 #include "WW3D2/shaderlibrary.h"
 #include "WW3D2/graphicsoptions.h"
 #include "W3DDevice/GameClient/W3DTerrainLighting.h"
+#include "W3DDevice/GameClient/W3DWaterShader.h"
 #include "WW3D2/shadowmap.h"
 #include "shader_constants.h"
 
@@ -311,9 +312,19 @@ void W3DTreeBuffer::cull(const CameraClass * camera)
 	float z = zmod * camera_matrix[2][2] ;
 	m_cameraLookAtVector.Set(x,y,z);
 
+	// EastWind: the water reflection draws this set too, so keep a tree whose mirror image is in
+	// view, or a tree just past the view's edge goes missing from the water.
+	float mirrorLevel = 0;
+	const bool mirrored = W3DWaterShader::Has_Reflection(&mirrorLevel);
+
 	for (curTree=0; curTree<m_numTrees; curTree++) {
 		Bool doKey = false;	// We calculate the key when a tree becomes visible.
 		Bool visible = !camera->Cull_Sphere(m_trees[curTree].bounds);
+		if (!visible && mirrored) {
+			SphereClass image = m_trees[curTree].bounds;
+			image.Center.Z = 2.0f * mirrorLevel - image.Center.Z;
+			visible = !camera->Cull_Sphere(image);
+		}
 		if (visible != m_trees[curTree].visible) {
 			m_trees[curTree].visible=visible;
 			m_anythingChanged = true;

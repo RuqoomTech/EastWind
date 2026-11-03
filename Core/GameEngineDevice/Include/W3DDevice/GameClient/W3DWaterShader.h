@@ -30,7 +30,7 @@
 //
 // The reflection: before the frame, WaterRenderObjClass::updateRenderTargetTextures picks the
 // visible water area nearest the middle of the view and draws the scene mirrored about its
-// height into a texture half the size of the back buffer (the full size at WaterQuality = 2),
+// height into a texture half the size of the back buffer, at most 1024 wide (the full size at WaterQuality = 2),
 // with its own depth buffer. Water at another height shows a plain sky colour instead.
 //
 // WaterQuality 2 (M3.3b) draws the water seen into instead (water.hlsl WaterTrapezoidHqPS and
@@ -69,6 +69,8 @@ public:
 	static bool Begin_Reflection(IDirect3DSurface9 **target, IDirect3DSurface9 **depth);
 	static void End_Reflection(float level);
 	static void Skip_Reflection(const char *why);
+	// True once this frame's reflection is drawn, with the height it mirrors about.
+	static bool Has_Reflection(float *level);
 
 	// The colour the reflection is cleared to, and the water mirrors where there is no reflection:
 	// a sky blue lit by the map's ambient and sun.
