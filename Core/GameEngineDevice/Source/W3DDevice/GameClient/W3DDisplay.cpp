@@ -778,6 +778,7 @@ static void loadGraphicsOptions()
 	options.ToneMapping = prefs.getBool("ToneMapping", options.ToneMapping);
 	options.ColorGrading = prefs.getBool("ColorGrading", options.ColorGrading);
 	options.FXAA = prefs.getBool("FXAA", options.FXAA);
+	options.Sharpen = prefs.getReal("Sharpen", options.Sharpen);
 	options.AmbientOcclusion = prefs.getInt("AmbientOcclusion", options.AmbientOcclusion);
 	options.Hdr = prefs.getBool("Hdr", options.Hdr);
 	options.SoftParticles = prefs.getBool("SoftParticles", options.SoftParticles);
@@ -834,6 +835,10 @@ static void showGraphicsStatus()
 	TheInGameUI->message(L"Tone mapping: %s   [Ctrl+Shift+F5]", tone);
 	TheInGameUI->message(L"Colour grading: %s   [Ctrl+Shift+F6]", grade);
 	TheInGameUI->message(L"FXAA: %s   [Ctrl+Shift+F4]", fxaa);
+	if (o.Sharpen > 0.0f)
+		TheInGameUI->message(L"Sharpen: %.2f", o.Sharpen);
+	else
+		TheInGameUI->message(L"Sharpen: off in Options.ini");
 	TheInGameUI->message(L"Water shader: %s   [Ctrl+Shift+F3]", water);
 	TheInGameUI->message(L"Sun shadow maps: %s   [Ctrl+Shift+F2]", shadows);
 	TheInGameUI->message(L"Ambient occlusion: %s   [Ctrl+Shift+F1: on, occlusion only, off]", ao);
@@ -864,6 +869,8 @@ static void showGraphicsStatus()
 		W3DPostProcess::Last_Reason(W3DPostProcess::COLOR_GRADING));
 	showShaderStatus(L"FXAA", W3DPostProcess::Last_Frame_Passes(W3DPostProcess::FXAA),
 		W3DPostProcess::Last_Reason(W3DPostProcess::FXAA));
+	showShaderStatus(L"Sharpen", W3DPostProcess::Last_Frame_Passes(W3DPostProcess::SHARPEN),
+		W3DPostProcess::Last_Reason(W3DPostProcess::SHARPEN));
 	showShaderStatus(L"Water shader", W3DWaterShader::Last_Frame_Passes(), W3DWaterShader::Last_Reason());
 	{
 		float level = 0;
@@ -949,7 +956,7 @@ static void showGpuTimes()
 		L"Ambient occlusion",
 		L"Bloom",
 		L"Final pass (tone mapping, colour grading)",
-		L"FXAA",
+		L"FXAA and sharpen",
 		L"UI and the rest (and the 3D scene when post-processing is off)",
 	};
 	static_assert(sizeof(names) / sizeof(names[0]) == GpuTimer::POINT_COUNT, "one name per GpuTimer point");

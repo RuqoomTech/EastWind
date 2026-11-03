@@ -62,7 +62,8 @@
 //
 // FXAA (M3.2d, FXAA): last, an edge anti-aliasing pass on the finished colours. With other
 // effects on, the final pass draws into a second texture the size of the scene texture, which
-// FXAA reads; FXAA alone reads the scene texture.
+// FXAA reads; FXAA alone reads the scene texture. Sharpening (Sharpen) runs in the same pass,
+// which then also runs with FXAA off.
 //
 // Soft particles (SoftParticles): the scene draws with the depth texture of ambient occlusion
 // (so also needs AntiAliasing = 0). Right before the particles, Begin_Particles() copies its view
@@ -89,6 +90,7 @@ public:
 		TONE_MAPPING,
 		COLOR_GRADING,
 		FXAA,
+		SHARPEN,
 		HDR,
 		SOFT_PARTICLES,
 		EFFECT_COUNT

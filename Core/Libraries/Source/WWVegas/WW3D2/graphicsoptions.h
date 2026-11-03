@@ -34,6 +34,7 @@ struct GraphicsOptions
 	bool ToneMapping;		// ToneMapping (M3.2)
 	bool ColorGrading;		// ColorGrading (M3.2)
 	bool FXAA;				// FXAA (M3.2)
+	float Sharpen;			// Sharpen: contrast-adaptive sharpening strength, 0 off .. 1, in the FXAA pass
 	int AmbientOcclusion;	// AmbientOcclusion: 0 off, 1 at half resolution, 2 at full resolution (M3.5)
 	bool Hdr;				// Hdr: the post-processing scene texture is 16-bit float, so light adds up above white
 	bool SoftParticles;		// SoftParticles: particles fade where they meet the scene (needs the AO depth texture's conditions)
@@ -70,6 +71,7 @@ struct GraphicsOptions
 		, ToneMapping(false)
 		, ColorGrading(false)
 		, FXAA(false)
+		, Sharpen(0.0f)
 		, AmbientOcclusion(0)
 		, Hdr(false)
 		, SoftParticles(false)
@@ -103,7 +105,7 @@ struct GraphicsOptions
 	bool TerrainShader() const { return PerPixelLighting && !DebugAllOff && (!DebugTerrainLightingOff || DebugTerrainLightOnly); }
 	bool TerrainPixelLight() const { return !DebugTerrainLightingOff; }
 	// Post-processing (M3.2) runs when any post effect is on.
-	bool PostProcessWanted() const { return Bloom || ToneMapping || ColorGrading || FXAA || AmbientOcclusion > 0 || SoftParticles; }
+	bool PostProcessWanted() const { return Bloom || ToneMapping || ColorGrading || FXAA || Sharpen > 0.0f || AmbientOcclusion > 0 || SoftParticles; }
 	bool PostProcess() const { return PostProcessWanted() && !DebugAllOff && !DebugPostOff; }
 	bool PostToneMapping() const { return ToneMapping && !DebugToneMappingOff; }
 	bool PostColorGrading() const { return ColorGrading && !DebugColorGradingOff; }
@@ -128,6 +130,8 @@ struct GraphicsOptions
 		if (WaterQuality > 2) WaterQuality = 2;
 		if (AmbientOcclusion < 0) AmbientOcclusion = 0;
 		if (AmbientOcclusion > 2) AmbientOcclusion = 2;
+		if (!(Sharpen > 0.0f)) Sharpen = 0.0f;	// also NaN
+		if (Sharpen > 1.0f) Sharpen = 1.0f;
 		if (ShadowMapSize != 0 && ShadowMapSize != 1024 && ShadowMapSize != 2048 && ShadowMapSize != 4096)
 			ShadowMapSize = 0;
 		if (!PerPixelLighting)

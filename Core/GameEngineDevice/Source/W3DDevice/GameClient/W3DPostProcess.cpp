@@ -466,7 +466,6 @@ namespace
 			if (!FinalFailed)
 				Log_Once(REASON_FXAA_CREATE_FAILED, hr);
 			FinalFailed = true;
-			Set_Reason(W3DPostProcess::FXAA, REASON_FXAA_CREATE_FAILED);
 			return false;
 		}
 		return true;
@@ -1072,8 +1071,17 @@ void W3DPostProcess::End_Scene(int x, int y, int width, int height, const Camera
 		ao = Ao_Ready(device, o.AmbientOcclusion >= 2 ? 1 : 2);
 	const bool final_effects = bloom || tone || grade || ao;
 	bool fxaa = Effect_On(FXAA, o.FXAA, o.DebugFxaaOff, REASON_FXAA_DEBUG_OFF, ShaderLibrary::PS_POST_FXAA);
-	if (fxaa && final_effects)
-		fxaa = Final_Ready(device);
+	bool sharpen = Effect_On(SHARPEN, o.Sharpen > 0.0f, false, REASON_EFFECT_OFF, ShaderLibrary::PS_POST_FXAA);
+	if ((fxaa || sharpen) && final_effects && !Final_Ready(device))
+	{
+		if (fxaa)
+			Set_Reason(FXAA, REASON_FXAA_CREATE_FAILED);
+		if (sharpen)
+			Set_Reason(SHARPEN, REASON_FXAA_CREATE_FAILED);
+		fxaa = sharpen = false;
+	}
+	// Sharpening runs in the FXAA pass, so the pass also runs for it alone.
+	const bool fxaa_pass = fxaa || sharpen;
 
 	const float u0 = (float)x / tw;
 	const float v0 = (float)y / th;
@@ -1095,7 +1103,7 @@ void W3DPostProcess::End_Scene(int x, int y, int width, int height, const Camera
 	// FinalTexture when FXAA follows. The scene is read with point filtering, so each pixel gets
 	// exactly its own texel. FXAA alone skips it and reads the scene texture.
 	IDirect3DTexture9 *fxaa_source = SceneTexture;
-	if (fxaa && final_effects)
+	if (fxaa_pass && final_effects)
 	{
 		// FinalTexture has no multisampling, so no (possibly multisampled) depth buffer may be bound.
 		device->SetRenderTarget(0, FinalSurface);
@@ -1127,12 +1135,12 @@ void W3DPostProcess::End_Scene(int x, int y, int width, int height, const Camera
 		device->SetPixelShader(ShaderLibrary::Peek_Pixel(ShaderLibrary::PS_POST_FINAL));
 		Draw_Quad(device, x, y, width, height, u0, v0, u1, v1);
 	}
-	else if (!fxaa)
+	else if (!fxaa_pass)
 	{
 		device->SetPixelShader(ShaderLibrary::Peek_Pixel(ShaderLibrary::PS_POST_COPY));
 		Draw_Quad(device, x, y, width, height, u0, v0, u1, v1);
 	}
-	if (final_effects || !fxaa)
+	if (final_effects || !fxaa_pass)
 		GpuTimer::Mark(GpuTimer::FINAL);
 	++Stats[SCENE].Passes;
 	if (SceneHdr)
@@ -1148,7 +1156,7 @@ void W3DPostProcess::End_Scene(int x, int y, int width, int height, const Camera
 
 	// FXAA, onto the back buffer. Its reads stay half a texel inside the view rectangle, so the
 	// edge of the view never blends with what lies outside it.
-	if (fxaa)
+	if (fxaa_pass)
 	{
 		device->SetRenderTarget(0, BackBuffer);
 		device->SetDepthStencilSurface(DepthBuffer);
@@ -1156,10 +1164,15 @@ void W3DPostProcess::End_Scene(int x, int y, int width, int height, const Camera
 		Set_Texel(device, 1.0f / tw, 1.0f / th, 0.0f, 0.0f);
 		const float clamp_uv[4] = { u0 + 0.5f / tw, v0 + 0.5f / th, u1 - 0.5f / tw, v1 - 0.5f / th };
 		device->SetPixelShaderConstantF(POST_PS_CLAMP, clamp_uv, 1);
+		const float sharpen_params[4] = { sharpen ? o.Sharpen : 0.0f, fxaa ? 1.0f : 0.0f, 0.0f, 0.0f };
+		device->SetPixelShaderConstantF(POST_PS_SHARPEN, sharpen_params, 1);
 		device->SetPixelShader(ShaderLibrary::Peek_Pixel(ShaderLibrary::PS_POST_FXAA));
 		Draw_Quad(device, x, y, width, height, u0, v0, u1, v1);
 		GpuTimer::Mark(GpuTimer::FXAA);
-		++Stats[FXAA].Passes;
+		if (fxaa)
+			++Stats[FXAA].Passes;
+		if (sharpen)
+			++Stats[SHARPEN].Passes;
 	}
 
 	// Puts back every state, including the textures and the stream source that DrawPrimitiveUP

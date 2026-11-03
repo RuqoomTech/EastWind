@@ -99,7 +99,8 @@
 #define POST_PS_AO            8   // c8: x radius (world units), y intensity, z horizon bias (cosine), w largest radius in uv
 #define POST_PS_AO2           9   // c9: xy uv per world unit at depth 1, zw one AO texel in uv
 #define POST_PS_AO_FINAL      10  // c10: x show the occlusion alone, y depth edge sharpness, z occlusion power
-#define POST_PS_COUNT         11
+#define POST_PS_SHARPEN       11  // c11: FXAA pass, x sharpen strength (0 off), y FXAA edge blend on
+#define POST_PS_COUNT         12
 // Samplers of the AO passes, above the bloom levels and the colour LUT (s1..s4).
 #define POST_AO_SAMPLER       5   // s5: AO texture (R occlusion, G view depth)
 #define POST_DEPTH_SAMPLER    6   // s6: the scene's INTZ depth texture

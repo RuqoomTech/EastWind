@@ -39,6 +39,8 @@
 // PostFxaaPS (M3.2d, FXAA) runs last, on the finished colours: it finds edges by their
 // brightness contrast, follows each edge to its ends and blends across it, so jagged
 // polygon and alpha-test edges look smooth. It reads only inside the view rectangle (Clamp).
+// The same pass sharpens (Sharpen): contrast-adaptive, after AMD FidelityFX CAS. With FXAA off and
+// Sharpen on, the pass runs for the sharpening alone.
 
 #include "shader_constants.h"
 #include "shader_linear.h"
@@ -49,6 +51,7 @@ float4 BloomWeights : SHADER_REG(POST_PS_BLOOM_WEIGHTS);
 float4 Final        : SHADER_REG(POST_PS_FINAL);
 float4 Tone         : SHADER_REG(POST_PS_TONE);
 float4 Clamp        : SHADER_REG(POST_PS_CLAMP);
+float4 Sharpen      : SHADER_REG(POST_PS_SHARPEN);
 
 sampler2D Scene   : register(s0);
 sampler2D Bloom4  : register(s1);
@@ -373,11 +376,10 @@ float FxaaLumaAt(float2 uv)
 	return FxaaLuma(FxaaColor(uv));
 }
 
-float4 PostFxaaPS(float2 uv : TEXCOORD0) : COLOR0
+float3 Fxaa(float2 uv, float3 centre)
 {
 	float2 px = Texel.xy;
-	float4 centre = tex2Dlod(Scene, float4(uv, 0.0, 0.0));
-	float lM = FxaaLuma(centre.rgb);
+	float lM = FxaaLuma(centre);
 	float lN = FxaaLumaAt(uv + float2(0.0, -px.y));
 	float lS = FxaaLumaAt(uv + float2(0.0,  px.y));
 	float lW = FxaaLumaAt(uv + float2(-px.x, 0.0));
@@ -468,7 +470,35 @@ float4 PostFxaaPS(float2 uv : TEXCOORD0) : COLOR0
 		finalUv.y += blend * across;
 	else
 		finalUv.x += blend * across;
-	return float4(FxaaColor(finalUv), centre.a);
+	return FxaaColor(finalUv);
+}
+
+// Contrast-adaptive sharpening: pushes the pixel away from its four neighbours, less where they
+// already span most of the range to black or white, so edges do not ring and flat areas do not grain.
+float3 Sharpened(float2 uv, float3 c)
+{
+	float2 px = Texel.xy;
+	float3 n = FxaaColor(uv + float2(0.0, -px.y));
+	float3 s = FxaaColor(uv + float2(0.0,  px.y));
+	float3 w = FxaaColor(uv + float2(-px.x, 0.0));
+	float3 e = FxaaColor(uv + float2( px.x, 0.0));
+	float3 lo = min(c, min(min(n, s), min(w, e)));
+	float3 hi = max(c, max(max(n, s), max(w, e)));
+	float3 amp = sqrt(saturate(min(lo, 1.0 - hi) / max(hi, 1.0e-4)));
+	// At full strength a neighbour weighs -1/5, CAS's strongest.
+	float3 k = amp * (-0.2 * Sharpen.x);
+	return saturate((c + (n + s + w + e) * k) / (1.0 + 4.0 * k));
+}
+
+float4 PostFxaaPS(float2 uv : TEXCOORD0) : COLOR0
+{
+	float4 centre = tex2Dlod(Scene, float4(uv, 0.0, 0.0));
+	float3 c = centre.rgb;
+	[branch] if (Sharpen.y > 0.5)
+		c = Fxaa(uv, c);
+	[branch] if (Sharpen.x > 0.0)
+		c = Sharpened(uv, c);
+	return float4(c, centre.a);
 }
 
 // ---- Soft particles (SoftParticles) ----
