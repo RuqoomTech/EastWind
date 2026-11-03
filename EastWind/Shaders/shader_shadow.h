@@ -5,6 +5,10 @@
 // constants below for the rest of the frame. The terrain casts too, so hills and cliffs throw
 // shadows over the ground and units behind them.
 //
+// Two cascades share one atlas, each a square of the map size: the near cascade (left half)
+// covers the ground up to the view centre in finer texels, the far cascade (right half) the
+// whole view. Each pixel takes the near one when its whole filter disc fits inside it.
+//
 // Two depth formats:
 //   - INTZ (preferred): the sampler returns the stored depth and the shader compares (point
 //     sampled). A first ring of taps finds how far the casters are; the edge is sharp where a
@@ -27,7 +31,9 @@ float4 ShadowMatrix[3] : SHADER_REG(SHADOW_PS_MATRIX);	// rows: u, v, depth
 float4 ShadowParams3   : SHADER_REG(SHADOW_PS_PARAMS3);	// x world per u, y world per depth, z softness at contact, w softness per unit
 float4 ShadowParams    : SHADER_REG(SHADOW_PS_PARAMS);	// x on, y 1 / size, z radius in texels, w normal offset
 float4 ShadowParams2   : SHADER_REG(SHADOW_PS_PARAMS2);	// x hardware compare, y depth bias, z radius in depth units, w strength
-sampler2D ShadowMap    : register(s12);
+float4 ShadowNearMatrix[3] : SHADER_REG(SHADOW_PS_NEAR_MATRIX);	// the near cascade's rows: u, v, depth
+float4 ShadowNear      : SHADER_REG(SHADOW_PS_NEAR);	// near cascade: x world per u, y radius in texels, z normal offset, w radius in depth units
+sampler2D ShadowMap    : register(s12);	// the atlas: near cascade in the left half, far in the right
 
 #define SHADOW_TAPS 24
 
@@ -47,18 +53,32 @@ float Sun_Shadow(float3 p, float3 n, float3 l)
 		return 1.0;
 
 	float nl = saturate(dot(n, l));
-	float4 q = float4(p + n * (ShadowParams.w * (1.0 - nl)), 1.0);
-	float3 uvz = float3(dot(q, ShadowMatrix[0]), dot(q, ShadowMatrix[1]), dot(q, ShadowMatrix[2]));
 
-	// Fade out over the outer texels of the map, so its edge never shows as a line.
+	// The near cascade (finer texels) when the point and its widest filter disc lie inside it,
+	// else the far cascade, which covers the whole view. cascade: x world per u, y filter radius in
+	// texels, z normal offset, w filter radius in depth units.
+	float4 cascade = ShadowNear;
+	float4 q = float4(p + n * (cascade.z * (1.0 - nl)), 1.0);
+	float3 uvz = float3(dot(q, ShadowNearMatrix[0]), dot(q, ShadowNearMatrix[1]), dot(q, ShadowNearMatrix[2]));
 	float2 edge = min(uvz.xy, 1.0 - uvz.xy);
-	float fade = saturate(min(edge.x, edge.y) * 24.0);
+	float atlasU = 0.0;
+	float fade = 1.0;
+	[branch] if (min(edge.x, edge.y) <= (cascade.y + 1.0) * ShadowParams.y)
+	{
+		cascade = float4(ShadowParams3.x, ShadowParams.z, ShadowParams.w, ShadowParams2.z);
+		q = float4(p + n * (cascade.z * (1.0 - nl)), 1.0);
+		uvz = float3(dot(q, ShadowMatrix[0]), dot(q, ShadowMatrix[1]), dot(q, ShadowMatrix[2]));
+		// Fade out over the outer texels of the map, so its edge never shows as a line.
+		edge = min(uvz.xy, 1.0 - uvz.xy);
+		fade = saturate(min(edge.x, edge.y) * 24.0);
+		atlasU = 0.5;
+	}
 	[branch] if (fade <= 0.0 || uvz.z >= 1.0)
 		return 1.0;
 
 	// A tilted receiver drifts toward the light across the disc; tan of the light angle, capped.
 	float slope = min(sqrt(saturate(1.0 - nl * nl)) / max(nl, 0.05), 2.0);
-	float z = uvz.z - ShadowParams2.y - ShadowParams2.z * slope;
+	float z = uvz.z - ShadowParams2.y - cascade.w * slope;
 
 	// Per-pixel turn of the disc (interleaved gradient noise on the map texel), so the wide
 	// filter shows as fine grain instead of stepped copies of the edge.
@@ -66,12 +86,15 @@ float Sun_Shadow(float3 p, float3 n, float3 l)
 	float turn = 6.2831853 * frac(52.9829189 * frac(dot(texel, float2(0.06711056, 0.00583715))));
 	float2 cs = float2(cos(turn), sin(turn));
 	float2x2 spin = float2x2(cs.x, -cs.y, cs.y, cs.x);
-	float2 radius = ShadowParams.yy * ShadowParams.z;
+	float2 radius = ShadowParams.yy * cascade.y;
+	// The cascade's u (0..1) into its half of the atlas.
+	float2 toAtlas = float2(0.5, 1.0);
+	float2 atlas = uvz.xy * toAtlas + float2(atlasU, 0.0);
 	float lit = 0.0;
 	[branch] if (ShadowParams2.x > 0.5)
 	{
 		[unroll] for (int k = 0; k < SHADOW_TAPS; ++k)
-			lit += tex2Dlod(ShadowMap, float4(uvz.xy + mul(spin, Shadow_Tap(k)) * radius, z, 0.0)).r;
+			lit += tex2Dlod(ShadowMap, float4(atlas + mul(spin, Shadow_Tap(k)) * radius * toAtlas, z, 0.0)).r;
 	}
 	else
 	{
@@ -80,7 +103,7 @@ float Sun_Shadow(float3 p, float3 n, float3 l)
 		float blockers = 0.0;
 		[unroll] for (int b = 0; b < SHADOW_TAPS; b += 2)
 		{
-			float d = tex2Dlod(ShadowMap, float4(uvz.xy + mul(spin, Shadow_Tap(b)) * radius, 0.0, 0.0)).r;
+			float d = tex2Dlod(ShadowMap, float4(atlas + mul(spin, Shadow_Tap(b)) * radius * toAtlas, 0.0, 0.0)).r;
 			if (d < z)
 			{
 				blocker += d;
@@ -97,10 +120,10 @@ float Sun_Shadow(float3 p, float3 n, float3 l)
 		// Edge width from the caster's distance, between one texel and the widest edge.
 		float reach = (z - blocker / blockers) * ShadowParams3.y;
 		float soft = ShadowParams3.z + reach * ShadowParams3.w;
-		float r = clamp(soft / ShadowParams3.x, ShadowParams.y, radius.x);
-		float zr = z + ShadowParams2.z * slope * (1.0 - r / radius.x);	// the slope bias of the smaller disc
+		float r = clamp(soft / cascade.x, ShadowParams.y, radius.x);
+		float zr = z + cascade.w * slope * (1.0 - r / radius.x);	// the slope bias of the smaller disc
 		[unroll] for (int k = 0; k < SHADOW_TAPS; ++k)
-			lit += (zr <= tex2Dlod(ShadowMap, float4(uvz.xy + mul(spin, Shadow_Tap(k)) * r, 0.0, 0.0)).r) ? 1.0 : 0.0;
+			lit += (zr <= tex2Dlod(ShadowMap, float4(atlas + mul(spin, Shadow_Tap(k)) * r * toAtlas, 0.0, 0.0)).r) ? 1.0 : 0.0;
 	}
 	lit *= 1.0 / SHADOW_TAPS;
 	return lerp(1.0, lit, fade * ShadowParams2.w);

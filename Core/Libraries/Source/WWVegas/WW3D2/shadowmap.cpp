@@ -44,11 +44,11 @@ namespace
 	const float MIN_HALF_SIZE = 128.0f;
 
 	// Filtering and bias.
-	const float SOFT_EDGE = 6.0f;				// world units over which a shadow edge softens (INTZ: at most)
+	const float SOFT_EDGE = 1.5f;				// world units over which a shadow edge softens (INTZ: at most)
 	const float MIN_RADIUS_TEXELS = 1.5f;
 	const float MAX_RADIUS_TEXELS = 16.0f;
-	const float SOFT_AT_CONTACT = 0.75f;		// INTZ: edge width where the caster touches the receiver
-	const float SOFT_PER_UNIT = 0.06f;			// INTZ: edge width added per world unit from caster to receiver
+	const float SOFT_AT_CONTACT = 0.15f;		// INTZ: edge width where the caster touches the receiver
+	const float SOFT_PER_UNIT = 0.015f;			// INTZ: edge width added per world unit from caster to receiver
 	const float NORMAL_OFFSET_TEXELS = 1.5f;	// receivers move along their normal by this, at grazing light
 	const float DEPTH_BIAS_WORLD = 1.5f;		// constant bias toward the light
 	const float SLOPE_BIAS = 2.0f;				// D3DRS_SLOPESCALEDEPTHBIAS in the caster pass
@@ -123,7 +123,10 @@ namespace
 		else
 			return "the card has no depth texture format (D24X8 or INTZ)";
 
-		if (FAILED(device->CreateTexture(size, size, 1, D3DUSAGE_DEPTHSTENCIL, depth_format, D3DPOOL_DEFAULT, &DepthTexture, nullptr))
+		// The atlas holds the two cascades side by side.
+		if (DX9Wrapper::Get_Current_Caps()->Get_DX9_Caps().MaxTextureWidth < (DWORD)(2 * size))
+			return "the card's largest texture is narrower than two cascades (lower ShadowMapSize)";
+		if (FAILED(device->CreateTexture(2 * size, size, 1, D3DUSAGE_DEPTHSTENCIL, depth_format, D3DPOOL_DEFAULT, &DepthTexture, nullptr))
 			|| FAILED(DepthTexture->GetSurfaceLevel(0, &DepthSurface)))
 		{
 			Free_Resources();
@@ -136,7 +139,7 @@ namespace
 		{
 			if (!ShaderLibrary::Format_Supported(device, D3DUSAGE_RENDERTARGET, D3DRTYPE_SURFACE, colors[i]))
 				continue;
-			if (FAILED(device->CreateRenderTarget(size, size, colors[i], D3DMULTISAMPLE_NONE, 0, FALSE, &ColorSurface, nullptr)))
+			if (FAILED(device->CreateRenderTarget(2 * size, size, colors[i], D3DMULTISAMPLE_NONE, 0, FALSE, &ColorSurface, nullptr)))
 				ColorSurface = nullptr;
 		}
 		if (ColorSurface == nullptr)
@@ -146,24 +149,44 @@ namespace
 		}
 
 		Size = size;
-		WWDEBUG_SAY(("ShadowMap: %dx%d %s depth map", size, size, Format == DEPTH_D24 ? "D24X8 (hardware PCF)" : "INTZ"));
+		WWDEBUG_SAY(("ShadowMap: two %dx%d cascades, %s depth map", size, size, Format == DEPTH_D24 ? "D24X8 (hardware PCF)" : "INTZ"));
 		return nullptr;
 	}
 
-	// Constants c200..c205: on/off, matrix, filter, softness and bias.
-	void Set_Constants(IDirect3DDevice9Ex *device, const Matrix4x4 *uvz, float texel_world, float depth_range)
+	// Filter radius in texels of a cascade whose texels are texel_world wide.
+	float Radius_Texels(float texel_world)
 	{
+		float radius = SOFT_EDGE / texel_world;
+		if (radius < MIN_RADIUS_TEXELS) radius = MIN_RADIUS_TEXELS;
+		if (radius > MAX_RADIUS_TEXELS) radius = MAX_RADIUS_TEXELS;
+		return radius;
+	}
+
+	// Constants c200..c205 (on/off, far cascade matrix, filter, softness and bias) and c207..c210
+	// (near cascade matrix and filter).
+	void Set_Constants(IDirect3DDevice9Ex *device, const Matrix4x4 *uvz, float texel_world, const Matrix4x4 *near_uvz,
+		float near_texel_world, float depth_range)
+	{
+		float n[SHADOW_PS_NEAR_COUNT][4];
+		memset(n, 0, sizeof(n));
 		float c[SHADOW_PS_COUNT][4];
 		memset(c, 0, sizeof(c));
 		if (uvz != nullptr)
 		{
 			for (int r = 0; r < 3; ++r)
 				for (int k = 0; k < 4; ++k)
+				{
 					c[SHADOW_PS_MATRIX - SHADOW_PS_FIRST + r][k] = (*uvz)[r][k];
+					n[SHADOW_PS_NEAR_MATRIX - SHADOW_PS_NEAR_FIRST + r][k] = (*near_uvz)[r][k];
+				}
+			const float near_radius = Radius_Texels(near_texel_world);
+			float *pn = n[SHADOW_PS_NEAR - SHADOW_PS_NEAR_FIRST];
+			pn[0] = near_texel_world * (float)Size;
+			pn[1] = near_radius;
+			pn[2] = near_texel_world * NORMAL_OFFSET_TEXELS;
+			pn[3] = near_radius * near_texel_world / depth_range;
 
-			float radius = SOFT_EDGE / texel_world;
-			if (radius < MIN_RADIUS_TEXELS) radius = MIN_RADIUS_TEXELS;
-			if (radius > MAX_RADIUS_TEXELS) radius = MAX_RADIUS_TEXELS;
+			const float radius = Radius_Texels(texel_world);
 			float *p = c[SHADOW_PS_PARAMS - SHADOW_PS_FIRST];
 			p[0] = 1.0f;
 			p[1] = 1.0f / (float)Size;
@@ -181,6 +204,7 @@ namespace
 			p2[3] = STRENGTH;
 		}
 		device->SetPixelShaderConstantF(SHADOW_PS_FIRST, &c[0][0], SHADOW_PS_COUNT);
+		device->SetPixelShaderConstantF(SHADOW_PS_NEAR_FIRST, &n[0][0], SHADOW_PS_NEAR_COUNT);
 	}
 
 	void Bind(IDirect3DDevice9Ex *device, bool on)
@@ -202,7 +226,7 @@ namespace
 		IDirect3DDevice9Ex *device = DX9Wrapper::_Get_D3D_Device9();
 		if (device != nullptr)
 		{
-			Set_Constants(device, nullptr, 1.0f, 1.0f);
+			Set_Constants(device, nullptr, 1.0f, nullptr, 1.0f, 1.0f);
 			Bind(device, false);
 		}
 		IsActive = false;
@@ -348,7 +372,9 @@ void ShadowMap::Render(SceneClass *scene, CameraClass *view, const Vector3 &sun_
 	Vector3 axis_y;
 	Vector3::Cross_Product(axis_z, axis_x, &axis_y);
 
-	// The ground the view sees: its four corner rays between the lowest and highest terrain.
+	// The ground the view sees: its four corner rays between the lowest and highest terrain. The far
+	// cascade takes the rays out to the far plane, the near cascade only to the view depth where the
+	// centre of the view meets the ground, so it covers the lower half of the screen in finer texels.
 	Vector2 view_min, view_max;
 	view->Get_View_Plane(view_min, view_max);
 	float view_near, view_far;
@@ -357,57 +383,65 @@ void ShadowMap::Render(SceneClass *scene, CameraClass *view, const Vector3 &sun_
 	const Matrix3D &view_tm = view->Get_Transform();
 	const Vector3 origin = view_tm.Get_Translation();
 	const Vector2 corners[4] = { view_min, Vector2(view_max.X, view_min.Y), view_max, Vector2(view_min.X, view_max.Y) };
+	const Vector3 centre_dir = view_tm.Rotate_Vector(Vector3(0, 0, -1.0f));
+	float near_t = (Ray_At_Height(origin, centre_dir, 0.5f * (ground_min + ground_max), max_t) - origin).Length();
+	if (near_t > max_t) near_t = max_t;
 
-	float min_x = 1.0e30f, max_x = -1.0e30f, min_y = 1.0e30f, max_y = -1.0e30f, min_z = 1.0e30f, max_z = -1.0e30f;
-	for (int i = 0; i < 4; ++i)
+	struct Cascade
 	{
-		const Vector3 dir = view_tm.Rotate_Vector(Vector3(corners[i].X, corners[i].Y, -1.0f));
-		for (int h = 0; h < 2; ++h)
+		float MinX, MaxX, MinY, MaxY, MinZ, MaxZ;
+		float Half, CenterX, CenterY, Texel;
+		Matrix4x4 Uvz;
+	};
+	Cascade cascades[2];	// [0] near, [1] far
+	for (int c = 0; c < 2; ++c)
+	{
+		Cascade &k = cascades[c];
+		const float reach = c == 0 ? near_t : max_t;
+		k.MinX = k.MinY = k.MinZ = 1.0e30f;
+		k.MaxX = k.MaxY = k.MaxZ = -1.0e30f;
+		for (int i = 0; i < 4; ++i)
 		{
-			const Vector3 p = Ray_At_Height(origin, dir, h == 0 ? ground_min : ground_max, max_t);
-			const float x = Vector3::Dot_Product(p, axis_x);
-			const float y = Vector3::Dot_Product(p, axis_y);
-			const float z = Vector3::Dot_Product(p, axis_z);
-			if (x < min_x) min_x = x;
-			if (x > max_x) max_x = x;
-			if (y < min_y) min_y = y;
-			if (y > max_y) max_y = y;
-			if (z < min_z) min_z = z;
-			if (z > max_z) max_z = z;
+			const Vector3 dir = view_tm.Rotate_Vector(Vector3(corners[i].X, corners[i].Y, -1.0f));
+			for (int h = 0; h < 2; ++h)
+			{
+				const Vector3 p = Ray_At_Height(origin, dir, h == 0 ? ground_min : ground_max, reach);
+				const float x = Vector3::Dot_Product(p, axis_x);
+				const float y = Vector3::Dot_Product(p, axis_y);
+				const float z = Vector3::Dot_Product(p, axis_z);
+				if (x < k.MinX) k.MinX = x;
+				if (x > k.MaxX) k.MaxX = x;
+				if (y < k.MinY) k.MinY = y;
+				if (y > k.MaxY) k.MaxY = y;
+				if (z < k.MinZ) k.MinZ = z;
+				if (z > k.MaxZ) k.MaxZ = z;
+			}
 		}
+
+		// Square box in steps, centre on whole texels: the shadows do not crawl as the view scrolls.
+		float half = 0.5f * ((k.MaxX - k.MinX) > (k.MaxY - k.MinY) ? (k.MaxX - k.MinX) : (k.MaxY - k.MinY));
+		if (half < MIN_HALF_SIZE) half = MIN_HALF_SIZE;
+		k.Half = ceilf(half / BOX_STEP) * BOX_STEP;
+		k.Texel = 2.0f * k.Half / (float)Size;
+		k.CenterX = floorf(0.5f * (k.MinX + k.MaxX) / k.Texel + 0.5f) * k.Texel;
+		k.CenterY = floorf(0.5f * (k.MinY + k.MaxY) / k.Texel + 0.5f) * k.Texel;
 	}
 
-	// Square box in steps, centre on whole texels: the shadows do not crawl as the view scrolls.
-	float half = 0.5f * ((max_x - min_x) > (max_y - min_y) ? (max_x - min_x) : (max_y - min_y));
-	if (half < MIN_HALF_SIZE) half = MIN_HALF_SIZE;
-	half = ceilf(half / BOX_STEP) * BOX_STEP;
-	const float texel = 2.0f * half / (float)Size;
-	const float center_x = floorf(0.5f * (min_x + max_x) / texel + 0.5f) * texel;
-	const float center_y = floorf(0.5f * (min_y + max_y) / texel + 0.5f) * texel;
-	const float camera_z = max_z + CASTER_HEIGHT;
+	// Both cascades share the far one's depth range, so depth bias and softness match across them.
+	const float camera_z = cascades[1].MaxZ + CASTER_HEIGHT;
 	const float near_plane = 1.0f;
-	const float far_plane = camera_z - min_z + 20.0f;
+	const float far_plane = camera_z - cascades[1].MinZ + 20.0f;
 
 	BoxAxisX = axis_x;
 	BoxAxisY = axis_y;
 	BoxAxisZ = axis_z;
-	BoxCenterX = center_x;
-	BoxCenterY = center_y;
-	BoxHalf = half;
-	BoxZMin = min_z - 20.0f;
+	BoxZMin = cascades[1].MinZ - 20.0f;
 	BoxZMax = camera_z;
 
 	if (LightCamera == nullptr)
 		LightCamera = NEW_REF(CameraClass, ());
-	const Vector3 position = axis_x * center_x + axis_y * center_y + axis_z * camera_z;
-	LightCamera->Set_Transform(Matrix3D(axis_x, axis_y, axis_z, position));
-	LightCamera->Set_Projection_Type(CameraClass::ORTHO);
-	LightCamera->Set_Viewport(Vector2(0, 0), Vector2(1, 1));
-	LightCamera->Set_View_Plane(Vector2(-half, -half), Vector2(half, half));
-	LightCamera->Set_Clip_Planes(near_plane, far_plane);
-	LightCamera->Set_Depth_Range(0.0f, 1.0f);
 
-	// The caster pass: depth only, into our depth texture.
+	// The caster pass: depth only, into our depth texture, one cascade into each half.
 	Bind(device, false);
 	DX9Wrapper::Set_Render_Target(ColorSurface, DepthSurface);
 	if (WW3D::Begin_Render(false, true, Vector3(0, 0, 0)) != WW3D_ERROR_OK)
@@ -427,7 +461,35 @@ void ShadowMap::Render(SceneClass *scene, CameraClass *view, const Vector3 &sun_
 	}
 
 	InCasterPass = true;
-	WW3D::Render(scene, LightCamera);
+	for (int c = 0; c < 2; ++c)
+	{
+		Cascade &k = cascades[c];
+		BoxCenterX = k.CenterX;
+		BoxCenterY = k.CenterY;
+		BoxHalf = k.Half;
+
+		const Vector3 position = axis_x * k.CenterX + axis_y * k.CenterY + axis_z * camera_z;
+		LightCamera->Set_Transform(Matrix3D(axis_x, axis_y, axis_z, position));
+		LightCamera->Set_Projection_Type(CameraClass::ORTHO);
+		LightCamera->Set_Viewport(Vector2(0.5f * c, 0), Vector2(0.5f * c + 0.5f, 1));
+		LightCamera->Set_View_Plane(Vector2(-k.Half, -k.Half), Vector2(k.Half, k.Half));
+		LightCamera->Set_Clip_Planes(near_plane, far_plane);
+		LightCamera->Set_Depth_Range(0.0f, 1.0f);
+		WW3D::Render(scene, LightCamera);
+
+		// World to the cascade's own u, v (0..1) and depth; the shader moves u into its half of the
+		// atlas. D3D9 puts texel centres half a texel in.
+		Matrix4x4 projection;
+		LightCamera->Get_D3D_Projection_Matrix(&projection);
+		Matrix3D view_matrix;
+		LightCamera->Get_View_Matrix(&view_matrix);
+		const Matrix4x4 clip = projection * Matrix4x4(view_matrix);
+		const float half_texel = 0.5f / (float)Size;
+		k.Uvz[0] = clip[0] * 0.5f + Vector4(0, 0, 0, 0.5f + half_texel);
+		k.Uvz[1] = clip[1] * -0.5f + Vector4(0, 0, 0, 0.5f + half_texel);
+		k.Uvz[2] = clip[2];
+		k.Uvz[3] = Vector4(0, 0, 0, 1);
+	}
 	InCasterPass = false;
 
 	DX9Wrapper::Set_DX9_Render_State(D3DRS_COLORWRITEENABLE, 0x0000000f);
@@ -437,23 +499,10 @@ void ShadowMap::Render(SceneClass *scene, CameraClass *view, const Vector3 &sun_
 	DX9Wrapper::Set_Render_Target((IDirect3DSurface9 *)nullptr);
 	view->Apply();
 
-	// World to map u, v and depth. D3D9 puts texel centres half a texel in.
-	Matrix4x4 projection;
-	LightCamera->Get_D3D_Projection_Matrix(&projection);
-	Matrix3D view_matrix;
-	LightCamera->Get_View_Matrix(&view_matrix);
-	const Matrix4x4 clip = projection * Matrix4x4(view_matrix);
-	const float half_texel = 0.5f / (float)Size;
-	Matrix4x4 uvz;
-	uvz[0] = clip[0] * 0.5f + Vector4(0, 0, 0, 0.5f + half_texel);
-	uvz[1] = clip[1] * -0.5f + Vector4(0, 0, 0, 0.5f + half_texel);
-	uvz[2] = clip[2];
-	uvz[3] = Vector4(0, 0, 0, 1);
-
-	Set_Constants(device, &uvz, texel, far_plane - near_plane);
+	Set_Constants(device, &cascades[1].Uvz, cascades[1].Texel, &cascades[0].Uvz, cascades[0].Texel, far_plane - near_plane);
 	Bind(device, true);
 	IsActive = true;
 	This.Drawn = true;
-	This.Box = 2.0f * half;
+	This.Box = 2.0f * cascades[1].Half;
 	This.WhyNot = nullptr;
 }

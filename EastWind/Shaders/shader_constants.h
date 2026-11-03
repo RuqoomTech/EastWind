@@ -143,6 +143,12 @@
 #define SHADOW_PS_PARAMS2     205 // c205: x hardware depth compare (else INTZ), y depth bias, w strength
 #define SHADOW_PS_FIRST       200
 #define SHADOW_PS_COUNT       6
+// The constants above are the far cascade (the whole view); these the near cascade (the ground up
+// to the view centre). The map is an atlas of the two, near on the left half, far on the right.
+#define SHADOW_PS_NEAR_MATRIX 207 // c207..c209: world -> near cascade u, v and depth
+#define SHADOW_PS_NEAR        210 // c210: near cascade x world units per u, y filter radius in texels, z normal offset, w filter radius in depth units
+#define SHADOW_PS_NEAR_FIRST  207
+#define SHADOW_PS_NEAR_COUNT  4
 #define SHADOW_SAMPLER        12  // s12, above every texture stage the wrapper and fixed function use
 
 // --- shader_linear.h (pixel), frame-wide options; set once a frame by W3DDisplay ---
