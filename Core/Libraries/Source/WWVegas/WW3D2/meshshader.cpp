@@ -781,6 +781,88 @@ namespace
 			Device->SetRenderState(D3DRS_FOGENABLE, FALSE);
 		return true;
 	}
+
+	// The shadow map's caster pass, instanced copies (DX9Wrapper::Draw_Instanced): depth only. With
+	// the alpha test on, the pixel shader runs the texture stages for the alpha; copies whose alpha
+	// needs the vertex colour, camera-space texture coordinates or a DOTPRODUCT3 stage draw one by
+	// one, fixed function.
+	bool Begin_Caster(bool lit)
+	{
+		const DX9Caps *caps = DX9Wrapper::Get_Current_Caps();
+		if (caps->Get_Vertex_Shader_Major_Version() < 3 || caps->Get_Pixel_Shader_Major_Version() < 3 || Caller_Has_Shaders())
+			return false;
+		if (Render_State(D3DRS_CLIPPLANEENABLE) != 0 || Render_State(D3DRS_VERTEXBLEND) != D3DVBF_DISABLE
+			|| Render_State(D3DRS_INDEXEDVERTEXBLENDENABLE))
+			return false;
+
+		DWORD fvf = 0;
+		Device->GetFVF(&fvf);
+		const int texcoord_sets = int((fvf & D3DFVF_TEXCOUNT_MASK) >> D3DFVF_TEXCOUNT_SHIFT);
+		const bool alpha_test = Render_State(D3DRS_ALPHATESTENABLE) != FALSE;
+
+		Float4 vs[MESH_VS_COUNT];
+		Float4 ps[MESH_PS_OPTIONS + 1];
+		memset(vs, 0, sizeof(vs));
+		memset(ps, 0, sizeof(ps));
+		ps[MESH_PS_STAGE + 0].x = float(D3DTOP_DISABLE);
+		ps[MESH_PS_STAGE + 4].x = float(D3DTOP_DISABLE);
+		if (alpha_test)
+		{
+			if (texcoord_sets > 2)
+				return false;
+			// Fixed function's diffuse alpha: the material's when lit, the vertex colour's or white when not.
+			const bool color_vertex = Render_State(D3DRS_COLORVERTEX) != FALSE;
+			if (lit ? Material_Source(D3DRS_DIFFUSEMATERIALSOURCE, color_vertex, fvf) != 0.0f : (fvf & D3DFVF_DIFFUSE) != 0)
+				return false;
+			D3DMATERIAL9 material;
+			Device->GetMaterial(&material);
+			Float4 diffuse = { 1.0f, 1.0f, 1.0f, lit ? material.Diffuse.a : 1.0f };
+			ps[MESH_PS_MATERIAL] = diffuse;
+			ps[MESH_PS_TFACTOR] = Color(D3DCOLOR(Render_State(D3DRS_TEXTUREFACTOR)));
+
+			Float4 texgen[2];
+			memset(texgen, 0, sizeof(texgen));
+			if (Stage_State(0, D3DTSS_COLOROP) != D3DTOP_DISABLE)
+			{
+				if (!Gather_Stage(0, texcoord_sets, &ps[MESH_PS_STAGE + 0], texgen[0], &vs[MESH_VS_TEXMATRIX + 0], ps[MESH_PS_OPTIONS].z))
+					return false;
+				if (Stage_State(1, D3DTSS_COLOROP) != D3DTOP_DISABLE)
+				{
+					if (!Gather_Stage(1, texcoord_sets, &ps[MESH_PS_STAGE + 4], texgen[1], &vs[MESH_VS_TEXMATRIX + 4], ps[MESH_PS_OPTIONS].w))
+						return false;
+					if (Stage_State(2, D3DTSS_COLOROP) != D3DTOP_DISABLE)
+						return false;
+				}
+			}
+			// DOTPRODUCT3 puts the dot of the colours, which we do not have, in the alpha too.
+			if (texgen[0].x != 0.0f || texgen[1].x != 0.0f || ps[MESH_PS_STAGE + 0].x == float(D3DTOP_DOTPRODUCT3)
+				|| ps[MESH_PS_STAGE + 4].x == float(D3DTOP_DOTPRODUCT3))
+				return false;
+			vs[MESH_VS_TEXGEN + 0] = texgen[0];
+			vs[MESH_VS_TEXGEN + 1] = texgen[1];
+		}
+
+		IDirect3DVertexShader9 *vertex_shader = ShaderLibrary::Peek_Vertex(alpha_test
+			? ShaderLibrary::VertexShaderId(ShaderLibrary::VS_CASTER_ALPHA_T0 + texcoord_sets) : ShaderLibrary::VS_CASTER);
+		IDirect3DPixelShader9 *pixel_shader = ShaderLibrary::Peek_Pixel(alpha_test ? ShaderLibrary::PS_CASTER_ALPHA : ShaderLibrary::PS_CASTER);
+		if (vertex_shader == nullptr || pixel_shader == nullptr)
+			return Fallback(REASON_NO_SHADER, 4);
+
+		// The device world is identity: the copies' world rows come from stream 1.
+		D3DMATRIX world, view, projection, world_view, world_view_projection;
+		Device->GetTransform(D3DTS_WORLD, &world);
+		Device->GetTransform(D3DTS_VIEW, &view);
+		Device->GetTransform(D3DTS_PROJECTION, &projection);
+		Multiply(world_view, world, view);
+		Multiply(world_view_projection, world_view, projection);
+		Columns(&vs[MESH_VS_WVP], world_view_projection, 4);
+
+		Upload<true>(vs, alpha_test ? MESH_VS_COUNT : MESH_VS_WVP + 4);
+		if (alpha_test)
+			Upload<false>(ps, MESH_PS_OPTIONS + 1);
+		Bind_Shaders(vertex_shader, pixel_shader);
+		return true;
+	}
 }
 
 void MeshShader::Set_Scene_Depth(float inv_width, float inv_height)
@@ -806,7 +888,7 @@ bool MeshShader::Begin()
 		QueryPerformanceCounter(&now);
 		Stats.SetupMs += float(now.QuadPart - DrawStart.QuadPart);
 		++Stats.Calls;
-		if (shader)
+		if (shader && !ShadowMap::Caster_Pass())
 			++(DrawLit ? Stats.LitDraws : Stats.UnlitDraws);
 	}
 	return shader;
@@ -821,8 +903,9 @@ bool MeshShader::Begin_Instanced(int copies)
 	Instanced = false;
 	if (shader && Get_Graphics_Options().DebugKeys)
 	{
-		++Stats.InstancedDraws;
-		Stats.InstancedCopies += float(copies);
+		const bool caster = ShadowMap::Caster_Pass();
+		++(caster ? Stats.CasterDraws : Stats.InstancedDraws);
+		(caster ? Stats.CasterCopies : Stats.InstancedCopies) += float(copies);
 	}
 	return shader;
 }
@@ -840,6 +923,8 @@ MeshShader::StatsStruct MeshShader::Take_Stats()
 	s.UnlitDraws /= frames;
 	s.InstancedDraws /= frames;
 	s.InstancedCopies /= frames;
+	s.CasterDraws /= frames;
+	s.CasterCopies /= frames;
 	s.SetupMs *= to_ms;
 	s.ShaderDrawMs *= to_ms;
 	Stats = StatsStruct();
@@ -869,15 +954,16 @@ static bool Begin_Draw()
 	// is drawn as any other unlit draw.
 	const bool lit = Render_State(D3DRS_LIGHTING) != FALSE;
 	DrawLit = lit;
+	// The shadow map's caster pass draws depth only: instanced copies with the caster shaders,
+	// single draws fixed function.
+	if (ShadowMap::Caster_Pass())
+		return Instanced && Begin_Caster(lit);
 	if (Instanced && !lit)
 		return false;
 	if (!lit && SceneDepthInvWidth > 0.0f && DX9Wrapper::Get_Soft_Particle() && Begin_Particle())
 		return true;
 
 	if (lit ? !Get_Graphics_Options().MeshLighting() : !Get_Graphics_Options().UnlitShader())
-		return false;
-	// The shadow map's caster pass draws depth only, fixed function.
-	if (ShadowMap::Caster_Pass())
 		return false;
 
 	// Draws with their own shaders are not ours, nor point sprites (the snow).

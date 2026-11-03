@@ -101,6 +101,12 @@
 #include "mesh_i_ns_t2_vs.h"
 #include "mesh_i_nds_t2_vs.h"
 #include "unlit_ps.h"
+#include "caster_vs.h"
+#include "caster_alpha_t0_vs.h"
+#include "caster_alpha_t1_vs.h"
+#include "caster_alpha_t2_vs.h"
+#include "caster_ps.h"
+#include "caster_alpha_ps.h"
 
 namespace
 {
@@ -156,6 +162,10 @@ namespace
 		{ g_shader_mesh_i_nd_t2_vs, "mesh_i_nd_t2_vs" },
 		{ g_shader_mesh_i_ns_t2_vs, "mesh_i_ns_t2_vs" },
 		{ g_shader_mesh_i_nds_t2_vs, "mesh_i_nds_t2_vs" },
+		{ g_shader_caster_vs, "caster_vs" },
+		{ g_shader_caster_alpha_t0_vs, "caster_alpha_t0_vs" },
+		{ g_shader_caster_alpha_t1_vs, "caster_alpha_t1_vs" },
+		{ g_shader_caster_alpha_t2_vs, "caster_alpha_t2_vs" },
 	};
 	static_assert(sizeof(VertexCode) / sizeof(VertexCode[0]) == ShaderLibrary::VS_COUNT, "VertexCode must match ShaderLibrary::VertexShaderId");
 
@@ -198,6 +208,8 @@ namespace
 		{ g_shader_particle_ps, "particle_ps" },
 		{ g_shader_post_depth_copy_ps, "post_depth_copy_ps" },
 		{ g_shader_unlit_ps, "unlit_ps" },
+		{ g_shader_caster_ps, "caster_ps" },
+		{ g_shader_caster_alpha_ps, "caster_alpha_ps" },
 	};
 	static_assert(sizeof(PixelCode) / sizeof(PixelCode[0]) == ShaderLibrary::PS_COUNT, "PixelCode must match ShaderLibrary::PixelShaderId");
 

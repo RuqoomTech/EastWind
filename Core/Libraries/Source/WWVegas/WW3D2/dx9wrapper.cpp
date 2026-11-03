@@ -2432,7 +2432,7 @@ void DX9Wrapper::Draw_Instanced(
 		}
 	}
 
-	// A draw per copy: fixed function, the shadow caster pass, the water reflection.
+	// A draw per copy: fixed function, or a state the shaders do not take (MeshShader::Begin).
 	for (int k = 0; k < InstanceCount; ++k)
 	{
 		Set_Transform(D3DTS_WORLD, *Instances[k]);

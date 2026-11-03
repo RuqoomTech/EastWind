@@ -106,6 +106,12 @@ set(HLSL_SHADERS
     mesh_i_ns_t2_vs         mesh.hlsl        MeshVS_I_NS_T2       vs_3_0
     mesh_i_nds_t2_vs        mesh.hlsl        MeshVS_I_NDS_T2      vs_3_0
     unlit_ps               mesh.hlsl        UnlitPS              ps_3_0
+    caster_vs               mesh.hlsl        CasterVS             vs_3_0
+    caster_alpha_t0_vs      mesh.hlsl        CasterAlphaVS_T0     vs_3_0
+    caster_alpha_t1_vs      mesh.hlsl        CasterAlphaVS_T1     vs_3_0
+    caster_alpha_t2_vs      mesh.hlsl        CasterAlphaVS_T2     vs_3_0
+    caster_ps               mesh.hlsl        CasterPS             ps_3_0
+    caster_alpha_ps         mesh.hlsl        CasterAlphaPS        ps_3_0
     water_vs                water.hlsl       WaterVS              vs_3_0
     water_trapezoid_ps      water.hlsl       WaterTrapezoidPS     ps_3_0
     water_river_ps          water.hlsl       WaterRiverPS         ps_3_0

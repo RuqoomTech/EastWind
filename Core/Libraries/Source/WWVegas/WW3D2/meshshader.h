@@ -59,6 +59,7 @@ public:
 
 	// As Begin(), with the instanced vertex shader (M8 R6): lit draws with a normal only, the
 	// copies' world rows in stream 1 and the device world at identity. False: draw each copy.
+	// In the shadow map's caster pass it binds the depth-only caster shaders instead.
 	static bool Begin_Instanced(int copies);
 	static void End();
 
@@ -67,11 +68,13 @@ public:
 	// (the mesh and sorting renderers' flushes): other code would draw with our shaders.
 	// Ctrl+Shift+T (DebugKeys): per-frame averages since the last call. SetupMs is the CPU time in
 	// Begin(); ShaderDrawMs runs from Begin() to End() of the shader draws, so it includes the draw call.
-	// InstancedDraws are the Begin_Instanced() draws among the lit ones, InstancedCopies the copies they drew.
+	// InstancedDraws are the Begin_Instanced() draws among the lit ones, InstancedCopies the copies they drew;
+	// CasterDraws and CasterCopies the same for the shadow caster pass, whose draws are not lit or unlit ones.
 	struct StatsStruct
 	{
-		float Calls, LitDraws, UnlitDraws, SetupMs, ShaderDrawMs, InstancedDraws, InstancedCopies;
-		StatsStruct() : Calls(0), LitDraws(0), UnlitDraws(0), SetupMs(0), ShaderDrawMs(0), InstancedDraws(0), InstancedCopies(0) {}
+		float Calls, LitDraws, UnlitDraws, SetupMs, ShaderDrawMs, InstancedDraws, InstancedCopies, CasterDraws, CasterCopies;
+		StatsStruct() : Calls(0), LitDraws(0), UnlitDraws(0), SetupMs(0), ShaderDrawMs(0), InstancedDraws(0), InstancedCopies(0),
+			CasterDraws(0), CasterCopies(0) {}
 	};
 	static StatsStruct Take_Stats();
 

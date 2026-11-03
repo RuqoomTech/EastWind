@@ -595,3 +595,67 @@ float4 ParticlePS(ParticlePsIn i, float2 vpos : VPOS) : COLOR0
 		c.rgb = lerp(1.0, c.rgb, fade);
 	return c;
 }
+
+// ---------------------------------------------------------------------------------------------
+// Shadow caster pass (ShadowMap), instanced copies
+// ---------------------------------------------------------------------------------------------
+// Depth only: the copy's world rows (stream 1) and the light camera's view * projection
+// (WorldViewProj, the device world is identity) give the clip position. Colour writes are off,
+// so the alpha-tested variant computes just the alpha the hardware alpha test reads: the
+// texture stages on the material's diffuse alpha. MeshShader takes those copies only with
+// passthru texture coordinates, so no camera-space input is needed.
+
+float4 CasterPosition(VsIn i, VsInstance w)
+{
+	float4 p = float4(i.position.xyz, 1.0);
+	p = float4(dot(p, w.row0), dot(p, w.row1), dot(p, w.row2), 1.0);
+	return float4(dot(p, WorldViewProj[0]), dot(p, WorldViewProj[1]), dot(p, WorldViewProj[2]), dot(p, WorldViewProj[3]));
+}
+
+float4 CasterVS(VsIn i, VsInstance w) : POSITION { return CasterPosition(i, w); }
+float4 CasterPS() : COLOR0 { return 0.0; }
+
+struct CasterVsOut
+{
+	float4 position : POSITION;
+	float4 uv0      : TEXCOORD0;
+	float4 uv1      : TEXCOORD1;
+};
+
+CasterVsOut CasterAlphaVS(VsIn i, VsInstance w, int texSets)
+{
+	CasterVsOut o;
+	o.position = CasterPosition(i, w);
+	float2 set0 = (texSets > 0) ? i.uv0 : float2(0.0, 0.0);
+	float2 set1 = (texSets > 1) ? i.uv1 : set0;
+	o.uv0 = StageTexCoord(0, (TexGen[0].y > 0.5) ? set1 : set0, float3(0.0, 0.0, -1.0), float3(0.0, 0.0, 1.0));
+	o.uv1 = StageTexCoord(1, (TexGen[1].y > 0.5) ? set1 : set0, float3(0.0, 0.0, -1.0), float3(0.0, 0.0, 1.0));
+	return o;
+}
+
+CasterVsOut CasterAlphaVS_T0(VsIn i, VsInstance w) { return CasterAlphaVS(i, w, 0); }
+CasterVsOut CasterAlphaVS_T1(VsIn i, VsInstance w) { return CasterAlphaVS(i, w, 1); }
+CasterVsOut CasterAlphaVS_T2(VsIn i, VsInstance w) { return CasterAlphaVS(i, w, 2); }
+
+struct CasterPsIn
+{
+	float4 uv0 : TEXCOORD0;
+	float4 uv1 : TEXCOORD1;
+};
+
+float4 CasterAlphaPS(CasterPsIn i) : COLOR0
+{
+	float4 tex0 = (PsOptions.z > 0.5) ? tex2D(Stage0Texture, i.uv0.xy / i.uv0.w) : float4(1.0, 1.0, 1.0, 1.0);
+	float4 tex1 = (PsOptions.w > 0.5) ? tex2D(Stage1Texture, i.uv1.xy / i.uv1.w) : float4(1.0, 1.0, 1.0, 1.0);
+
+	// Material[0]: white with the diffuse alpha.
+	float4 diffuse = Material[0];
+	float4 current = diffuse;
+	[branch] if (Stage[0].x != OP_DISABLE)
+	{
+		current = RunStage(0, diffuse, current, tex0, 0.0);
+		[branch] if (Stage[4].x != OP_DISABLE)
+			current = RunStage(1, diffuse, current, tex1, 0.0);
+	}
+	return current;
+}

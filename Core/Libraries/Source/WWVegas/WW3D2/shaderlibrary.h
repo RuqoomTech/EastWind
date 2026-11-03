@@ -80,6 +80,12 @@ public:
 		VS_MESH_I_ND_T2,
 		VS_MESH_I_NS_T2,
 		VS_MESH_I_NDS_T2,
+		// mesh.hlsl, the shadow caster pass's instanced copies: depth only, and with the alpha test
+		// on, T0..T2 texcoord sets.
+		VS_CASTER,
+		VS_CASTER_ALPHA_T0,
+		VS_CASTER_ALPHA_T1,
+		VS_CASTER_ALPHA_T2,
 		VS_COUNT
 	};
 
@@ -122,6 +128,8 @@ public:
 		PS_PARTICLE,				// mesh.hlsl, soft particles: fade where they meet the scene (SoftParticles)
 		PS_POST_DEPTH_COPY,			// post.hlsl, the scene's view depth into R32F for the soft particles
 		PS_UNLIT,					// mesh.hlsl, draws with lighting off, as fixed function
+		PS_CASTER,					// mesh.hlsl, shadow caster copies, depth only
+		PS_CASTER_ALPHA,			// mesh.hlsl, alpha-tested shadow caster copies: the alpha only
 		PS_COUNT
 	};
 
