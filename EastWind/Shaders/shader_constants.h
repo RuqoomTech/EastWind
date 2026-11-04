@@ -157,5 +157,6 @@
 
 // --- shader_linear.h (pixel), frame-wide options; set once a frame by W3DDisplay ---
 #define FRAME_PS_OPTIONS      206 // c206: x linear lighting on (LinearLighting)
+#define FRAME_PS_SUN          211 // c211: x sun light scale (SunIntensity); W3DPostProcess sets it while the Hdr scene draws
 
 #endif // SHADER_CONSTANTS_H

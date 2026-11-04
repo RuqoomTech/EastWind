@@ -782,6 +782,7 @@ static void loadGraphicsOptions()
 	options.Sharpen = prefs.getReal("Sharpen", options.Sharpen);
 	options.AmbientOcclusion = prefs.getInt("AmbientOcclusion", options.AmbientOcclusion);
 	options.Hdr = prefs.getBool("Hdr", options.Hdr);
+	options.SunIntensity = prefs.getReal("SunIntensity", options.SunIntensity);
 	options.SoftParticles = prefs.getBool("SoftParticles", options.SoftParticles);
 	options.LinearLighting = prefs.getBool("LinearLighting", options.LinearLighting);
 	options.DebugKeys = prefs.getBool("DebugKeys", options.DebugKeys);
@@ -844,6 +845,11 @@ static void showGraphicsStatus()
 	TheInGameUI->message(L"Sun shadow maps: %s   [Ctrl+Shift+F2]", shadows);
 	TheInGameUI->message(L"Ambient occlusion: %s   [Ctrl+Shift+F1: on, occlusion only, off]", ao);
 	TheInGameUI->message(L"HDR scene: %s   [Ctrl+Shift+H]", hdr);
+	if (o.SunIntensity > 1.0f)
+		TheInGameUI->message(L"Sun intensity: %.2f, %s", o.SunIntensity, !o.PerPixelLighting ? L"inactive (needs PerPixelLighting)"
+			: W3DPostProcess::Last_Frame_Passes(W3DPostProcess::HDR) > 0 ? L"active" : L"inactive (needs the HDR scene)");
+	else
+		TheInGameUI->message(L"Sun intensity: 1 (off in Options.ini)");
 	TheInGameUI->message(L"Soft particles: %s   [Ctrl+Shift+P]", soft);
 	TheInGameUI->message(L"Linear lighting: %s   [Ctrl+Shift+L]", linear);
 	TheInGameUI->message(L"Unlit draws: %s   [Ctrl+Shift+U]", unlit);

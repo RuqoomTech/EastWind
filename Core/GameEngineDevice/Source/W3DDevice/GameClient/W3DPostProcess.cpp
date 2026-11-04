@@ -975,6 +975,13 @@ bool W3DPostProcess::Begin_Scene(float clear_alpha)
 	if (!SceneHdr)
 		Set_Reason(HDR, !o.Hdr ? REASON_EFFECT_OFF : o.DebugHdrOff ? REASON_HDR_DEBUG_OFF : HdrFailed);
 
+	// SunIntensity lifts the sun of the lit shaders (shader_linear.h) only while they draw into
+	// the float scene; an 8-bit target would clip it. End_Scene() puts it back to 1.
+	{
+		const float sun[4] = { SceneHdr ? o.SunIntensity : 1.0f, 0.0f, 0.0f, 0.0f };
+		device->SetPixelShaderConstantF(FRAME_PS_SUN, sun, 1);
+	}
+
 	// Ambient occlusion and soft particles read the scene's depth, so the scene draws with its own depth texture,
 	// cleared here as the frame clear cleared the back buffer's.
 	DWORD clear = D3DCLEAR_TARGET;
@@ -1009,6 +1016,8 @@ void W3DPostProcess::End_Scene(int x, int y, int width, int height, const Camera
 	SceneDepthBound = false;
 
 	IDirect3DDevice9 *device = DX9Wrapper::_Get_D3D_Device9();
+	const float sun[4] = { 1.0f, 0.0f, 0.0f, 0.0f };
+	device->SetPixelShaderConstantF(FRAME_PS_SUN, sun, 1);
 	if (MsaaSurface)
 		device->StretchRect(MsaaSurface, nullptr, SceneSurface, nullptr, D3DTEXF_NONE);
 	device->SetRenderTarget(0, BackBuffer);

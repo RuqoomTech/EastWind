@@ -38,6 +38,7 @@ struct GraphicsOptions
 	float Sharpen;			// Sharpen: contrast-adaptive sharpening strength, 0 off .. 1, in the FXAA pass
 	int AmbientOcclusion;	// AmbientOcclusion: 0 off, 1 at half resolution, 2 at full resolution (M3.5)
 	bool Hdr;				// Hdr: the post-processing scene texture is 16-bit float, so light adds up above white
+	float SunIntensity;		// SunIntensity: 1 .. 4, scales the sun (directional) light of the lit shaders in the Hdr scene
 	bool SoftParticles;		// SoftParticles: particles fade where they meet the scene (needs the AO depth texture's conditions)
 	bool LinearLighting;	// LinearLighting: the shaders add light up in linear space (shader_linear.h)
 	bool DebugKeys;			// DebugKeys: Ctrl+Shift+F1..F12 switch the features above while the game runs
@@ -76,6 +77,7 @@ struct GraphicsOptions
 		, Sharpen(0.0f)
 		, AmbientOcclusion(0)
 		, Hdr(false)
+		, SunIntensity(1.0f)
 		, SoftParticles(false)
 		, LinearLighting(false)
 		, DebugKeys(false)
@@ -134,6 +136,8 @@ struct GraphicsOptions
 		if (AmbientOcclusion > 2) AmbientOcclusion = 2;
 		if (!(Sharpen > 0.0f)) Sharpen = 0.0f;	// also NaN
 		if (Sharpen > 1.0f) Sharpen = 1.0f;
+		if (!(SunIntensity >= 1.0f)) SunIntensity = 1.0f;	// also NaN
+		if (SunIntensity > 4.0f) SunIntensity = 4.0f;
 		if (ShadowMapSize != 0 && ShadowMapSize != 1024 && ShadowMapSize != 2048 && ShadowMapSize != 4096)
 			ShadowMapSize = 0;
 		if (!PerPixelLighting)

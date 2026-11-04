@@ -279,8 +279,10 @@ void AddLight(int l, float3 P, float3 N, float sunShadow, float3 V, float power,
 		float nl = dot(N, L);
 		if (nl > 0.0)
 		{
-			// The sun's light is shadowed; its ambient is not.
-			atten *= (lightDiffuse.w > 2.0 && lightAtten.x > 0.5) ? sunShadow : 1.0;
+			// The sun's light is shadowed; its ambient is not. SunIntensity lifts every directional
+			// light, as the terrain's sun part is all of them.
+			if (lightDiffuse.w > 2.0)
+				atten *= Sun_Lift() * ((lightAtten.x > 0.5) ? sunShadow : 1.0);
 			diffuse += atten * nl * lightDiffuse.rgb;
 			// Specular off (most game meshes) and no SpecMap: no highlight to add.
 			[branch] if (material || PsOptions.y > 0.5)
@@ -312,8 +314,16 @@ float4 StageArg(float select, float modifier, float4 diffuse, float4 current, fl
 	return (complement > 0.5) ? 1.0 - v : v;
 }
 
+// The stages clamp as fixed function does. Only a lit draw's colour may stay above white, with
+// SunIntensity (Light_Clamp); alpha always clamps, as it feeds the alpha test and blending.
+float4 Stage_Clamp(float4 r, uniform bool lit)
+{
+	return float4(lit ? Light_Clamp(r.rgb) : saturate(r.rgb), saturate(r.a));
+}
+
 // One texture stage. Ops are per channel: rgb takes the colour op and arguments, a the alpha ones.
-float4 RunStage(int s, float4 diffuse, float4 current, float4 tex, float4 specular)
+// lit: the diffuse input is the shader's own light sum (ShadeMesh).
+float4 RunStage(int s, float4 diffuse, float4 current, float4 tex, float4 specular, uniform bool lit)
 {
 	// Short form, set by MeshShader when both ops are a plain product, sum or select of the
 	// texture and one colour input: r = K1 * tex * o + K2 * tex + K3 * o. Most stages are this,
@@ -322,7 +332,7 @@ float4 RunStage(int s, float4 diffuse, float4 current, float4 tex, float4 specul
 	[branch] if (shortForm < -0.5)
 	{
 		float4 o = (shortForm < -1.5) ? current : diffuse;
-		return saturate(Stage[s * 4 + 1] * tex * o + Stage[s * 4 + 2] * tex + Stage[s * 4 + 3] * o);
+		return Stage_Clamp(Stage[s * 4 + 1] * tex * o + Stage[s * 4 + 2] * tex + Stage[s * 4 + 3] * o, lit);
 	}
 
 	float4 colour = Stage[s * 4 + 0];
@@ -369,7 +379,7 @@ float4 RunStage(int s, float4 diffuse, float4 current, float4 tex, float4 specul
 	float dot3 = saturate(4.0 * dot(c1.rgb - 0.5, c2.rgb - 0.5));
 	r = (colour.x == OP_DOTPRODUCT3) ? dot3.xxxx : r;
 
-	return saturate(r);
+	return Stage_Clamp(r, lit);
 }
 
 // Turns a tangent-space normal into a world normal. The cotangent frame from screen-space
@@ -453,19 +463,19 @@ float4 ShadeMesh(PsIn i, uniform bool material)
 	if (material)
 		ambient *= lerp(MaterialOptions.w, 1.0, saturate(N.z * 0.5 + 0.5));
 
-	float4 litDiffuse = float4(To_Gamma(saturate(matAmbient.rgb * ambient + matDiffuse.rgb * diffuse + matEmissive.rgb)), matDiffuse.a);
+	float4 litDiffuse = float4(To_Gamma(Light_Clamp(matAmbient.rgb * ambient + matDiffuse.rgb * diffuse + matEmissive.rgb)), matDiffuse.a);
 	float3 specularLinear = matSpecular.rgb * specular * PsOptions.y;
-	float4 litSpecular = float4(To_Gamma(saturate(specularLinear)), 0.0);
+	float4 litSpecular = float4(To_Gamma(Light_Clamp(specularLinear)), 0.0);
 
 	// Stage 0 disabled leaves the lit diffuse colour; stage 1 runs only after an enabled stage 0.
 	float4 current = litDiffuse;
 	[branch] if (Stage[0].x != OP_DISABLE)
 	{
-		current = RunStage(0, litDiffuse, current, tex0, litSpecular);
+		current = RunStage(0, litDiffuse, current, tex0, litSpecular, true);
 		if (!material)
 		{
 			[branch] if (Stage[4].x != OP_DISABLE)
-				current = RunStage(1, litDiffuse, current, tex1, litSpecular);
+				current = RunStage(1, litDiffuse, current, tex1, litSpecular, true);
 		}
 	}
 
@@ -512,9 +522,9 @@ float4 UnlitPS(PsIn i) : COLOR0
 	float4 current = i.diffuse;
 	[branch] if (Stage[0].x != OP_DISABLE)
 	{
-		current = RunStage(0, i.diffuse, current, tex0, i.specular);
+		current = RunStage(0, i.diffuse, current, tex0, i.specular, false);
 		[branch] if (Stage[4].x != OP_DISABLE)
-			current = RunStage(1, i.diffuse, current, tex1, i.specular);
+			current = RunStage(1, i.diffuse, current, tex1, i.specular, false);
 	}
 	current.rgb = saturate(current.rgb + i.specular.rgb * PsOptions.y);
 
@@ -575,7 +585,7 @@ float4 ParticlePS(ParticlePsIn i, float2 vpos : VPOS) : COLOR0
 	float4 tex = (PsOptions.z > 0.5) ? tex2D(Stage0Texture, i.uvDepthFog.xy) : float4(1.0, 1.0, 1.0, 1.0);
 	float4 c = i.diffuse;
 	[branch] if (Stage[0].x != OP_DISABLE)
-		c = RunStage(0, i.diffuse, i.diffuse, tex, float4(0.0, 0.0, 0.0, 0.0));
+		c = RunStage(0, i.diffuse, i.diffuse, tex, float4(0.0, 0.0, 0.0, 0.0), false);
 
 	[branch] if (Fog.x > 0.5)
 	{
@@ -653,9 +663,9 @@ float4 CasterAlphaPS(CasterPsIn i) : COLOR0
 	float4 current = diffuse;
 	[branch] if (Stage[0].x != OP_DISABLE)
 	{
-		current = RunStage(0, diffuse, current, tex0, 0.0);
+		current = RunStage(0, diffuse, current, tex0, 0.0, false);
 		[branch] if (Stage[4].x != OP_DISABLE)
-			current = RunStage(1, diffuse, current, tex1, 0.0);
+			current = RunStage(1, diffuse, current, tex1, 0.0, false);
 	}
 	return current;
 }

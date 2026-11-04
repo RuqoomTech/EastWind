@@ -67,7 +67,8 @@ float3 Grid_Normal(float4 texel)
 }
 
 // shadow scales the first light, the sun the shadow map is drawn from. linearLight (pixel
-// shaders only) adds the colours up in linear space (shader_linear.h).
+// shaders only) adds the colours up in linear space (shader_linear.h) and lifts the sun lights by
+// SunIntensity; the vertex shader's split must match the CPU light, so it does neither.
 float3 Sun_Colour(int k, uniform bool linearLight)
 {
 	return linearLight ? To_Linear(Sun[k].rgb) : Sun[k].rgb;
@@ -75,10 +76,11 @@ float3 Sun_Colour(int k, uniform bool linearLight)
 
 float3 SunLight(float3 n, float shadow, uniform bool linearLight)
 {
-	float3 c = Sun_Colour(0, linearLight) + shadow * Sun_Colour(4, linearLight) * saturate(dot(Sun[1].xyz, n));
+	float3 c = shadow * Sun_Colour(4, linearLight) * saturate(dot(Sun[1].xyz, n));
 	[unroll] for (int k = 1; k < 3; ++k)
 		c += Sun_Colour(4 + k, linearLight) * saturate(dot(Sun[1 + k].xyz, n));
-	return saturate(c);
+	c = Sun_Colour(0, linearLight) + (linearLight ? Sun_Lift() : 1.0) * c;
+	return linearLight ? Light_Clamp(c) : saturate(c);
 }
 
 // The vertex shader's split of the CPU light, which was added up in gamma space.
@@ -195,12 +197,13 @@ struct PsIn
 
 // The per-pixel light: the sun against the filtered grid normal, shadowed, plus the vertex's
 // extra light and the point lights. With linear lighting the extra light is taken as a colour
-// and decoded too. Clamped like the CPU light and the mesh shader's diffuse, also with Hdr.
+// and decoded too. Clamped like the CPU light and the mesh shader's diffuse, unless SunIntensity
+// lifts the sun in the Hdr scene.
 float3 Pixel_Light(float2 grid, float3 world, float3 extra, float3 vertexLight)
 {
 	float3 n = Grid_Normal(tex2D(GridNormals, grid));
 	float shadow = Sun_Shadow(world, n, Sun[1].xyz);
-	float3 light = To_Gamma(saturate(SunLight(n, shadow, true) + To_Linear(extra) + Point_Light(world, n)));
+	float3 light = To_Gamma(Light_Clamp(SunLight(n, shadow, true) + To_Linear(extra) + Point_Light(world, n)));
 	// Debug keys: the vertex colour is the classic per-vertex light.
 	if (Debug.x > 0.5)
 		light = vertexLight;

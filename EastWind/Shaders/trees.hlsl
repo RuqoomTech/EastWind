@@ -119,12 +119,13 @@ float4 TreesLitPS(LitVsOut i) : COLOR0
 {
 	float3 n = normalize(i.normal);
 	// The light adds up in linear space (shader_linear.h).
-	float3 light = To_Linear(TreeLight[0].rgb) + To_Linear(i.emissive);
+	// SunIntensity lifts the sun lights, not the ambient or emissive.
 	float shadow = Sun_Shadow(i.world, n, TreeLight[1].xyz);
-	light += shadow * To_Linear(TreeLight[4].rgb) * saturate(dot(TreeLight[1].xyz, n));
+	float3 sun = shadow * To_Linear(TreeLight[4].rgb) * saturate(dot(TreeLight[1].xyz, n));
 	[unroll] for (int k = 1; k < 3; ++k)
-		light += To_Linear(TreeLight[4 + k].rgb) * saturate(dot(TreeLight[1 + k].xyz, n));
-	light = To_Gamma(saturate(light)) * i.colour;
+		sun += To_Linear(TreeLight[4 + k].rgb) * saturate(dot(TreeLight[1 + k].xyz, n));
+	float3 light = To_Linear(TreeLight[0].rgb) + To_Linear(i.emissive) + Sun_Lift() * sun;
+	light = To_Gamma(Light_Clamp(light)) * i.colour;
 
 	float4 t = tex2D(TreeTexture, i.uv.xy);
 	// Debug keys: the light alone. The alpha still cuts the leaves out (alpha test).
