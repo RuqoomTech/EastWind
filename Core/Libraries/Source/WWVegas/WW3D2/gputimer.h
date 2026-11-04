@@ -34,7 +34,7 @@ public:
 	{
 		FRAME_BEGIN,		// start of the frame, before the sun shadow map
 		SHADOW_MAP,			// sun shadow map
-		RENDER_TARGETS,		// water reflection and projected shadow textures
+		RENDER_TARGETS,		// AO depth pass (AntiAliasing), water reflection and projected shadow textures
 		// The main 3D scene in parts (RTS3DScene). These count only between RENDER_TARGETS and
 		// SCENE, so the shadow map and reflection passes, which draw the same code, are left out.
 		SCENE_TERRAIN,		// the clear and the terrain (roads, shroud)

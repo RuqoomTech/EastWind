@@ -26,6 +26,7 @@
 #include "WW3D2/graphicsoptions.h"
 #include "WW3D2/gputimer.h"
 #include "WW3D2/meshshader.h"
+#include "WW3D2/shadowmap.h"
 #include "WWDebug/wwdebug.h"
 #include "shader_constants.h"
 
@@ -95,9 +96,9 @@ namespace
 		REASON_FXAA_DEBUG_OFF,
 		REASON_FXAA_CREATE_FAILED,
 		REASON_AO_DEBUG_OFF,
-		REASON_AO_MSAA,
 		REASON_AO_NO_INTZ,
 		REASON_AO_DEPTH_FAILED,
+		REASON_AO_DEPTH_PASS_FAILED,
 		REASON_AO_NO_G16R16F,
 		REASON_AO_CREATE_FAILED,
 		REASON_AO_NO_CAMERA,
@@ -105,6 +106,7 @@ namespace
 		REASON_HDR_NO_FORMAT,
 		REASON_HDR_CREATE_FAILED,
 		REASON_SOFT_DEBUG_OFF,
+		REASON_SOFT_MSAA,
 		REASON_SOFT_NO_R32F,
 		REASON_SOFT_CREATE_FAILED,
 		REASON_COUNT
@@ -127,9 +129,9 @@ namespace
 		"switched off with Ctrl+Shift+F4",
 		"the FXAA texture could not be created (HRESULT)",
 		"switched off with Ctrl+Shift+F1",
-		"needs AntiAliasing = 0 in Options.ini (a multisampled depth buffer cannot be read)",
 		"the card cannot draw into a readable depth texture (INTZ)",
 		"the scene depth texture could not be created or set (HRESULT)",
+		"the depth pass for AntiAliasing could not begin (device lost?)",
 		"the card cannot draw into G16R16F textures",
 		"the AO textures could not be created (HRESULT)",
 		"no 3D camera was given",
@@ -137,6 +139,7 @@ namespace
 		"the card cannot draw, blend and filter 16-bit float textures",
 		"the 16-bit float scene texture could not be created, perhaps with this anti-aliasing (HRESULT)",
 		"switched off with Ctrl+Shift+P",
+		"needs AntiAliasing = 0 in Options.ini (a multisampled depth buffer cannot be read)",
 		"the card cannot draw into R32F textures",
 		"the soft particle depth texture could not be created (HRESULT)",
 	};
@@ -194,12 +197,16 @@ namespace
 	bool FinalFailed = false;
 
 	// Ambient occlusion. The scene's own depth buffer, a depth texture the shaders can read; made
-	// for the scene texture and used only while AO is on.
+	// for the scene texture and used only while AO is on. With multisampling the scene keeps the
+	// back buffer's depth and Draw_Depth_Pass() fills DepthTexture instead.
 	IDirect3DTexture9 *DepthTexture = nullptr;
 	IDirect3DSurface9 *DepthSurface = nullptr;
 	bool DepthFailed = false;				// do not try again until Release()
 	Reason DepthReason = REASON_NOT_DRAWN;	// why the scene did not draw with DepthTexture
 	bool SceneDepthBound = false;			// this scene draws with DepthTexture
+	const CameraClass *DepthPassCamera = nullptr;	// Draw_Depth_Pass() filled DepthTexture from this camera
+	bool AoDepthPass = false;				// this frame's AO read the depth pass
+	bool LastAoDepthPass = false;
 	// The occlusion is drawn into [0], blurred across into [1] and down back into [0].
 	IDirect3DTexture9 *AoTexture[2] = { nullptr, nullptr };
 	IDirect3DSurface9 *AoSurface[2] = { nullptr, nullptr };
@@ -222,8 +229,8 @@ namespace
 	{
 		if (!Logged[reason] && reason != REASON_OFF && reason != REASON_DEBUG_OFF && reason != REASON_EFFECT_OFF
 			&& reason != REASON_TONE_DEBUG_OFF && reason != REASON_GRADE_DEBUG_OFF && reason != REASON_FXAA_DEBUG_OFF
-			&& reason != REASON_AO_DEBUG_OFF && reason != REASON_AO_MSAA && reason != REASON_HDR_DEBUG_OFF
-			&& reason != REASON_SOFT_DEBUG_OFF)
+			&& reason != REASON_AO_DEBUG_OFF && reason != REASON_HDR_DEBUG_OFF
+			&& reason != REASON_SOFT_DEBUG_OFF && reason != REASON_SOFT_MSAA)
 		{
 			Logged[reason] = true;
 			WWDEBUG_SAY(("W3DPostProcess: %s, value 0x%x (logged once)", ReasonText[reason], value));
@@ -285,6 +292,7 @@ namespace
 
 	void Release_Targets()
 	{
+		DepthPassCamera = nullptr;
 		Release_Com(DepthSurface);
 		Release_Com(DepthTexture);
 		Release_Com(ParticleDepthSurface);
@@ -334,11 +342,6 @@ namespace
 	// DepthReason says why.
 	bool Depth_Ready(IDirect3DDevice9 *device)
 	{
-		if (TargetDesc.MultiSampleType != D3DMULTISAMPLE_NONE)
-		{
-			DepthReason = REASON_AO_MSAA;
-			return false;
-		}
 		if (DepthTexture != nullptr)
 			return true;
 		if (DepthFailed)
@@ -986,7 +989,8 @@ bool W3DPostProcess::Begin_Scene(float clear_alpha)
 	// cleared here as the frame clear cleared the back buffer's.
 	DWORD clear = D3DCLEAR_TARGET;
 	SceneDepthBound = false;
-	if ((o.PostAo() || o.PostSoftParticles()) && Depth_Ready(device))
+	// A multisampled depth buffer cannot be read; AO then reads the depth pass.
+	if (TargetDesc.MultiSampleType == D3DMULTISAMPLE_NONE && (o.PostAo() || o.PostSoftParticles()) && Depth_Ready(device))
 	{
 		hr = device->SetDepthStencilSurface(DepthSurface);
 		if (SUCCEEDED(hr))
@@ -1014,6 +1018,10 @@ void W3DPostProcess::End_Scene(int x, int y, int width, int height, const Camera
 	GpuTimer::Mark(GpuTimer::SCENE);
 	const bool scene_depth = SceneDepthBound;
 	SceneDepthBound = false;
+	// Only for the camera the pass drew with; another view has other depth.
+	const bool depth_pass = DepthPassCamera != nullptr && DepthPassCamera == camera;
+	if (depth_pass)
+		DepthPassCamera = nullptr;
 
 	IDirect3DDevice9 *device = DX9Wrapper::_Get_D3D_Device9();
 	const float sun[4] = { 1.0f, 0.0f, 0.0f, 0.0f };
@@ -1066,7 +1074,7 @@ void W3DPostProcess::End_Scene(int x, int y, int width, int height, const Camera
 		Set_Reason(AMBIENT_OCCLUSION, REASON_NO_SHADER);
 		ao = false;
 	}
-	if (ao && !scene_depth)
+	if (ao && !scene_depth && !depth_pass)
 	{
 		Set_Reason(AMBIENT_OCCLUSION, DepthReason);
 		ao = false;
@@ -1161,7 +1169,10 @@ void W3DPostProcess::End_Scene(int x, int y, int width, int height, const Camera
 	if (grade)
 		++Stats[COLOR_GRADING].Passes;
 	if (ao)
+	{
 		++Stats[AMBIENT_OCCLUSION].Passes;
+		AoDepthPass = !scene_depth;
+	}
 
 	// FXAA, onto the back buffer. Its reads stay half a texel inside the view rectangle, so the
 	// edge of the view never blends with what lies outside it.
@@ -1190,6 +1201,28 @@ void W3DPostProcess::End_Scene(int x, int y, int width, int height, const Camera
 	Release_Saved_Targets();
 }
 
+void W3DPostProcess::Draw_Depth_Pass(SceneClass *scene, CameraClass *camera)
+{
+	DepthPassCamera = nullptr;
+	const GraphicsOptions &o = Get_Graphics_Options();
+	// Begin_Scene() makes the scene texture; until then (the first frame) the size is not known.
+	if (!o.PostProcess() || !o.PostAo() || SceneTexture == nullptr || TargetDesc.MultiSampleType == D3DMULTISAMPLE_NONE
+		|| scene == nullptr || camera == nullptr)
+		return;
+	IDirect3DDevice9 *device = DX9Wrapper::_Get_D3D_Device9();
+	if (device == nullptr || !Depth_Ready(device))
+		return;	// DepthReason says why
+	// The scene texture is the colour target: it has the size, no multisampling, and the pass
+	// writes no colour (the resolve overwrites it anyway).
+	if (!ShadowMap::Render_Depth(scene, camera, SceneSurface, DepthSurface))
+	{
+		DepthReason = REASON_AO_DEPTH_PASS_FAILED;
+		Log_Once(REASON_AO_DEPTH_PASS_FAILED, 0);
+		return;
+	}
+	DepthPassCamera = camera;
+}
+
 void W3DPostProcess::Begin_Particles(const CameraClass *camera)
 {
 	const GraphicsOptions &o = Get_Graphics_Options();
@@ -1199,6 +1232,8 @@ void W3DPostProcess::Begin_Particles(const CameraClass *camera)
 		return Set_Reason(SOFT_PARTICLES, REASON_EFFECT_OFF);
 	if (o.DebugSoftParticlesOff)
 		return Set_Reason(SOFT_PARTICLES, REASON_SOFT_DEBUG_OFF);
+	if (TargetDesc.MultiSampleType != D3DMULTISAMPLE_NONE)
+		return Set_Reason(SOFT_PARTICLES, REASON_SOFT_MSAA);
 	if (!SceneDepthBound)
 		return Set_Reason(SOFT_PARTICLES, DepthReason);
 	if (camera == nullptr)
@@ -1279,6 +1314,7 @@ void W3DPostProcess::Release()
 	CreateFailed = false;
 	HdrFailed = REASON_COUNT;
 	DepthFailed = false;
+	DepthReason = REASON_NOT_DRAWN;
 	SceneDepthBound = false;
 }
 
@@ -1292,6 +1328,8 @@ void W3DPostProcess::New_Frame()
 		s.Passes = 0;
 		s.Reason = ReasonText[REASON_NOT_DRAWN];
 	}
+	LastAoDepthPass = AoDepthPass;
+	AoDepthPass = false;
 }
 
 unsigned W3DPostProcess::Last_Frame_Passes(Effect effect)
@@ -1302,6 +1340,11 @@ unsigned W3DPostProcess::Last_Frame_Passes(Effect effect)
 const char *W3DPostProcess::Last_Reason(Effect effect)
 {
 	return Stats[effect].LastReason ? Stats[effect].LastReason : ReasonText[REASON_NOT_DRAWN];
+}
+
+bool W3DPostProcess::Last_Ao_From_Depth_Pass()
+{
+	return LastAoDepthPass;
 }
 
 const char *W3DPostProcess::Color_Lut_File()

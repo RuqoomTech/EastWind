@@ -874,6 +874,9 @@ static void showGraphicsStatus()
 		W3DPostProcess::Last_Reason(W3DPostProcess::HDR));
 	showShaderStatus(L"Ambient occlusion", W3DPostProcess::Last_Frame_Passes(W3DPostProcess::AMBIENT_OCCLUSION),
 		W3DPostProcess::Last_Reason(W3DPostProcess::AMBIENT_OCCLUSION));
+	if (W3DPostProcess::Last_Frame_Passes(W3DPostProcess::AMBIENT_OCCLUSION) > 0)
+		TheInGameUI->message(L"Ambient occlusion depth: %s", W3DPostProcess::Last_Ao_From_Depth_Pass()
+			? L"depth-only pass of the scene (AntiAliasing is on)" : L"the scene's own depth texture");
 	showShaderStatus(L"Soft particles (depth copy)", W3DPostProcess::Last_Frame_Passes(W3DPostProcess::SOFT_PARTICLES),
 		W3DPostProcess::Last_Reason(W3DPostProcess::SOFT_PARTICLES));
 	showShaderStatus(L"Bloom", W3DPostProcess::Last_Frame_Passes(W3DPostProcess::BLOOM),
@@ -961,7 +964,7 @@ static void showGpuTimes()
 	{
 		nullptr,
 		L"Sun shadow map",
-		L"Water reflection and projected shadows",
+		L"AO depth pass, water reflection and projected shadows",
 		L"3D scene: clear and terrain",
 		L"3D scene: opaque units, buildings, props",
 		L"3D scene: trees and shadows",
@@ -997,7 +1000,7 @@ static void showGpuTimes()
 	const MeshShader::StatsStruct mesh = MeshShader::Take_Stats();
 	sayTime(L"Mesh draws a frame: %.0f, by shader: %.0f lit, %.0f unlit; CPU: %.2f ms setup, %.2f ms setup and draw of the shader draws",
 		mesh.Calls, mesh.LitDraws, mesh.UnlitDraws, mesh.SetupMs, mesh.ShaderDrawMs);
-	sayTime(L"   Instanced: %.0f draws of %.0f copies; shadow casters: %.0f draws of %.0f copies",
+	sayTime(L"   Instanced: %.0f draws of %.0f copies; depth-only passes (shadow casters, AO depth): %.0f draws of %.0f copies",
 		mesh.InstancedDraws, mesh.InstancedCopies, mesh.CasterDraws, mesh.CasterCopies);
 	sayTime(L"   Skinned meshes: %.0f deformed, %.0f reused from an earlier pass of the frame",
 		mesh.SkinsDeformed, mesh.SkinsReused);
@@ -2491,6 +2494,10 @@ AGAIN:
 					TheTerrainRenderObject->getMinHeight(), TheTerrainRenderObject->getMaxHeight());
 			}
 			GpuTimer::Mark(GpuTimer::SHADOW_MAP);
+
+			// EastWind DX9: with AntiAliasing, ambient occlusion reads a depth-only pass of the scene.
+			if (m_3DScene && primaryW3DView)
+				W3DPostProcess::Draw_Depth_Pass(m_3DScene, primaryW3DView->get3DCamera());
 
 			// EastWind DX9 (M3.3a): also for the reflection of the water shader.
 			if (TheWaterRenderObj && (TheGlobalData->m_waterType == 2 || W3DWaterShader::Wants_Reflection()))

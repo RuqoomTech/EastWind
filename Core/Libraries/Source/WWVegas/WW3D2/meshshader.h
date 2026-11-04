@@ -69,7 +69,7 @@ public:
 	// Ctrl+Shift+T (DebugKeys): per-frame averages since the last call. SetupMs is the CPU time in
 	// Begin(); ShaderDrawMs runs from Begin() to End() of the shader draws, so it includes the draw call.
 	// InstancedDraws are the Begin_Instanced() draws among the lit ones, InstancedCopies the copies they drew;
-	// CasterDraws and CasterCopies the same for the shadow caster pass, whose draws are not lit or unlit ones.
+	// CasterDraws and CasterCopies the same for the caster passes (shadow map and AO depth), whose draws are not lit or unlit ones.
 	// SkinsDeformed and SkinsReused are the skinned meshes drawn, by whether their deform was reused.
 	struct StatsStruct
 	{

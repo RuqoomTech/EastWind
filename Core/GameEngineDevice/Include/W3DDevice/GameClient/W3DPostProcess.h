@@ -56,7 +56,14 @@
 // It is blurred across and down without crossing depth edges, and the final pass darkens the
 // scene by it before bloom. Everything that writes depth takes part, so the water surface and
 // the trees occlude too; smoke and other particles write no depth and get the occlusion of what
-// lies behind them. A multisampled depth buffer cannot be read, so AO needs AntiAliasing = 0.
+// lies behind them.
+//
+// A multisampled depth buffer cannot be read, so with AntiAliasing the scene keeps the back
+// buffer's depth, and before the views draw W3DDisplay calls Draw_Depth_Pass(): the sun shadow
+// map's depth-only caster pass, drawn again with the main camera into the same (not multisampled)
+// INTZ texture (ShadowMap::Render_Depth). It holds the units, buildings, props, trees and terrain
+// but not the water or bridges, which then get the occlusion of what lies under them; the trees
+// are where the last frame drew them.
 //
 // Ambient occlusion, bloom, tone mapping and colour grading run in one final pass (PS_POST_FINAL).
 //
@@ -66,7 +73,7 @@
 // which then also runs with FXAA off.
 //
 // Soft particles (SoftParticles): the scene draws with the depth texture of ambient occlusion
-// (so also needs AntiAliasing = 0). Right before the particles, Begin_Particles() copies its view
+// (so needs AntiAliasing = 0). Right before the particles, Begin_Particles() copies its view
 // depth into an R32F texture, since the bound depth buffer cannot be read at the same time, and
 // binds that for MeshShader's particle shaders; End_Particles() unbinds it after them.
 //
@@ -77,6 +84,7 @@
 #pragma once
 
 class CameraClass;
+class SceneClass;
 
 class W3DPostProcess
 {
@@ -108,6 +116,11 @@ public:
 	// ambient occlusion needs it. Does nothing if Begin_Scene() returned false.
 	static void End_Scene(int x, int y, int width, int height, const CameraClass *camera);
 
+	// With multisampling and ambient occlusion on: draws the depth of scene from camera (the main
+	// 3D camera) into the AO depth texture, which End_Scene() then reads for that camera. Once a
+	// frame, before the views draw; does nothing otherwise.
+	static void Draw_Depth_Pass(SceneClass *scene, CameraClass *camera);
+
 	// Around the particles of the 3D scene (W3DScene): binds the scene's view depth for the soft
 	// particle shaders, if the scene draws with the depth texture. camera is the 3D camera.
 	static void Begin_Particles(const CameraClass *camera);
@@ -121,5 +134,6 @@ public:
 	static void New_Frame();
 	static unsigned Last_Frame_Passes(Effect effect);	// passes the effect drew in the last frame
 	static const char *Last_Reason(Effect effect);		// why the effect did not run, if it did not
+	static bool Last_Ao_From_Depth_Pass();				// the last frame's AO read Draw_Depth_Pass(), not the scene's depth
 	static const char *Color_Lut_File();				// the colour LUT file in use, or nullptr for the neutral one
 };

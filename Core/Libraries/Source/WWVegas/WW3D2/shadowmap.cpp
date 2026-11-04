@@ -80,6 +80,7 @@ namespace
 	int FailedSize = 0;
 
 	bool InCasterPass = false;
+	CameraClass *DepthCamera = nullptr;		// set while Render_Depth() draws; Caster_Visible culls to its frustum
 	bool IsActive = false;
 	Vector3 ToLight(0, 0, 1);
 	Frame This = { false, 0, 0.0f, "not drawn yet" };
@@ -296,6 +297,8 @@ bool ShadowMap::Is_Sun(float x, float y, float z)
 
 bool ShadowMap::Caster_Visible(const Vector3 &center, float radius)
 {
+	if (DepthCamera != nullptr)
+		return !DepthCamera->Cull_Sphere(SphereClass(center, radius));
 	const float x = Vector3::Dot_Product(center, BoxAxisX) - BoxCenterX;
 	const float y = Vector3::Dot_Product(center, BoxAxisY) - BoxCenterY;
 	const float z = Vector3::Dot_Product(center, BoxAxisZ);
@@ -306,7 +309,29 @@ bool ShadowMap::Caster_Visible(const Vector3 &center, float radius)
 
 void ShadowMap::Count_Caster()
 {
-	++This.Casters;
+	if (DepthCamera == nullptr)
+		++This.Casters;
+}
+
+bool ShadowMap::Render_Depth(SceneClass *scene, CameraClass *camera, IDirect3DSurface9 *color, IDirect3DSurface9 *depth)
+{
+	DX9Wrapper::Set_Render_Target(color, depth);
+	if (WW3D::Begin_Render(false, true, Vector3(0, 0, 0)) != WW3D_ERROR_OK)
+	{
+		DX9Wrapper::Set_Render_Target((IDirect3DSurface9 *)nullptr);
+		return false;
+	}
+	DX9Wrapper::Set_DX9_Render_State(D3DRS_COLORWRITEENABLE, 0);
+	InCasterPass = true;
+	DepthCamera = camera;
+	WW3D::Render(scene, camera);
+	DepthCamera = nullptr;
+	InCasterPass = false;
+	DX9Wrapper::Set_DX9_Render_State(D3DRS_COLORWRITEENABLE, 0x0000000f);
+	WW3D::End_Render(false);
+	DX9Wrapper::Set_Render_Target((IDirect3DSurface9 *)nullptr);
+	camera->Apply();
+	return true;
 }
 
 bool ShadowMap::Last_Frame(int *size, const char **format, unsigned *casters, float *box, const char **why_not)

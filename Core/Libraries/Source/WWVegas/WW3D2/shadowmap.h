@@ -30,12 +30,16 @@
 //
 // While the map is active the classic shadows are off: stencil volumes, and the projected and
 // decal object shadows. Art decals (scorch marks, terrain decals) and cloud shadows stay.
+//
+// Render_Depth() runs the same caster pass with the main camera, for a depth texture of the
+// view (ambient occlusion with multisampling, W3DPostProcess).
 
 #pragma once
 
 class SceneClass;
 class CameraClass;
 class Vector3;
+struct IDirect3DSurface9;
 
 class ShadowMap
 {
@@ -58,6 +62,11 @@ public:
 	static bool Caster_Visible(const Vector3 &center, float radius);
 	// In the caster pass: counts a drawn caster for the status.
 	static void Count_Caster();
+
+	// Draws the caster pass (depth only: units, buildings, props, trees, terrain) with camera into
+	// color and depth, culled to the camera. Not the water, bridges or particles. False if the
+	// pass could not begin. Rendering is back on the back buffer afterwards.
+	static bool Render_Depth(SceneClass *scene, CameraClass *camera, IDirect3DSurface9 *color, IDirect3DSurface9 *depth);
 
 	// True when this frame's map is drawn and bound. The classic shadows are skipped then.
 	static bool Active();
