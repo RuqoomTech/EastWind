@@ -784,6 +784,7 @@ static void loadGraphicsOptions()
 	options.Hdr = prefs.getBool("Hdr", options.Hdr);
 	options.SunIntensity = prefs.getReal("SunIntensity", options.SunIntensity);
 	options.SoftParticles = prefs.getBool("SoftParticles", options.SoftParticles);
+	options.HeatHaze = prefs.getReal("HeatHaze", options.HeatHaze);
 	options.LinearLighting = prefs.getBool("LinearLighting", options.LinearLighting);
 	options.DebugKeys = prefs.getBool("DebugKeys", options.DebugKeys);
 	options.Validate();
@@ -841,6 +842,10 @@ static void showGraphicsStatus()
 		TheInGameUI->message(L"Sharpen: %.2f", o.Sharpen);
 	else
 		TheInGameUI->message(L"Sharpen: off in Options.ini");
+	if (o.HeatHaze > 0.0f)
+		TheInGameUI->message(L"Heat haze: %.2f", o.HeatHaze);
+	else
+		TheInGameUI->message(L"Heat haze: off in Options.ini");
 	TheInGameUI->message(L"Water shader: %s   [Ctrl+Shift+F3]", water);
 	TheInGameUI->message(L"Sun shadow maps: %s   [Ctrl+Shift+F2]", shadows);
 	TheInGameUI->message(L"Ambient occlusion: %s   [Ctrl+Shift+F1: on, occlusion only, off]", ao);
@@ -889,6 +894,10 @@ static void showGraphicsStatus()
 		W3DPostProcess::Last_Reason(W3DPostProcess::FXAA));
 	showShaderStatus(L"Sharpen", W3DPostProcess::Last_Frame_Passes(W3DPostProcess::SHARPEN),
 		W3DPostProcess::Last_Reason(W3DPostProcess::SHARPEN));
+	showShaderStatus(L"Heat haze", W3DPostProcess::Last_Frame_Passes(W3DPostProcess::HEAT_HAZE),
+		W3DPostProcess::Last_Reason(W3DPostProcess::HEAT_HAZE));
+	if (o.HeatHaze > 0.0f)
+		TheInGameUI->message(L"Heat sources: %u last frame (fire, explosion and exhaust particles)", W3DPostProcess::Last_Heat_Sources());
 	showShaderStatus(L"Water shader", W3DWaterShader::Last_Frame_Passes(), W3DWaterShader::Last_Reason());
 	{
 		float level = 0;

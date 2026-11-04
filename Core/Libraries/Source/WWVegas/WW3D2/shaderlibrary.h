@@ -130,6 +130,7 @@ public:
 		PS_UNLIT,					// mesh.hlsl, draws with lighting off, as fixed function
 		PS_CASTER,					// mesh.hlsl, shadow caster copies, depth only
 		PS_CASTER_ALPHA,			// mesh.hlsl, alpha-tested shadow caster copies: the alpha only
+		PS_POST_HEAT_BLOB,			// post.hlsl, one heat source as a soft blob in the heat haze mask (HeatHaze)
 		PS_COUNT
 	};
 

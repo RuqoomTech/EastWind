@@ -40,6 +40,7 @@ struct GraphicsOptions
 	bool Hdr;				// Hdr: the post-processing scene texture is 16-bit float, so light adds up above white
 	float SunIntensity;		// SunIntensity: 1 .. 4, scales the sun (directional) light of the lit shaders in the Hdr scene
 	bool SoftParticles;		// SoftParticles: particles fade where they meet the scene (needs the AO depth texture's conditions)
+	float HeatHaze;			// HeatHaze: 0 off .. 1, screen ripple over fire, explosions and exhausts, in the final post pass
 	bool LinearLighting;	// LinearLighting: the shaders add light up in linear space (shader_linear.h)
 	bool DebugKeys;			// DebugKeys: Ctrl+Shift+F1..F12 switch the features above while the game runs
 
@@ -79,6 +80,7 @@ struct GraphicsOptions
 		, Hdr(false)
 		, SunIntensity(1.0f)
 		, SoftParticles(false)
+		, HeatHaze(0.0f)
 		, LinearLighting(false)
 		, DebugKeys(false)
 		, DebugAllOff(false)
@@ -109,7 +111,7 @@ struct GraphicsOptions
 	bool TerrainShader() const { return PerPixelLighting && !DebugAllOff && (!DebugTerrainLightingOff || DebugTerrainLightOnly); }
 	bool TerrainPixelLight() const { return !DebugTerrainLightingOff; }
 	// Post-processing (M3.2) runs when any post effect is on.
-	bool PostProcessWanted() const { return Bloom || ToneMapping || ColorGrading || FXAA || Sharpen > 0.0f || AmbientOcclusion > 0 || SoftParticles; }
+	bool PostProcessWanted() const { return Bloom || ToneMapping || ColorGrading || FXAA || Sharpen > 0.0f || AmbientOcclusion > 0 || SoftParticles || HeatHaze > 0.0f; }
 	bool PostProcess() const { return PostProcessWanted() && !DebugAllOff && !DebugPostOff; }
 	bool PostToneMapping() const { return ToneMapping && !DebugToneMappingOff; }
 	bool PostColorGrading() const { return ColorGrading && !DebugColorGradingOff; }
@@ -136,6 +138,8 @@ struct GraphicsOptions
 		if (AmbientOcclusion > 2) AmbientOcclusion = 2;
 		if (!(Sharpen > 0.0f)) Sharpen = 0.0f;	// also NaN
 		if (Sharpen > 1.0f) Sharpen = 1.0f;
+		if (!(HeatHaze > 0.0f)) HeatHaze = 0.0f;	// also NaN
+		if (HeatHaze > 1.0f) HeatHaze = 1.0f;
 		if (!(SunIntensity >= 1.0f)) SunIntensity = 1.0f;	// also NaN
 		if (SunIntensity > 4.0f) SunIntensity = 4.0f;
 		if (ShadowMapSize != 0 && ShadowMapSize != 1024 && ShadowMapSize != 2048 && ShadowMapSize != 4096)

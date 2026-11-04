@@ -16,7 +16,7 @@
 */
 
 // EastWind DX9: post-processing (M3.2, Options.ini Bloom, ToneMapping, ColorGrading, FXAA;
-// M3.5 AmbientOcclusion; Hdr).
+// M3.5 AmbientOcclusion; Hdr; HeatHaze).
 //
 // W3DView::draw calls Begin_Scene() before the 3D scene and End_Scene() after it (and after the
 // view filters). In between, the 3D scene draws into a scene texture the size and format of the
@@ -77,8 +77,13 @@
 // depth into an R32F texture, since the bound depth buffer cannot be read at the same time, and
 // binds that for MeshShader's particle shaders; End_Particles() unbinds it after them.
 //
+// Heat haze (HeatHaze): while the particles draw, W3DParticleSystemManager hands in each warm
+// additive particle (fire, explosions, exhaust flames) with Add_Heat_Source(). End_Scene() draws
+// them as soft blobs into a 1/4 size mask, and the final pass moves its scene uv by rising waves
+// scaled by the mask. The uv stays inside the view rectangle, and the UI draws after it.
+//
 // Code that copies the screen during the 3D scene must read the current render target, not the
-// back buffer: the DX9 copies of W3DShaderManager (view filters) and W3DSmudgeManager (heat haze)
+// back buffer: the DX9 copies of W3DShaderManager (view filters) and W3DSmudgeManager (heat smudges)
 // do.
 
 #pragma once
@@ -101,6 +106,7 @@ public:
 		SHARPEN,
 		HDR,
 		SOFT_PARTICLES,
+		HEAT_HAZE,
 		EFFECT_COUNT
 	};
 
@@ -126,6 +132,11 @@ public:
 	static void Begin_Particles(const CameraClass *camera);
 	static void End_Particles();
 
+	// Heat haze: whether the particles should hand in heat sources this frame, and one source
+	// (world position, radius and strength 0..1). Sources past the frame's limit are dropped.
+	static bool Heat_Haze_Wanted();
+	static void Add_Heat_Source(float x, float y, float z, float radius, float strength);
+
 	// Frees the scene texture and surfaces. Called from W3DShaderManager::shutdown, which also runs
 	// before a device reset; Begin_Scene() creates them again when needed.
 	static void Release();
@@ -136,4 +147,5 @@ public:
 	static const char *Last_Reason(Effect effect);		// why the effect did not run, if it did not
 	static bool Last_Ao_From_Depth_Pass();				// the last frame's AO read Draw_Depth_Pass(), not the scene's depth
 	static const char *Color_Lut_File();				// the colour LUT file in use, or nullptr for the neutral one
+	static unsigned Last_Heat_Sources();				// heat sources handed in during the last frame
 };

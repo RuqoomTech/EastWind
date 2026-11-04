@@ -24,7 +24,12 @@
 // The AO texture holds the occlusion in R and the view depth in G. The final pass scales it
 // up to the scene size by the four nearest AO texels whose depth matches the pixel's.
 //
+// Heat haze (HeatHaze): PostHeatBlobPS adds each heat source (fire, explosion and exhaust
+// particles) as a soft round blob into a 1/4 size mask. The final pass first moves its uv by two
+// rising waves on each axis, scaled by the mask, so everything after it reads the rippled scene.
+//
 // PostFinalPS draws the scene onto the back buffer with what is on, in this order:
+//   heat haze      moves the uv over heat sources (HeatHaze)
 //   ambient occlusion  darkens the scene, bright colours less (multi-bounce) (M3.5, AmbientOcclusion)
 //   bloom          the three blurred sizes, screen-blended over the scene (M3.2b, Bloom)
 //   tone mapping   a filmic curve (M3.2c, ToneMapping)
@@ -52,6 +57,8 @@ float4 Final        : SHADER_REG(POST_PS_FINAL);
 float4 Tone         : SHADER_REG(POST_PS_TONE);
 float4 Clamp        : SHADER_REG(POST_PS_CLAMP);
 float4 Sharpen      : SHADER_REG(POST_PS_SHARPEN);
+float4 Heat         : SHADER_REG(POST_PS_HEAT);
+float4 HeatWave     : SHADER_REG(POST_PS_HEAT_WAVE);
 
 sampler2D Scene   : register(s0);
 sampler2D Bloom4  : register(s1);
@@ -67,6 +74,7 @@ float4 AoFinal     : SHADER_REG(POST_PS_AO_FINAL);
 
 sampler2D AoMap      : register(s5);	// POST_AO_SAMPLER
 sampler2D SceneDepth : register(s6);	// POST_DEPTH_SAMPLER
+sampler2D HeatMask   : register(s7);	// POST_HEAT_SAMPLER
 
 struct PostVsIn
 {
@@ -78,6 +86,7 @@ struct PostVsOut
 {
 	float4 position : POSITION;
 	float2 uv       : TEXCOORD0;
+	float  value    : TEXCOORD1;	// position z: the heat blobs' strength, 0 for the quads
 };
 
 PostVsOut PostVS(PostVsIn i)
@@ -85,6 +94,7 @@ PostVsOut PostVS(PostVsIn i)
 	PostVsOut o;
 	o.position = float4(i.position.xy, 0.0, 1.0);
 	o.uv = i.uv;
+	o.value = i.position.z;
 	return o;
 }
 
@@ -310,9 +320,33 @@ float Ao_At(float2 uv)
 	return pow(saturate(ao), AoFinal.z);
 }
 
+// One heat blob: uv runs -1..1 across it, strength in value. Smooth to zero at the rim.
+float4 PostHeatBlobPS(float2 uv : TEXCOORD0, float value : TEXCOORD1) : COLOR0
+{
+	float k = saturate(1.0 - dot(uv, uv));
+	return (value * k * k).xxxx;
+}
+
+// The scene uv moved by the heat haze. The waves run up the screen (their phase grows with time
+// as v falls) and sway a little across; the mask fades them out away from the sources.
+float2 Heat_Uv(float2 uv)
+{
+	float mask = saturate(tex2Dlod(HeatMask, float4(uv, 0.0, 0.0)).r);
+	[branch] if (mask <= 0.002)
+		return uv;
+	float2 p = uv * HeatWave.xy;
+	float t = Heat.z;
+	float2 wave;
+	wave.x = sin(p.y + 0.35 * p.x + t * 6.0) + 0.5 * sin(2.3 * p.y - 0.8 * p.x + t * 9.0);
+	wave.y = sin(1.3 * p.y + 0.6 * p.x + t * 7.0) + 0.5 * sin(0.5 * p.y + 2.1 * p.x + t * 10.0);
+	return clamp(uv + wave * (Heat.xy * (mask / 1.5)), Clamp.xy, Clamp.zw);
+}
+
 float4 PostFinalPS(float2 uv : TEXCOORD0) : COLOR0
 {
-	float4 scene = tex2D(Scene, uv);
+	[branch] if (Heat.x > 0.0)
+		uv = Heat_Uv(uv);
+	float4 scene = tex2Dlod(Scene, float4(uv, 0.0, 0.0));
 	float3 c = scene.rgb;
 
 	[branch] if (Final.w > 0.5)

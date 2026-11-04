@@ -35,6 +35,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <vector>
+#include <mmsystem.h>
 
 // The render target is set on the device directly, not with DX9Wrapper::Set_Render_Target: the
 // water reflection and the projected shadows switch targets with the wrapper, which saves the
@@ -79,6 +80,12 @@ namespace
 	const float AO_POWER = 1.3f;			// contrast of the final occlusion
 	const D3DFORMAT FORMAT_INTZ = (D3DFORMAT)MAKEFOURCC('I', 'N', 'T', 'Z');
 
+	// Heat haze, until it moves to INI data.
+	const unsigned HEAT_MAX_SOURCES = 512;	// a frame's sources past this are dropped
+	const float HEAT_BLOB_STRENGTH = 0.35f;	// mask value one source adds at its centre; a fire's many particles add up
+	const float HEAT_OFFSET = 0.004f;		// largest uv offset at HeatHaze 1, as a part of the view height
+	const float HEAT_WAVES = 30.0f;			// ripples over the view height
+
 	enum Reason
 	{
 		REASON_OFF,
@@ -109,6 +116,8 @@ namespace
 		REASON_SOFT_MSAA,
 		REASON_SOFT_NO_R32F,
 		REASON_SOFT_CREATE_FAILED,
+		REASON_HEAT_NO_SOURCES,
+		REASON_HEAT_CREATE_FAILED,
 		REASON_COUNT
 	};
 
@@ -142,6 +151,8 @@ namespace
 		"needs AntiAliasing = 0 in Options.ini (a multisampled depth buffer cannot be read)",
 		"the card cannot draw into R32F textures",
 		"the soft particle depth texture could not be created (HRESULT)",
+		"no fire, explosion or exhaust particle in view",
+		"the heat haze mask texture could not be created (HRESULT)",
 	};
 	static_assert(sizeof(ReasonText) / sizeof(ReasonText[0]) == REASON_COUNT, "ReasonText must match Reason");
 
@@ -221,6 +232,22 @@ namespace
 	IDirect3DSurface9 *ParticleDepthSurface = nullptr;
 	Reason ParticleDepthFailed = REASON_COUNT;	// why it cannot be made; not tried again until Release()
 	bool ParticleDepthBound = false;
+
+	// Heat haze: this frame's sources in world space, and the 1/4 size mask End_Scene() draws them into.
+	struct HeatSource
+	{
+		float X, Y, Z;
+		float Radius;
+		float Strength;
+	};
+	HeatSource HeatSources[HEAT_MAX_SOURCES];
+	unsigned HeatCount = 0;
+	unsigned LastHeatCount = 0;
+	IDirect3DTexture9 *HeatTexture = nullptr;
+	IDirect3DSurface9 *HeatSurface = nullptr;
+	int HeatWidth = 0;
+	int HeatHeight = 0;
+	bool HeatFailed = false;
 	// Set between Begin_Scene and End_Scene.
 	IDirect3DSurface9 *BackBuffer = nullptr;
 	IDirect3DSurface9 *DepthBuffer = nullptr;
@@ -230,7 +257,7 @@ namespace
 		if (!Logged[reason] && reason != REASON_OFF && reason != REASON_DEBUG_OFF && reason != REASON_EFFECT_OFF
 			&& reason != REASON_TONE_DEBUG_OFF && reason != REASON_GRADE_DEBUG_OFF && reason != REASON_FXAA_DEBUG_OFF
 			&& reason != REASON_AO_DEBUG_OFF && reason != REASON_HDR_DEBUG_OFF
-			&& reason != REASON_SOFT_DEBUG_OFF && reason != REASON_SOFT_MSAA)
+			&& reason != REASON_SOFT_DEBUG_OFF && reason != REASON_SOFT_MSAA && reason != REASON_HEAT_NO_SOURCES)
 		{
 			Logged[reason] = true;
 			WWDEBUG_SAY(("W3DPostProcess: %s, value 0x%x (logged once)", ReasonText[reason], value));
@@ -305,6 +332,9 @@ namespace
 		Release_Com(FinalSurface);
 		Release_Com(FinalTexture);
 		FinalFailed = false;
+		Release_Com(HeatSurface);
+		Release_Com(HeatTexture);
+		HeatFailed = false;
 		Release_Bloom();
 	}
 
@@ -471,6 +501,32 @@ namespace
 			FinalFailed = true;
 			return false;
 		}
+		return true;
+	}
+
+	// Creates the heat haze mask, 1/4 of the scene texture size, once.
+	bool Heat_Ready(IDirect3DDevice9 *device)
+	{
+		if (HeatTexture != nullptr)
+			return true;
+		const int w = ((int)TargetDesc.Width + 3) / 4;
+		const int h = ((int)TargetDesc.Height + 3) / 4;
+		HRESULT hr = HeatFailed ? E_FAIL : device->CreateTexture(w, h, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8,
+			D3DPOOL_DEFAULT, &HeatTexture, nullptr);
+		if (SUCCEEDED(hr))
+			hr = HeatTexture->GetSurfaceLevel(0, &HeatSurface);
+		if (FAILED(hr))
+		{
+			Release_Com(HeatSurface);
+			Release_Com(HeatTexture);
+			if (!HeatFailed)
+				Log_Once(REASON_HEAT_CREATE_FAILED, hr);
+			HeatFailed = true;
+			Set_Reason(W3DPostProcess::HEAT_HAZE, REASON_HEAT_CREATE_FAILED);
+			return false;
+		}
+		HeatWidth = w;
+		HeatHeight = h;
 		return true;
 	}
 
@@ -654,6 +710,72 @@ namespace
 		float u, v;
 	};
 	const DWORD POST_FVF = D3DFVF_XYZ | D3DFVF_TEX1;
+
+	// The heat blobs, two triangles each. PostVS hands z (the strength) to the blob shader.
+	PostVertex HeatVertices[HEAT_MAX_SOURCES * 6];
+
+	// Projects this frame's heat sources with camera into HeatVertices, in the camera's clip
+	// space (the view rectangle). Returns how many are in view.
+	unsigned Build_Heat_Blobs(const CameraClass *camera)
+	{
+		unsigned blobs = 0;
+		for (unsigned i = 0; i < HeatCount; ++i)
+		{
+			const HeatSource &s = HeatSources[i];
+			Vector3 view;
+			Vector3 centre;
+			Vector3 edge;
+			camera->Transform_To_View_Space(view, Vector3(s.X, s.Y, s.Z));
+			if (camera->Project_Camera_Space_Point(centre, view) == CameraClass::OUTSIDE_NEAR_CLIP)
+				continue;
+			camera->Project_Camera_Space_Point(edge, view + Vector3(s.Radius, s.Radius, 0.0f));
+			const float rx = fabsf(edge.X - centre.X);
+			const float ry = fabsf(edge.Y - centre.Y);
+			if (centre.Z > 1.0f || centre.X - rx > 1.0f || centre.X + rx < -1.0f || centre.Y - ry > 1.0f || centre.Y + ry < -1.0f)
+				continue;
+			const float z = s.Strength * HEAT_BLOB_STRENGTH;
+			const PostVertex a = { centre.X - rx, centre.Y + ry, z, -1.0f, -1.0f };
+			const PostVertex b = { centre.X + rx, centre.Y + ry, z,  1.0f, -1.0f };
+			const PostVertex c = { centre.X - rx, centre.Y - ry, z, -1.0f,  1.0f };
+			const PostVertex d = { centre.X + rx, centre.Y - ry, z,  1.0f,  1.0f };
+			PostVertex *v = &HeatVertices[blobs * 6];
+			v[0] = a; v[1] = b; v[2] = c;
+			v[3] = c; v[4] = b; v[5] = d;
+			++blobs;
+		}
+		return blobs;
+	}
+
+	// Draws the blobs into the view rectangle (u0..v1) of the heat mask, added up. Ends with the
+	// back buffer and its depth buffer bound again.
+	void Draw_Heat_Mask(IDirect3DDevice9 *device, unsigned blobs, float u0, float v0, float u1, float v1)
+	{
+		// The mask has no multisampling, so no (possibly multisampled) depth buffer may be bound.
+		device->SetDepthStencilSurface(nullptr);
+		device->SetRenderTarget(0, HeatSurface);
+		device->Clear(0, nullptr, D3DCLEAR_TARGET, 0, 1.0f, 0);
+		const int x0 = (int)(u0 * HeatWidth + 0.5f);
+		const int y0 = (int)(v0 * HeatHeight + 0.5f);
+		const int x1 = (int)(u1 * HeatWidth + 0.5f);
+		const int y1 = (int)(v1 * HeatHeight + 0.5f);
+		if (x1 > x0 && y1 > y0)
+		{
+			D3DVIEWPORT9 viewport = { (DWORD)x0, (DWORD)y0, (DWORD)(x1 - x0), (DWORD)(y1 - y0), 0.0f, 1.0f };
+			device->SetViewport(&viewport);
+			device->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
+			device->SetRenderState(D3DRS_SEPARATEALPHABLENDENABLE, FALSE);
+			device->SetRenderState(D3DRS_BLENDOP, D3DBLENDOP_ADD);
+			device->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_ONE);
+			device->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_ONE);
+			device->SetPixelShader(ShaderLibrary::Peek_Pixel(ShaderLibrary::PS_POST_HEAT_BLOB));
+			device->DrawPrimitiveUP(D3DPT_TRIANGLELIST, blobs * 2, HeatVertices, sizeof(PostVertex));
+			DX9Wrapper::Increment_DX9_CallCount();
+			device->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
+		}
+		++Stats[W3DPostProcess::HEAT_HAZE].Passes;
+		device->SetRenderTarget(0, BackBuffer);
+		device->SetDepthStencilSurface(DepthBuffer);
+	}
 
 	// Draws a quad over the viewport (x, y, width, height) of the current target with the uv
 	// rectangle u0,v0 - u1,v1. D3D9 puts pixel centres on whole coordinates, half a pixel off the
@@ -1086,7 +1208,26 @@ void W3DPostProcess::End_Scene(int x, int y, int width, int height, const Camera
 	}
 	if (ao)
 		ao = Ao_Ready(device, o.AmbientOcclusion >= 2 ? 1 : 2);
-	const bool final_effects = bloom || tone || grade || ao;
+	bool haze = Effect_On(HEAT_HAZE, o.HeatHaze > 0.0f, false, REASON_EFFECT_OFF, ShaderLibrary::PS_POST_FINAL);
+	if (haze && ShaderLibrary::Peek_Pixel(ShaderLibrary::PS_POST_HEAT_BLOB) == nullptr)
+	{
+		Set_Reason(HEAT_HAZE, REASON_NO_SHADER);
+		haze = false;
+	}
+	if (haze && camera == nullptr)
+	{
+		Set_Reason(HEAT_HAZE, REASON_AO_NO_CAMERA);
+		haze = false;
+	}
+	const unsigned heat_blobs = haze ? Build_Heat_Blobs(camera) : 0;
+	if (haze && heat_blobs == 0)
+	{
+		Set_Reason(HEAT_HAZE, REASON_HEAT_NO_SOURCES);
+		haze = false;
+	}
+	if (haze)
+		haze = Heat_Ready(device);
+	const bool final_effects = bloom || tone || grade || ao || haze;
 	bool fxaa = Effect_On(FXAA, o.FXAA, o.DebugFxaaOff, REASON_FXAA_DEBUG_OFF, ShaderLibrary::PS_POST_FXAA);
 	bool sharpen = Effect_On(SHARPEN, o.Sharpen > 0.0f, false, REASON_EFFECT_OFF, ShaderLibrary::PS_POST_FXAA);
 	if ((fxaa || sharpen) && final_effects && !Final_Ready(device))
@@ -1115,6 +1256,8 @@ void W3DPostProcess::End_Scene(int x, int y, int width, int height, const Camera
 		Draw_Bloom(device);
 		GpuTimer::Mark(GpuTimer::BLOOM);
 	}
+	if (haze)
+		Draw_Heat_Mask(device, heat_blobs, u0, v0, u1, v1);
 
 	// The final pass, onto the back buffer over the view rectangle, or into the same rectangle of
 	// FinalTexture when FXAA follows. The scene is read with point filtering, so each pixel gets
@@ -1127,7 +1270,8 @@ void W3DPostProcess::End_Scene(int x, int y, int width, int height, const Camera
 		device->SetDepthStencilSurface(nullptr);
 		fxaa_source = FinalTexture;
 	}
-	Set_Texture(device, 0, SceneTexture, false);
+	// The haze moves the uv by parts of a texel, which point filtering would show as steps.
+	Set_Texture(device, 0, SceneTexture, haze);
 	if (final_effects)
 	{
 		if (bloom)
@@ -1149,6 +1293,22 @@ void W3DPostProcess::End_Scene(int x, int y, int width, int height, const Camera
 		const float tone_params[4] = { exposure, 1.0f / Filmic_Curve(exposure * white), exposure * white, 0.0f };
 		device->SetPixelShaderConstantF(POST_PS_FINAL, final_flags, 1);
 		device->SetPixelShaderConstantF(POST_PS_TONE, tone_params, 1);
+		// Heat haze: offsets and waves are sized by the view height, so they look the same at every
+		// resolution. The moved uv stays half a texel inside the view rectangle.
+		const float view_h = (float)height;
+		// The waves turn a whole number of radians a second, so wrapping at 200 pi seconds does not jump.
+		const float seconds = (float)fmod(timeGetTime() * 0.001, 200.0 * 3.14159265358979);
+		const float heat[4] = { haze ? o.HeatHaze * HEAT_OFFSET * view_h / tw : 0.0f,
+			haze ? o.HeatHaze * HEAT_OFFSET * view_h / th : 0.0f, seconds, 0.0f };
+		const float heat_wave[4] = { 6.2831853f * HEAT_WAVES * tw / view_h, 6.2831853f * HEAT_WAVES * th / view_h, 0.0f, 0.0f };
+		device->SetPixelShaderConstantF(POST_PS_HEAT, heat, 1);
+		device->SetPixelShaderConstantF(POST_PS_HEAT_WAVE, heat_wave, 1);
+		if (haze)
+		{
+			const float view_clamp[4] = { u0 + 0.5f / tw, v0 + 0.5f / th, u1 - 0.5f / tw, v1 - 0.5f / th };
+			device->SetPixelShaderConstantF(POST_PS_CLAMP, view_clamp, 1);
+			Set_Texture(device, POST_HEAT_SAMPLER, HeatTexture, true);
+		}
 		device->SetPixelShader(ShaderLibrary::Peek_Pixel(ShaderLibrary::PS_POST_FINAL));
 		Draw_Quad(device, x, y, width, height, u0, v0, u1, v1);
 	}
@@ -1168,6 +1328,8 @@ void W3DPostProcess::End_Scene(int x, int y, int width, int height, const Camera
 		++Stats[TONE_MAPPING].Passes;
 	if (grade)
 		++Stats[COLOR_GRADING].Passes;
+	if (haze)
+		++Stats[HEAT_HAZE].Passes;
 	if (ao)
 	{
 		++Stats[AMBIENT_OCCLUSION].Passes;
@@ -1292,6 +1454,25 @@ void W3DPostProcess::End_Particles()
 		device->SetTexture(PARTICLE_DEPTH_SAMPLER, nullptr);
 }
 
+bool W3DPostProcess::Heat_Haze_Wanted()
+{
+	// Only while the scene draws into the scene texture, so the sources have a pass to end in.
+	const GraphicsOptions &o = Get_Graphics_Options();
+	return BackBuffer != nullptr && o.HeatHaze > 0.0f && o.PostProcess();
+}
+
+void W3DPostProcess::Add_Heat_Source(float x, float y, float z, float radius, float strength)
+{
+	if (HeatCount >= HEAT_MAX_SOURCES || !(radius > 0.0f) || !(strength > 0.0f))
+		return;
+	HeatSource &s = HeatSources[HeatCount++];
+	s.X = x;
+	s.Y = y;
+	s.Z = z;
+	s.Radius = radius;
+	s.Strength = strength < 1.0f ? strength : 1.0f;
+}
+
 void W3DPostProcess::Release()
 {
 	if (ParticleDepthBound)
@@ -1330,6 +1511,8 @@ void W3DPostProcess::New_Frame()
 	}
 	LastAoDepthPass = AoDepthPass;
 	AoDepthPass = false;
+	LastHeatCount = HeatCount;
+	HeatCount = 0;
 }
 
 unsigned W3DPostProcess::Last_Frame_Passes(Effect effect)
@@ -1345,6 +1528,11 @@ const char *W3DPostProcess::Last_Reason(Effect effect)
 bool W3DPostProcess::Last_Ao_From_Depth_Pass()
 {
 	return LastAoDepthPass;
+}
+
+unsigned W3DPostProcess::Last_Heat_Sources()
+{
+	return LastHeatCount;
 }
 
 const char *W3DPostProcess::Color_Lut_File()

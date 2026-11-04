@@ -31,6 +31,7 @@
 #include "W3DDevice/GameClient/W3DParticleSys.h"
 #include "W3DDevice/GameClient/W3DAssetManager.h"
 #include "W3DDevice/GameClient/W3DDisplay.h"
+#include "W3DDevice/GameClient/W3DPostProcess.h"
 #include "W3DDevice/GameClient/HeightMap.h"
 #include "W3DDevice/GameClient/W3DSmudge.h"
 #include "W3DDevice/GameClient/W3DSnow.h"
@@ -154,6 +155,9 @@ void W3DParticleSystemManager::doParticles(RenderInfoClass &rinfo)
 		TheSmudgeManager->resetDraw();
 	}
 
+	// EastWind: heat haze sources (W3DPostProcess), only when the haze can draw.
+	const Bool heatHaze = W3DPostProcess::Heat_Haze_Wanted();
+
 	// Number of particles/points being rendered.
 	UnsignedInt pointCount = 0;
 
@@ -234,6 +238,11 @@ void W3DParticleSystemManager::doParticles(RenderInfoClass &rinfo)
 
 		UnsignedInt startCount = pointCount;
 
+		// Fire, explosions and exhaust flames are additive; blue and white glows (lasers, EMP,
+		// sparks) are not hot, so only particles redder than they are blue count. Additive
+		// particles fade by colour, and their alpha is often 0, so the red sets the strength.
+		const Bool heatSystem = heatHaze && sys->getShaderType() == ParticleSystemInfo::ADDITIVE;
+
 		// build W3D particle buffer
 		Vector3 *posArray = m_posBuffer->Get_Array();
 		Real *sizeArray = m_sizeBuffer->Get_Array();
@@ -270,6 +279,9 @@ void W3DParticleSystemManager::doParticles(RenderInfoClass &rinfo)
 			RGBAArray[pointCount].Y = color->green;
 			RGBAArray[pointCount].Z = color->blue;
 			RGBAArray[pointCount].W = p->getAlpha();
+
+			if (heatSystem && color->red > color->blue)
+				W3DPostProcess::Add_Heat_Source(pos->x, pos->y, pos->z, psize, color->red);
 
 			angleArray[pointCount] = (uint8)(p->getAngle() * 255.0f / (2.0f * PI));
 
