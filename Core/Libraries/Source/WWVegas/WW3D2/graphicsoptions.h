@@ -35,6 +35,7 @@ struct GraphicsOptions
 	bool ToneMapping;		// ToneMapping (M3.2)
 	bool ColorGrading;		// ColorGrading (M3.2)
 	bool FXAA;				// FXAA (M3.2)
+	bool TAA;				// TAA: temporal anti-aliasing from the scene depth; skips FXAA's edge blend
 	float Sharpen;			// Sharpen: contrast-adaptive sharpening strength, 0 off .. 1, in the FXAA pass
 	int AmbientOcclusion;	// AmbientOcclusion: 0 off, 1 at half resolution, 2 at full resolution (M3.5)
 	bool Hdr;				// Hdr: the post-processing scene texture is 16-bit float, so light adds up above white
@@ -75,6 +76,7 @@ struct GraphicsOptions
 		, ToneMapping(false)
 		, ColorGrading(false)
 		, FXAA(false)
+		, TAA(false)
 		, Sharpen(0.0f)
 		, AmbientOcclusion(0)
 		, Hdr(false)
@@ -111,7 +113,7 @@ struct GraphicsOptions
 	bool TerrainShader() const { return PerPixelLighting && !DebugAllOff && (!DebugTerrainLightingOff || DebugTerrainLightOnly); }
 	bool TerrainPixelLight() const { return !DebugTerrainLightingOff; }
 	// Post-processing (M3.2) runs when any post effect is on.
-	bool PostProcessWanted() const { return Bloom || ToneMapping || ColorGrading || FXAA || Sharpen > 0.0f || AmbientOcclusion > 0 || SoftParticles || HeatHaze > 0.0f; }
+	bool PostProcessWanted() const { return Bloom || ToneMapping || ColorGrading || FXAA || TAA || Sharpen > 0.0f || AmbientOcclusion > 0 || SoftParticles || HeatHaze > 0.0f; }
 	bool PostProcess() const { return PostProcessWanted() && !DebugAllOff && !DebugPostOff; }
 	bool PostToneMapping() const { return ToneMapping && !DebugToneMappingOff; }
 	bool PostColorGrading() const { return ColorGrading && !DebugColorGradingOff; }

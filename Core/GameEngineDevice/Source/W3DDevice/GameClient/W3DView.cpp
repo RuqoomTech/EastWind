@@ -1843,7 +1843,7 @@ void W3DView::draw()
 	Bool preRenderResult = false;
 
 	// EastWind: with a post effect on, the 3D scene draws into a scene texture (M3.2).
-	const Bool postScene = W3DPostProcess::Begin_Scene(TheWaterTransparency->m_minWaterOpacity);
+	const Bool postScene = W3DPostProcess::Begin_Scene(TheWaterTransparency->m_minWaterOpacity, m_3DCamera);
 
 	if (m_viewFilterMode &&
 			m_viewFilter > FT_NULL_FILTER &&

@@ -80,6 +80,7 @@ set(HLSL_SHADERS
     post_ao_blur_ps         post.hlsl        PostAoBlurPS         ps_3_0
     post_depth_copy_ps      post.hlsl        PostDepthCopyPS      ps_3_0
     post_heat_blob_ps       post.hlsl        PostHeatBlobPS       ps_3_0
+    post_taa_ps             post.hlsl        PostTaaPS            ps_3_0
     particle_vs             mesh.hlsl        ParticleVS           vs_3_0
     particle_ps             mesh.hlsl        ParticlePS           ps_3_0
     mesh_t0_vs              mesh.hlsl        MeshVS_T0            vs_3_0

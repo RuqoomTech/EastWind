@@ -86,6 +86,13 @@ namespace
 	const float HEAT_OFFSET = 0.004f;		// largest uv offset at HeatHaze 1, as a part of the view height
 	const float HEAT_WAVES = 30.0f;			// ripples over the view height
 
+	// TAA, until it moves to INI data.
+	const float TAA_FRAME_WEIGHT = 0.1f;	// how much this frame counts against the history
+	// A camera cut: the camera moved further than this in a frame (world units), or turned more
+	// than this (cosine of the angle). The history then starts again.
+	const float TAA_CUT_DISTANCE = 150.0f;
+	const float TAA_CUT_COS = 0.985f;
+
 	enum Reason
 	{
 		REASON_OFF,
@@ -118,6 +125,8 @@ namespace
 		REASON_SOFT_CREATE_FAILED,
 		REASON_HEAT_NO_SOURCES,
 		REASON_HEAT_CREATE_FAILED,
+		REASON_FXAA_TAA,
+		REASON_TAA_CREATE_FAILED,
 		REASON_COUNT
 	};
 
@@ -153,6 +162,8 @@ namespace
 		"the soft particle depth texture could not be created (HRESULT)",
 		"no fire, explosion or exhaust particle in view",
 		"the heat haze mask texture could not be created (HRESULT)",
+		"skipped, TAA is on and does the anti-aliasing",
+		"the TAA history textures could not be created (HRESULT)",
 	};
 	static_assert(sizeof(ReasonText) / sizeof(ReasonText[0]) == REASON_COUNT, "ReasonText must match Reason");
 
@@ -248,6 +259,29 @@ namespace
 	int HeatWidth = 0;
 	int HeatHeight = 0;
 	bool HeatFailed = false;
+
+	// TAA: two history textures the size of the scene texture, which take turns: the TAA pass reads
+	// the last frame's result from one and writes this frame's into the other. TaaDepthTexture
+	// holds the last frame's view depth (R32F).
+	IDirect3DTexture9 *History[2] = { nullptr, nullptr };
+	IDirect3DSurface9 *HistorySurface[2] = { nullptr, nullptr };
+	int HistoryIndex = 0;						// the one this frame writes
+	IDirect3DTexture9 *TaaDepthTexture = nullptr;
+	IDirect3DSurface9 *TaaDepthSurface = nullptr;
+	Reason TaaFailed = REASON_COUNT;			// why the textures cannot be made; not tried again until Release()
+	bool HistoryValid = false;					// History[1 - HistoryIndex] holds a frame of this view
+	unsigned FrameCount = 0;					// New_Frame() counts
+	unsigned HistoryFrame = 0;					// FrameCount when the history was written
+	float TaaJitter[2] = { 0.0f, 0.0f };		// this frame's offset in pixels
+	CameraClass *TaaCamera = nullptr;			// jittered between Begin_Scene and End_Scene
+	// The last frame's camera: its inverse transform, position, forward direction and uv -> view
+	// plane mapping (as AoRay, without the jitter).
+	Matrix3D PrevInverse(true);
+	Vector3 PrevPosition(0.0f, 0.0f, 0.0f);
+	Vector3 PrevForward(0.0f, 0.0f, 1.0f);
+	float PrevRay[4] = { 1.0f, 1.0f, 0.0f, 0.0f };
+	unsigned TaaResets = 0;
+
 	// Set between Begin_Scene and End_Scene.
 	IDirect3DSurface9 *BackBuffer = nullptr;
 	IDirect3DSurface9 *DepthBuffer = nullptr;
@@ -257,7 +291,8 @@ namespace
 		if (!Logged[reason] && reason != REASON_OFF && reason != REASON_DEBUG_OFF && reason != REASON_EFFECT_OFF
 			&& reason != REASON_TONE_DEBUG_OFF && reason != REASON_GRADE_DEBUG_OFF && reason != REASON_FXAA_DEBUG_OFF
 			&& reason != REASON_AO_DEBUG_OFF && reason != REASON_HDR_DEBUG_OFF
-			&& reason != REASON_SOFT_DEBUG_OFF && reason != REASON_SOFT_MSAA && reason != REASON_HEAT_NO_SOURCES)
+			&& reason != REASON_SOFT_DEBUG_OFF && reason != REASON_SOFT_MSAA && reason != REASON_HEAT_NO_SOURCES
+			&& reason != REASON_FXAA_TAA)
 		{
 			Logged[reason] = true;
 			WWDEBUG_SAY(("W3DPostProcess: %s, value 0x%x (logged once)", ReasonText[reason], value));
@@ -335,6 +370,15 @@ namespace
 		Release_Com(HeatSurface);
 		Release_Com(HeatTexture);
 		HeatFailed = false;
+		for (int i = 0; i < 2; ++i)
+		{
+			Release_Com(HistorySurface[i]);
+			Release_Com(History[i]);
+		}
+		Release_Com(TaaDepthSurface);
+		Release_Com(TaaDepthTexture);
+		TaaFailed = REASON_COUNT;
+		HistoryValid = false;
 		Release_Bloom();
 	}
 
@@ -527,6 +571,62 @@ namespace
 		}
 		HeatWidth = w;
 		HeatHeight = h;
+		return true;
+	}
+
+	// Creates the TAA history and last-depth textures for the current scene texture, once, and the
+	// final pass's texture, which TAA reads when the final pass has effects.
+	bool Taa_Ready(IDirect3DDevice9 *device)
+	{
+		if (History[0] == nullptr && TaaFailed == REASON_COUNT)
+		{
+			HRESULT hr = E_FAIL;
+			if (!ShaderLibrary::Format_Supported(device, D3DUSAGE_RENDERTARGET, D3DRTYPE_TEXTURE, D3DFMT_R32F))
+				TaaFailed = REASON_SOFT_NO_R32F;
+			else
+			{
+				// 16-bit float keeps the small steps of the blend, which 8 bits would round away.
+				const D3DFORMAT format = ShaderLibrary::Format_Supported(device, D3DUSAGE_RENDERTARGET | D3DUSAGE_QUERY_FILTER,
+					D3DRTYPE_TEXTURE, FORMAT_HDR) ? FORMAT_HDR : TargetDesc.Format;
+				hr = S_OK;
+				for (int i = 0; i < 2 && SUCCEEDED(hr); ++i)
+				{
+					hr = device->CreateTexture(TargetDesc.Width, TargetDesc.Height, 1, D3DUSAGE_RENDERTARGET, format,
+						D3DPOOL_DEFAULT, &History[i], nullptr);
+					if (SUCCEEDED(hr))
+						hr = History[i]->GetSurfaceLevel(0, &HistorySurface[i]);
+				}
+				if (SUCCEEDED(hr))
+					hr = device->CreateTexture(TargetDesc.Width, TargetDesc.Height, 1, D3DUSAGE_RENDERTARGET, D3DFMT_R32F,
+						D3DPOOL_DEFAULT, &TaaDepthTexture, nullptr);
+				if (SUCCEEDED(hr))
+					hr = TaaDepthTexture->GetSurfaceLevel(0, &TaaDepthSurface);
+				if (FAILED(hr))
+					TaaFailed = REASON_TAA_CREATE_FAILED;
+			}
+			if (TaaFailed != REASON_COUNT)
+			{
+				for (int i = 0; i < 2; ++i)
+				{
+					Release_Com(HistorySurface[i]);
+					Release_Com(History[i]);
+				}
+				Release_Com(TaaDepthSurface);
+				Release_Com(TaaDepthTexture);
+				Log_Once(TaaFailed, hr);
+			}
+			HistoryValid = false;
+		}
+		if (TaaFailed != REASON_COUNT)
+		{
+			Set_Reason(W3DPostProcess::TAA, TaaFailed);
+			return false;
+		}
+		if (!Final_Ready(device))
+		{
+			Set_Reason(W3DPostProcess::TAA, REASON_FXAA_CREATE_FAILED);
+			return false;
+		}
 		return true;
 	}
 
@@ -1013,6 +1113,102 @@ namespace
 		device->SetDepthStencilSurface(DepthBuffer);
 	}
 
+	// TAA: blends source (this frame's finished colours) with the last frame's result, reprojected
+	// with camera's movement, into HistorySurface[HistoryIndex] over the view rectangle (x, y,
+	// width, height; u0..v1 in uv), and keeps this frame's view depth for the next frame. Returns
+	// the result for the FXAA pass. Ends with the back buffer and its depth buffer bound again.
+	IDirect3DTexture9 *Draw_Taa(IDirect3DDevice9 *device, const CameraClass *camera, IDirect3DTexture9 *source,
+		int x, int y, int width, int height, float u0, float v0, float u1, float v1)
+	{
+		const float tw = (float)TargetDesc.Width;
+		const float th = (float)TargetDesc.Height;
+
+		// uv -> the view plane at depth 1 (v grows down, y up), as in Draw_Ao().
+		Vector2 vmin;
+		Vector2 vmax;
+		camera->Get_View_Plane(vmin, vmax);
+		const float du = u1 > u0 ? u1 - u0 : 1.0f;
+		const float dv = v1 > v0 ? v1 - v0 : 1.0f;
+		const float rx = (vmax.X > vmin.X ? vmax.X - vmin.X : 1.0f) / du;
+		const float ry = -(vmax.Y > vmin.Y ? vmax.Y - vmin.Y : 1.0f) / dv;
+		const float ray[4] = { rx, ry, vmin.X - u0 * rx, vmax.Y - v0 * ry };
+		// Both ends without the jitter: the history holds each pixel's centre, so with a still camera
+		// it is read at this very pixel. Cancelling the jitter here would resample it a part of a
+		// pixel off every frame and blur it.
+
+		const Matrix3D &transform = camera->Get_Transform();
+		const Vector3 position = transform.Get_Translation();
+		const Vector3 forward = transform.Get_Z_Vector();
+		const bool cut = (position - PrevPosition).Length() > TAA_CUT_DISTANCE
+			|| Vector3::Dot_Product(forward, PrevForward) < TAA_CUT_COS;
+		// Only a history of the frame just before: a frame without TAA leaves it out of date.
+		const bool history = HistoryValid && HistoryFrame + 1 == FrameCount && !cut;
+		if (!history)
+			++TaaResets;
+
+		// A view space point of this frame, (uv * d, d, 1) for view depth d, is
+		// (d * (u * rx + ray[2]), d * (v * ry + ray[3]), -d) (the camera looks down -z); m takes it into the
+		// last frame's view space, and the last frame's ray turns that into its uv.
+		Matrix3D m;
+		Matrix3D::Multiply(PrevInverse, transform, &m);
+		float rows[3][4];
+		for (int i = 0; i < 3; ++i)
+		{
+			rows[i][0] = m[i][0] * rx;
+			rows[i][1] = m[i][1] * ry;
+			rows[i][2] = m[i][0] * ray[2] + m[i][1] * ray[3] - m[i][2];
+			rows[i][3] = m[i][3];
+		}
+		float reproject[3][4];
+		for (int k = 0; k < 4; ++k)
+		{
+			reproject[0][k] = (rows[0][k] + PrevRay[2] * rows[2][k]) / PrevRay[0];
+			reproject[1][k] = (rows[1][k] + PrevRay[3] * rows[2][k]) / PrevRay[1];
+			reproject[2][k] = -rows[2][k];
+		}
+
+		float depth[4];
+		Depth_Params(camera, depth);
+		const float taa[4] = { history ? 1.0f : 0.0f, TAA_FRAME_WEIGHT, 0.0f, 0.0f };
+		const float clamp_uv[4] = { u0 + 0.5f / tw, v0 + 0.5f / th, u1 - 0.5f / tw, v1 - 0.5f / th };
+		device->SetPixelShaderConstantF(POST_PS_DEPTH, depth, 1);
+		device->SetPixelShaderConstantF(POST_PS_TAA_REPROJECT, &reproject[0][0], 3);
+		device->SetPixelShaderConstantF(POST_PS_TAA, taa, 1);
+		device->SetPixelShaderConstantF(POST_PS_CLAMP, clamp_uv, 1);
+		Set_Texel(device, 1.0f / tw, 1.0f / th, 0.0f, 0.0f);
+
+		// The history textures have no multisampling, so no (possibly multisampled) depth buffer may be bound.
+		device->SetDepthStencilSurface(nullptr);
+		device->SetRenderTarget(0, HistorySurface[HistoryIndex]);
+		Set_Texture(device, 0, source, false);
+		Set_Texture(device, POST_HISTORY_SAMPLER, History[1 - HistoryIndex], true);
+		Set_Texture(device, POST_DEPTH_SAMPLER, DepthTexture, false);
+		Set_Texture(device, POST_PREV_DEPTH_SAMPLER, TaaDepthTexture, false);
+		device->SetPixelShader(ShaderLibrary::Peek_Pixel(ShaderLibrary::PS_POST_TAA));
+		Draw_Quad(device, x, y, width, height, u0, v0, u1, v1);
+
+		// The depth copy draws into the texture the TAA pass read.
+		device->SetTexture(POST_PREV_DEPTH_SAMPLER, nullptr);
+		device->SetRenderTarget(0, TaaDepthSurface);
+		device->SetPixelShader(ShaderLibrary::Peek_Pixel(ShaderLibrary::PS_POST_DEPTH_COPY));
+		Draw_Quad(device, 0, 0, (int)TargetDesc.Width, (int)TargetDesc.Height, 0.0f, 0.0f, 1.0f, 1.0f);
+
+		transform.Get_Inverse(PrevInverse);
+		PrevPosition = position;
+		PrevForward = forward;
+		for (int k = 0; k < 4; ++k)
+			PrevRay[k] = ray[k];
+		HistoryValid = true;
+		HistoryFrame = FrameCount;
+		IDirect3DTexture9 *result = History[HistoryIndex];
+		HistoryIndex = 1 - HistoryIndex;
+		++Stats[W3DPostProcess::TAA].Passes;
+
+		device->SetRenderTarget(0, BackBuffer);
+		device->SetDepthStencilSurface(DepthBuffer);
+		return result;
+	}
+
 	// Whether a post effect runs this frame; sets the reason if not.
 	bool Effect_On(W3DPostProcess::Effect effect, bool option, bool debug_off, Reason debug_reason,
 		ShaderLibrary::PixelShaderId shader)
@@ -1029,7 +1225,7 @@ namespace
 	}
 }
 
-bool W3DPostProcess::Begin_Scene(float clear_alpha)
+bool W3DPostProcess::Begin_Scene(float clear_alpha, CameraClass *camera)
 {
 	if (BackBuffer != nullptr)
 		return false;	// already rendering into the scene texture
@@ -1107,12 +1303,12 @@ bool W3DPostProcess::Begin_Scene(float clear_alpha)
 		device->SetPixelShaderConstantF(FRAME_PS_SUN, sun, 1);
 	}
 
-	// Ambient occlusion and soft particles read the scene's depth, so the scene draws with its own depth texture,
-	// cleared here as the frame clear cleared the back buffer's.
+	// Ambient occlusion, soft particles and TAA read the scene's depth, so the scene draws with its own depth
+	// texture, cleared here as the frame clear cleared the back buffer's.
 	DWORD clear = D3DCLEAR_TARGET;
 	SceneDepthBound = false;
 	// A multisampled depth buffer cannot be read; AO then reads the depth pass.
-	if (TargetDesc.MultiSampleType == D3DMULTISAMPLE_NONE && (o.PostAo() || o.PostSoftParticles()) && Depth_Ready(device))
+	if (TargetDesc.MultiSampleType == D3DMULTISAMPLE_NONE && (o.PostAo() || o.PostSoftParticles() || o.TAA) && Depth_Ready(device))
 	{
 		hr = device->SetDepthStencilSurface(DepthSurface);
 		if (SUCCEEDED(hr))
@@ -1128,6 +1324,23 @@ bool W3DPostProcess::Begin_Scene(float clear_alpha)
 		}
 	}
 
+	// TAA: the scene draws moved by this frame's jitter, until End_Scene().
+	TaaCamera = nullptr;
+	if (Effect_On(TAA, o.TAA, false, REASON_EFFECT_OFF, ShaderLibrary::PS_POST_TAA))
+	{
+		if (ShaderLibrary::Peek_Pixel(ShaderLibrary::PS_POST_DEPTH_COPY) == nullptr || ShaderLibrary::Peek_Pixel(ShaderLibrary::PS_POST_FXAA) == nullptr)
+			Set_Reason(TAA, REASON_NO_SHADER);
+		else if (camera == nullptr)
+			Set_Reason(TAA, REASON_AO_NO_CAMERA);
+		else if (!SceneDepthBound && DepthPassCamera != camera)
+			Set_Reason(TAA, DepthReason);
+		else if (Taa_Ready(device))
+		{
+			camera->Set_Pixel_Jitter(TaaJitter[0], TaaJitter[1]);
+			TaaCamera = camera;
+		}
+	}
+
 	const DWORD alpha = (DWORD)(clear_alpha * 255.0f + 0.5f) & 0xff;
 	device->Clear(0, nullptr, clear, D3DCOLOR_ARGB(alpha, 0, 0, 0), 1.0f, 0);
 	return true;
@@ -1138,6 +1351,15 @@ void W3DPostProcess::End_Scene(int x, int y, int width, int height, const Camera
 	if (BackBuffer == nullptr)
 		return;
 	GpuTimer::Mark(GpuTimer::SCENE);
+	// TAA runs for the camera Begin_Scene() jittered. Applying it again unjittered keeps anything
+	// drawn later with its projection, without its own Apply(), in place.
+	const bool taa = TaaCamera != nullptr && TaaCamera == camera;
+	if (TaaCamera != nullptr)
+	{
+		TaaCamera->Set_Pixel_Jitter(0.0f, 0.0f);
+		TaaCamera->Apply();
+		TaaCamera = nullptr;
+	}
 	const bool scene_depth = SceneDepthBound;
 	SceneDepthBound = false;
 	// Only for the camera the pass drew with; another view has other depth.
@@ -1229,6 +1451,11 @@ void W3DPostProcess::End_Scene(int x, int y, int width, int height, const Camera
 		haze = Heat_Ready(device);
 	const bool final_effects = bloom || tone || grade || ao || haze;
 	bool fxaa = Effect_On(FXAA, o.FXAA, o.DebugFxaaOff, REASON_FXAA_DEBUG_OFF, ShaderLibrary::PS_POST_FXAA);
+	if (fxaa && taa)
+	{
+		Set_Reason(FXAA, REASON_FXAA_TAA);
+		fxaa = false;
+	}
 	bool sharpen = Effect_On(SHARPEN, o.Sharpen > 0.0f, false, REASON_EFFECT_OFF, ShaderLibrary::PS_POST_FXAA);
 	if ((fxaa || sharpen) && final_effects && !Final_Ready(device))
 	{
@@ -1238,8 +1465,9 @@ void W3DPostProcess::End_Scene(int x, int y, int width, int height, const Camera
 			Set_Reason(SHARPEN, REASON_FXAA_CREATE_FAILED);
 		fxaa = sharpen = false;
 	}
-	// Sharpening runs in the FXAA pass, so the pass also runs for it alone.
-	const bool fxaa_pass = fxaa || sharpen;
+	// Sharpening runs in the FXAA pass, so the pass also runs for it alone. With TAA it puts the
+	// TAA result on the back buffer (Taa_Ready() made FinalTexture).
+	const bool fxaa_pass = fxaa || sharpen || taa;
 
 	const float u0 = (float)x / tw;
 	const float v0 = (float)y / th;
@@ -1336,6 +1564,9 @@ void W3DPostProcess::End_Scene(int x, int y, int width, int height, const Camera
 		AoDepthPass = !scene_depth;
 	}
 
+	if (taa)
+		fxaa_source = Draw_Taa(device, camera, fxaa_source, x, y, width, height, u0, v0, u1, v1);
+
 	// FXAA, onto the back buffer. Its reads stay half a texel inside the view rectangle, so the
 	// edge of the view never blends with what lies outside it.
 	if (fxaa_pass)
@@ -1368,15 +1599,25 @@ void W3DPostProcess::Draw_Depth_Pass(SceneClass *scene, CameraClass *camera)
 	DepthPassCamera = nullptr;
 	const GraphicsOptions &o = Get_Graphics_Options();
 	// Begin_Scene() makes the scene texture; until then (the first frame) the size is not known.
-	if (!o.PostProcess() || !o.PostAo() || SceneTexture == nullptr || TargetDesc.MultiSampleType == D3DMULTISAMPLE_NONE
+	if (!o.PostProcess() || !(o.PostAo() || o.TAA) || SceneTexture == nullptr || TargetDesc.MultiSampleType == D3DMULTISAMPLE_NONE
 		|| scene == nullptr || camera == nullptr)
 		return;
 	IDirect3DDevice9 *device = DX9Wrapper::_Get_D3D_Device9();
 	if (device == nullptr || !Depth_Ready(device))
 		return;	// DepthReason says why
 	// The scene texture is the colour target: it has the size, no multisampling, and the pass
-	// writes no colour (the resolve overwrites it anyway).
-	if (!ShadowMap::Render_Depth(scene, camera, SceneSurface, DepthSurface))
+	// writes no colour (the resolve overwrites it anyway). With TAA the depth moves with the scene.
+	const bool jitter = o.TAA && TaaFailed == REASON_COUNT;
+	if (jitter)
+		camera->Set_Pixel_Jitter(TaaJitter[0], TaaJitter[1]);
+	const bool drawn = ShadowMap::Render_Depth(scene, camera, SceneSurface, DepthSurface);
+	if (jitter)
+	{
+		// Render_Depth() ends with Apply(); this puts the unjittered projection back for what draws next.
+		camera->Set_Pixel_Jitter(0.0f, 0.0f);
+		camera->Apply();
+	}
+	if (!drawn)
 	{
 		DepthReason = REASON_AO_DEPTH_PASS_FAILED;
 		Log_Once(REASON_AO_DEPTH_PASS_FAILED, 0);
@@ -1487,6 +1728,11 @@ void W3DPostProcess::Release()
 		}
 		Release_Saved_Targets();
 	}
+	if (TaaCamera != nullptr)
+	{
+		TaaCamera->Set_Pixel_Jitter(0.0f, 0.0f);
+		TaaCamera = nullptr;
+	}
 	Release_Targets();
 	Release_Com(SavedStates);
 	Release_Com(LutTexture);
@@ -1513,6 +1759,8 @@ void W3DPostProcess::New_Frame()
 	AoDepthPass = false;
 	LastHeatCount = HeatCount;
 	HeatCount = 0;
+	++FrameCount;
+	Jitter(FrameCount, TaaJitter[0], TaaJitter[1]);
 }
 
 unsigned W3DPostProcess::Last_Frame_Passes(Effect effect)
@@ -1533,6 +1781,11 @@ bool W3DPostProcess::Last_Ao_From_Depth_Pass()
 unsigned W3DPostProcess::Last_Heat_Sources()
 {
 	return LastHeatCount;
+}
+
+unsigned W3DPostProcess::Taa_History_Resets()
+{
+	return TaaResets;
 }
 
 const char *W3DPostProcess::Color_Lut_File()

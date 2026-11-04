@@ -46,6 +46,13 @@
 // polygon and alpha-test edges look smooth. It reads only inside the view rectangle (Clamp).
 // The same pass sharpens (Sharpen): contrast-adaptive, after AMD FidelityFX CAS. With FXAA off and
 // Sharpen on, the pass runs for the sharpening alone.
+//
+// PostTaaPS (TAA) runs between the final pass and the FXAA pass, which then skips its edge blend
+// and only sharpens. The scene drew with a sub-pixel jitter that changes every frame. Each pixel
+// finds where it was in the last frame from its depth and the camera's movement (there are no
+// per-object motion vectors), and blends this frame into the last frame's result there. The last
+// result is first clipped into the colour range of the pixel's 3x3 neighbourhood (in YCoCg), so
+// moving units leave no ghosts, and it counts less where it lies off screen or its depth differs.
 
 #include "shader_constants.h"
 #include "shader_linear.h"
@@ -75,6 +82,11 @@ float4 AoFinal     : SHADER_REG(POST_PS_AO_FINAL);
 sampler2D AoMap      : register(s5);	// POST_AO_SAMPLER
 sampler2D SceneDepth : register(s6);	// POST_DEPTH_SAMPLER
 sampler2D HeatMask   : register(s7);	// POST_HEAT_SAMPLER
+sampler2D History    : register(s8);	// POST_HISTORY_SAMPLER
+sampler2D PrevDepth  : register(s9);	// POST_PREV_DEPTH_SAMPLER
+
+float4 TaaReproject[3] : SHADER_REG(POST_PS_TAA_REPROJECT);
+float4 Taa             : SHADER_REG(POST_PS_TAA);
 
 struct PostVsIn
 {
@@ -533,6 +545,92 @@ float4 PostFxaaPS(float2 uv : TEXCOORD0) : COLOR0
 	[branch] if (Sharpen.x > 0.0)
 		c = Sharpened(uv, c);
 	return float4(c, centre.a);
+}
+
+// ---- Temporal anti-aliasing (TAA) ----
+
+static const float TAA_SPREAD = 1.25;		// the history may lie this many standard deviations from the neighbourhood mean
+static const float TAA_DEPTH_MATCH = 0.02;	// depths this close (a part of the depth) are the same surface; twice as far apart, not
+static const float2 TaaNeighbours[8] =
+{
+	float2(-1.0, -1.0), float2(0.0, -1.0), float2(1.0, -1.0), float2(-1.0, 0.0),
+	float2( 1.0,  0.0), float2(-1.0, 1.0), float2(0.0,  1.0), float2(1.0,  1.0),
+};
+
+float3 Rgb_To_YCoCg(float3 c)
+{
+	return float3(dot(c, float3(0.25, 0.5, 0.25)), dot(c, float3(0.5, 0.0, -0.5)), dot(c, float3(-0.25, 0.5, -0.25)));
+}
+
+float3 YCoCg_To_Rgb(float3 c)
+{
+	return float3(c.x + c.y - c.z, c.x + c.z, c.x - c.y - c.z);
+}
+
+// Moves h towards the centre of the box lo..hi until it lies inside it. Unlike clamping each
+// channel, this keeps the history's hue.
+float3 Clip_To_Box(float3 h, float3 lo, float3 hi)
+{
+	float3 centre = 0.5 * (lo + hi);
+	float3 extent = 0.5 * (hi - lo) + 1.0e-4;
+	float3 v = h - centre;
+	float3 a = abs(v / extent);
+	float m = max(a.x, max(a.y, a.z));
+	return m > 1.0 ? centre + v / m : h;
+}
+
+float4 PostTaaPS(float2 uv : TEXCOORD0) : COLOR0
+{
+	float4 centre = tex2Dlod(Scene, float4(uv, 0.0, 0.0));
+	[branch] if (Taa.x <= 0.0)
+		return centre;	// history reset
+
+	// Where this point was in the last frame. Off screen there is nothing to blend with.
+	float depth = View_Depth(uv);
+	float4 p = float4(uv * depth, depth, 1.0);
+	float3 h = float3(dot(TaaReproject[0], p), dot(TaaReproject[1], p), dot(TaaReproject[2], p));
+	float2 prev = h.xy / max(h.z, 1.0e-4);
+	float2 half_texel = 0.5 * Texel.xy;
+	[branch] if (h.z <= 0.0 || any(prev < Clamp.xy - half_texel) || any(prev > Clamp.zw + half_texel))
+		return centre;
+	prev = clamp(prev, Clamp.xy, Clamp.zw);
+
+	// The neighbourhood's colour range: its mean give or take TAA_SPREAD deviations, inside its
+	// min and max.
+	float3 c = Rgb_To_YCoCg(centre.rgb);
+	float3 lo = c;
+	float3 hi = c;
+	float3 sum = c;
+	float3 sum2 = c * c;
+	[unroll] for (int k = 0; k < 8; ++k)
+	{
+		float2 n_uv = clamp(uv + TaaNeighbours[k] * Texel.xy, Clamp.xy, Clamp.zw);
+		float3 n = Rgb_To_YCoCg(tex2Dlod(Scene, float4(n_uv, 0.0, 0.0)).rgb);
+		lo = min(lo, n);
+		hi = max(hi, n);
+		sum += n;
+		sum2 += n * n;
+	}
+	float3 mean = sum / 9.0;
+	float3 sigma = sqrt(max(sum2 / 9.0 - mean * mean, 0.0));
+	lo = max(lo, mean - TAA_SPREAD * sigma);
+	hi = min(hi, mean + TAA_SPREAD * sigma);
+
+	// Something else was there in the last frame (it was hidden, or the depth there is of a unit
+	// that moved): this frame counts more. Of the four last-frame depths around prev, the nearest
+	// match counts, since the jitter changes which side of an edge a texel shows.
+	float2 base = (floor(prev / Texel.xy - 0.5) + 0.5) * Texel.xy;
+	float4 d = float4(tex2Dlod(PrevDepth, float4(base, 0.0, 0.0)).r,
+		tex2Dlod(PrevDepth, float4(base + float2(Texel.x, 0.0), 0.0, 0.0)).r,
+		tex2Dlod(PrevDepth, float4(base + float2(0.0, Texel.y), 0.0, 0.0)).r,
+		tex2Dlod(PrevDepth, float4(base + Texel.xy, 0.0, 0.0)).r);
+	float4 miss4 = abs(d - h.z);
+	float miss = min(min(miss4.x, miss4.y), min(miss4.z, miss4.w)) / h.z;
+	float weight = lerp(Taa.y, 1.0, saturate(miss / TAA_DEPTH_MATCH - 1.0));
+
+	float3 history = Rgb_To_YCoCg(tex2Dlod(History, float4(prev, 0.0, 0.0)).rgb);
+	history = Clip_To_Box(history, lo, hi);
+	return float4(saturate(YCoCg_To_Rgb(lerp(history, c, weight))), centre.a);
 }
 
 // ---- Soft particles (SoftParticles) ----

@@ -16,7 +16,7 @@
 */
 
 // EastWind DX9: post-processing (M3.2, Options.ini Bloom, ToneMapping, ColorGrading, FXAA;
-// M3.5 AmbientOcclusion; Hdr; HeatHaze).
+// M3.5 AmbientOcclusion; Hdr; HeatHaze; TAA).
 //
 // W3DView::draw calls Begin_Scene() before the 3D scene and End_Scene() after it (and after the
 // view filters). In between, the 3D scene draws into a scene texture the size and format of the
@@ -72,6 +72,15 @@
 // FXAA reads; FXAA alone reads the scene texture. Sharpening (Sharpen) runs in the same pass,
 // which then also runs with FXAA off.
 //
+// TAA (TAA): Begin_Scene() moves the camera's projection by a sub-pixel offset that follows the
+// Halton(2,3) sequence over 8 frames (Jitter()). End_Scene() blends each pixel of the finished
+// colours with the last frame's result at the place the pixel was then, found from the scene
+// depth (the depth texture of ambient occlusion) and the last frame's camera, into one of two
+// history textures that take turns. The FXAA pass then reads that result with its edge blend off
+// and only sharpens. The history starts again after a camera cut, a resize or a device reset.
+// Only the projection sent to the device moves, so culling and mouse picking stay exact, and the
+// shadow map, the water reflection and the UI are not jittered.
+//
 // Soft particles (SoftParticles): the scene draws with the depth texture of ambient occlusion
 // (so needs AntiAliasing = 0). Right before the particles, Begin_Particles() copies its view
 // depth into an R32F texture, since the bound depth buffer cannot be read at the same time, and
@@ -107,6 +116,7 @@ public:
 		HDR,
 		SOFT_PARTICLES,
 		HEAT_HAZE,
+		TAA,
 		EFFECT_COUNT
 	};
 
@@ -114,8 +124,9 @@ public:
 	// frame clear uses (the soft water edge reads destination alpha). Depth is not cleared when it
 	// is the back buffer's, which the frame clear already cleared; the ambient occlusion depth
 	// texture is cleared here. Returns true if rendering now goes to the scene texture; then
-	// End_Scene() must follow.
-	static bool Begin_Scene(float clear_alpha);
+	// End_Scene() must follow. camera is the 3D camera the scene will draw with; TAA jitters it
+	// until End_Scene().
+	static bool Begin_Scene(float clear_alpha, CameraClass *camera);
 
 	// Resolves the scene, points rendering back at the back buffer and draws the post passes over
 	// the view rectangle (in back buffer pixels). camera is the 3D camera the scene drew with; the
@@ -148,4 +159,28 @@ public:
 	static bool Last_Ao_From_Depth_Pass();				// the last frame's AO read Draw_Depth_Pass(), not the scene's depth
 	static const char *Color_Lut_File();				// the colour LUT file in use, or nullptr for the neutral one
 	static unsigned Last_Heat_Sources();				// heat sources handed in during the last frame
+	static unsigned Taa_History_Resets();				// times the TAA history started again
+
+	// TAA: the radical inverse of index in base, in 0..1 (the Halton sequence).
+	static float Halton(unsigned index, unsigned base)
+	{
+		float result = 0.0f;
+		float f = 1.0f;
+		for (; index > 0; index /= base)
+		{
+			f /= (float)base;
+			result += f * (float)(index % base);
+		}
+		return result;
+	}
+
+	// TAA: the frame's sub-pixel offset in pixels, -0.5..0.5, x right and y down. It repeats every
+	// TAA_SAMPLES frames. Index 0 of the sequence is skipped, as it is 0 in every base.
+	enum { TAA_SAMPLES = 8 };
+	static void Jitter(unsigned frame, float &x, float &y)
+	{
+		const unsigned i = frame % TAA_SAMPLES + 1;
+		x = Halton(i, 2) - 0.5f;
+		y = Halton(i, 3) - 0.5f;
+	}
 };

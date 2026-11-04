@@ -9,6 +9,7 @@ set(COREI_GOOGLETEST_SRC
     GameEngine/GameClient/DisplayStringDummyTest.cpp
     GameEngine/GameNetwork/NetworkStructsTest.cpp
     GameEngineDevice/StdDevice/Common/StdLocalFileSystemTest.cpp
+    GameEngineDevice/W3DDevice/GameClient/W3DPostProcessTest.cpp
     Libraries/Compression/CompressionManagerTest.cpp
     Libraries/WWVegas/WW3D2/hlod_test.cpp
     Libraries/WWVegas/WW3D2/skincache_test.cpp

@@ -98,6 +98,7 @@ CameraClass::CameraClass() :
 	ZFar(1000.0f),										// far clip plane distance
 	ZBufferMin(0.0f),									// smallest value we'll write into the z-buffer
 	ZBufferMax(1.0f),									// largest value we'll write into the z-buffer
+	PixelJitter(0.0f,0.0f),
 	FrustumValid(false)
 {
 	Set_Transform(Matrix3D(true));
@@ -132,7 +133,8 @@ CameraClass::CameraClass(const CameraClass & src) :
 	CameraInvTransform(src.CameraInvTransform),
 	AspectRatio(src.AspectRatio),
 	ZBufferMin(src.ZBufferMin),
-	ZBufferMax(src.ZBufferMax)
+	ZBufferMax(src.ZBufferMax),
+	PixelJitter(0.0f,0.0f)
 {
 	// just being paranoid in case any parent class doesn't completely copy the entire state...
 	FrustumValid = false;
@@ -750,6 +752,13 @@ void CameraClass::Apply()
 
 	Matrix4x4 d3dprojection;
 	Get_D3D_Projection_Matrix(&d3dprojection);
+	// EastWind (TAA): adding w times the offset to clip x and y moves every point by the same part
+	// of a pixel.
+	if ((PixelJitter.X != 0.0f || PixelJitter.Y != 0.0f) && vp.width > 0 && vp.height > 0)
+	{
+		d3dprojection[0] += d3dprojection[3] * (2.0f * PixelJitter.X / (float)vp.width);
+		d3dprojection[1] += d3dprojection[3] * (-2.0f * PixelJitter.Y / (float)vp.height);
+	}
 	DX9Wrapper::Set_Projection_Transform_With_Z_Bias(d3dprojection,ZNear,ZFar);
 	DX9Wrapper::Set_Transform(D3DTS_VIEW,CameraInvTransform);
 }

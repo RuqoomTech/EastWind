@@ -231,6 +231,11 @@ public:
 	// apply this camera's settings into d3d.
 	void								Apply();
 
+	// EastWind (TAA): moves the image by a part of a pixel (x right, y down) in the projection
+	// Apply() sends to the device only, so culling, picking and the camera's own matrices stay
+	// exact. A copy of the camera starts without it.
+	void								Set_Pixel_Jitter(float x, float y) { PixelJitter.Set(x, y); }
+
 	// utility class to convert to old space of 0..1
 	static void	Convert_Old(Vector3 &pos);
 
@@ -246,6 +251,7 @@ protected:
 	float								ZFar;				// far clip plane distance
 	float								ZBufferMin;		// smallest value we'll write into the z-buffer (usually 0.0)
 	float								ZBufferMax;		// largest value we'll write into the z-buffer (usually 1.0)
+	Vector2							PixelJitter;	// EastWind (TAA): Set_Pixel_Jitter()
 
 	mutable bool					FrustumValid;
 	mutable FrustumClass			Frustum;							// world-space frustum and clip planes

@@ -105,11 +105,17 @@
 #define POST_PS_SHARPEN       11  // c11: FXAA pass, x sharpen strength (0 off), y FXAA edge blend on
 #define POST_PS_HEAT          12  // c12: final pass, heat haze xy most uv offset (0 off), z time in seconds
 #define POST_PS_HEAT_WAVE     13  // c13: heat haze xy wave phase per uv across and down
-#define POST_PS_COUNT         14
+// TAA: (uv * view depth, view depth, 1) dotted with these gives the last frame's uv times w, and w,
+// the last frame's view depth of the same point.
+#define POST_PS_TAA_REPROJECT 14  // c14..c16: rows u * w, v * w and w
+#define POST_PS_TAA           17  // c17: x history usable (0 after a reset), y weight of this frame
+#define POST_PS_COUNT         18
 // Samplers of the AO passes, above the bloom levels and the colour LUT (s1..s4).
 #define POST_AO_SAMPLER       5   // s5: AO texture (R occlusion, G view depth)
 #define POST_DEPTH_SAMPLER    6   // s6: the scene's INTZ depth texture
 #define POST_HEAT_SAMPLER     7   // s7: heat haze mask, the heat sources as soft blobs at 1/4 size
+#define POST_HISTORY_SAMPLER  8   // s8: TAA, the last frame's anti-aliased colours
+#define POST_PREV_DEPTH_SAMPLER 9 // s9: TAA, the last frame's view depth (R32F)
 
 // --- water.hlsl WaterVS / WaterTrapezoidPS / WaterRiverPS, M3.3a water shader; set by W3DWaterShader.cpp ---
 // Matrices are uploaded as their columns, like the terrain shader's.

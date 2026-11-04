@@ -779,6 +779,7 @@ static void loadGraphicsOptions()
 	options.ToneMapping = prefs.getBool("ToneMapping", options.ToneMapping);
 	options.ColorGrading = prefs.getBool("ColorGrading", options.ColorGrading);
 	options.FXAA = prefs.getBool("FXAA", options.FXAA);
+	options.TAA = prefs.getBool("TAA", options.TAA);
 	options.Sharpen = prefs.getReal("Sharpen", options.Sharpen);
 	options.AmbientOcclusion = prefs.getInt("AmbientOcclusion", options.AmbientOcclusion);
 	options.Hdr = prefs.getBool("Hdr", options.Hdr);
@@ -838,6 +839,7 @@ static void showGraphicsStatus()
 	TheInGameUI->message(L"Tone mapping: %s   [Ctrl+Shift+F5]", tone);
 	TheInGameUI->message(L"Colour grading: %s   [Ctrl+Shift+F6]", grade);
 	TheInGameUI->message(L"FXAA: %s   [Ctrl+Shift+F4]", fxaa);
+	TheInGameUI->message(L"TAA: %s", o.TAA ? L"on" : L"off in Options.ini");
 	if (o.Sharpen > 0.0f)
 		TheInGameUI->message(L"Sharpen: %.2f", o.Sharpen);
 	else
@@ -892,6 +894,10 @@ static void showGraphicsStatus()
 		W3DPostProcess::Last_Reason(W3DPostProcess::COLOR_GRADING));
 	showShaderStatus(L"FXAA", W3DPostProcess::Last_Frame_Passes(W3DPostProcess::FXAA),
 		W3DPostProcess::Last_Reason(W3DPostProcess::FXAA));
+	showShaderStatus(L"TAA", W3DPostProcess::Last_Frame_Passes(W3DPostProcess::TAA),
+		W3DPostProcess::Last_Reason(W3DPostProcess::TAA));
+	if (o.TAA)
+		TheInGameUI->message(L"TAA history resets: %u (camera cuts, resizes, frames without TAA)", W3DPostProcess::Taa_History_Resets());
 	showShaderStatus(L"Sharpen", W3DPostProcess::Last_Frame_Passes(W3DPostProcess::SHARPEN),
 		W3DPostProcess::Last_Reason(W3DPostProcess::SHARPEN));
 	showShaderStatus(L"Heat haze", W3DPostProcess::Last_Frame_Passes(W3DPostProcess::HEAT_HAZE),
@@ -983,7 +989,7 @@ static void showGpuTimes()
 		L"Ambient occlusion",
 		L"Bloom",
 		L"Final pass (tone mapping, colour grading)",
-		L"FXAA and sharpen",
+		L"TAA, FXAA and sharpen",
 		L"UI and the rest (and the 3D scene when post-processing is off)",
 	};
 	static_assert(sizeof(names) / sizeof(names[0]) == GpuTimer::POINT_COUNT, "one name per GpuTimer point");

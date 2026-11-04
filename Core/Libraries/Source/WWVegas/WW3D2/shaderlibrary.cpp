@@ -77,6 +77,7 @@
 #include "particle_ps.h"
 #include "post_depth_copy_ps.h"
 #include "post_heat_blob_ps.h"
+#include "post_taa_ps.h"
 #include "mesh_t0_vs.h"
 #include "mesh_d_t0_vs.h"
 #include "mesh_s_t0_vs.h"
@@ -212,6 +213,7 @@ namespace
 		{ g_shader_caster_ps, "caster_ps" },
 		{ g_shader_caster_alpha_ps, "caster_alpha_ps" },
 		{ g_shader_post_heat_blob_ps, "post_heat_blob_ps" },
+		{ g_shader_post_taa_ps, "post_taa_ps" },
 	};
 	static_assert(sizeof(PixelCode) / sizeof(PixelCode[0]) == ShaderLibrary::PS_COUNT, "PixelCode must match ShaderLibrary::PixelShaderId");
 
