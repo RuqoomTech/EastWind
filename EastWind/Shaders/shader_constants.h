@@ -84,7 +84,10 @@
 #define TERRAIN_PS_FOG            27  // c27: enable, end, 1 / (end - start)
 #define TERRAIN_PS_FOGCOLOR       28  // c28: D3DRS_FOGCOLOR
 #define TERRAIN_PS_DEBUG          29  // c29: debug keys, x per-vertex light, y light only
-#define TERRAIN_PS_COUNT          30  // the pixel constants start at TERRAIN_SUN
+#define TERRAIN_MAX_POINT_LIGHTS  8
+#define TERRAIN_PS_POINT_COUNT    30  // c30: x number of per-pixel point lights (PerPixelLights)
+#define TERRAIN_PS_POINT_LIGHTS   31  // c31..c54: per light position + outer radius, diffuse + 1 / (outer - inner), ambient
+#define TERRAIN_PS_COUNT          55  // the pixel constants start at TERRAIN_SUN
 
 // --- post.hlsl (pixel), M3.2 post-processing; set by W3DPostProcess.cpp ---
 #define POST_PS_TEXEL         0   // c0: xy one source texel in uv, zw blur step in uv

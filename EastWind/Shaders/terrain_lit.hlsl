@@ -29,6 +29,9 @@
 //
 // M3.4: the first sun light is darkened by the sun shadow map (shader_shadow.h), so units, buildings
 // and trees cast on the terrain and roads. The terrain itself does not cast.
+//
+// PerPixelLights: the nearest dynamic point lights come as constants instead of in the vertex
+// colour (W3DTerrainLighting::Set_Point_Lights), and light the terrain and roads per pixel.
 
 #include "shader_constants.h"
 #include "shader_shadow.h"
@@ -44,6 +47,8 @@ float4 Sun[TERRAIN_SUN_COUNT]       : SHADER_REG(TERRAIN_SUN);	// [0] ambient, [
 float4 Fog                             : SHADER_REG(TERRAIN_PS_FOG);	// x enable, y end, z 1 / (end - start)
 float4 FogColor                        : SHADER_REG(TERRAIN_PS_FOGCOLOR);
 float4 Debug                           : SHADER_REG(TERRAIN_PS_DEBUG);	// x per-vertex light (as terrain.hlsl), y light only
+float4 PointCount                      : SHADER_REG(TERRAIN_PS_POINT_COUNT);
+float4 PointLights[TERRAIN_MAX_POINT_LIGHTS * 3] : SHADER_REG(TERRAIN_PS_POINT_LIGHTS);
 
 // Vertex sampler 0 (D3DVERTEXTEXTURESAMPLER0) and pixel sampler 4 hold the same grid normals.
 // Each entry point uses only one of the two s0 samplers, so fxc accepts the shared register.
@@ -80,6 +85,28 @@ float3 SunLight(float3 n, float shadow, uniform bool linearLight)
 float3 SunLight(float3 n)
 {
 	return SunLight(n, 1.0, false);
+}
+
+// Dynamic point lights as HeightMapRenderObjClass::doTheDynamicLight adds them: a fade from 1 at
+// the inner radius to 0 at the outer, the diffuse against the normal and the ambient both scaled
+// by it. Pixel shaders only, so the colours add up in linear space with linear lighting.
+float3 Point_Light(float3 world, float3 n)
+{
+	float3 c = 0.0;
+	[unroll] for (int k = 0; k < TERRAIN_MAX_POINT_LIGHTS; ++k)
+	{
+		[branch] if (PointCount.x > k)
+		{
+			float4 position = PointLights[k * 3 + 0];
+			float4 diffuse = PointLights[k * 3 + 1];
+			float3 toLight = position.xyz - world;
+			float dist = length(toLight);
+			float fade = saturate((position.w - dist) * diffuse.w);
+			float shade = saturate(dot(toLight / max(dist, 1e-4), n) * fade);
+			c += shade * To_Linear(diffuse.rgb) + fade * To_Linear(PointLights[k * 3 + 2].rgb);
+		}
+	}
+	return c;
 }
 
 struct VsIn
@@ -167,12 +194,13 @@ struct PsIn
 };
 
 // The per-pixel light: the sun against the filtered grid normal, shadowed, plus the vertex's
-// extra light. With linear lighting the extra light is taken as a colour and decoded too.
+// extra light and the point lights. With linear lighting the extra light is taken as a colour
+// and decoded too. Clamped like the CPU light and the mesh shader's diffuse, also with Hdr.
 float3 Pixel_Light(float2 grid, float3 world, float3 extra, float3 vertexLight)
 {
 	float3 n = Grid_Normal(tex2D(GridNormals, grid));
 	float shadow = Sun_Shadow(world, n, Sun[1].xyz);
-	float3 light = To_Gamma(saturate(SunLight(n, shadow, true) + To_Linear(extra)));
+	float3 light = To_Gamma(saturate(SunLight(n, shadow, true) + To_Linear(extra) + Point_Light(world, n)));
 	// Debug keys: the vertex colour is the classic per-vertex light.
 	if (Debug.x > 0.5)
 		light = vertexLight;

@@ -42,6 +42,7 @@ protected:
 	/// Values used by HeightMapRenderObjClass to update the height map.
 	Bool		m_priorEnable;
 	Bool		m_processMe;
+	Bool		m_pixelLit;	// EastWind: the terrain shader lights it per pixel this frame (PerPixelLights)
 
 
 	Int			m_prevMinX, m_prevMinY, m_prevMaxX, m_prevMaxY;

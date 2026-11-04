@@ -772,6 +772,7 @@ static void loadGraphicsOptions()
 	GraphicsOptions &options = Get_Graphics_Options();
 	options.PerPixelLighting = prefs.getBool("PerPixelLighting", options.PerPixelLighting);
 	options.NormalMaps = prefs.getBool("NormalMaps", options.NormalMaps);
+	options.PerPixelLights = prefs.getBool("PerPixelLights", options.PerPixelLights);
 	options.WaterQuality = prefs.getInt("WaterQuality", options.WaterQuality);
 	options.ShadowMapSize = prefs.getInt("ShadowMapSize", options.ShadowMapSize);
 	options.Bloom = prefs.getBool("Bloom", options.Bloom);
@@ -851,6 +852,14 @@ static void showGraphicsStatus()
 	TheInGameUI->message(L"GPU time of each pass: [Ctrl+Shift+T]");
 
 	showShaderStatus(L"Terrain shader", W3DTerrainLighting::Last_Frame_Passes(), W3DTerrainLighting::Last_Reason());
+	if (const char *why_not = W3DTerrainLighting::Last_Point_Light_Reason())
+	{
+		UnicodeString text;
+		text.translate(AsciiString(why_not));
+		TheInGameUI->message(L"Per-pixel point lights: per vertex - %s", text.str());
+	}
+	else
+		TheInGameUI->message(L"Per-pixel point lights: on (%u uploaded last frame)", W3DTerrainLighting::Last_Frame_Point_Lights());
 	showShaderStatus(L"Road and blend tile shader", W3DTerrainLighting::Last_Frame_Road_Passes(), W3DTerrainLighting::Last_Road_Reason());
 	showShaderStatus(L"Tree shader", W3DTerrainLighting::Last_Frame_Tree_Passes(), W3DTerrainLighting::Last_Tree_Reason());
 	showShaderStatus(L"Post-processing scene texture", W3DPostProcess::Last_Frame_Passes(W3DPostProcess::SCENE),

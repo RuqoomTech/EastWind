@@ -50,6 +50,7 @@
 #ifndef USE_FLAT_HEIGHT_MAP // Flat height map uses flattened textures. jba. [3/20/2003]
 
 #include <stdlib.h>
+#include <algorithm>
 #include <WW3D2/assetmgr.h>
 #include <WW3D2/texture.h>
 #include <WWMath/tri.h>
@@ -192,6 +193,9 @@ UnsignedInt HeightMapRenderObjClass::doTheDynamicLight(VERTEX_FORMAT *vb, VERTEX
 		W3DDynamicLight *pLight = pLights[k];
 		if (!pLight->isEnabled()) {
 			continue; // he is turned off.
+		}
+		if (pLight->m_pixelLit) {
+			continue; // EastWind: the terrain shader adds it per pixel.
 		}
 		Vector3 lightDirection(vbMirror->x, vbMirror->y, vbMirror->z);
 		Real factor = 1.0f;
@@ -1390,6 +1394,7 @@ void HeightMapRenderObjClass::On_Frame_Update()
 	{
 		W3DDynamicLight *pLight = (W3DDynamicLight*)pDynamicLightsIterator.Peek_Obj();
 		pLight->m_processMe = false;
+		pLight->m_pixelLit = false;
 		if (pLight->m_enabled || pLight->m_priorEnable) {
 			Real range = pLight->Get_Attenuation_Range();
 			if (pLight->m_priorEnable) {
@@ -1433,6 +1438,41 @@ void HeightMapRenderObjClass::On_Frame_Update()
 		}
 		pLight->m_priorEnable = pLight->m_enabled;
 	}
+
+	// EastWind (PerPixelLights): the point lights nearest the middle of the drawn terrain are lit
+	// per pixel by the terrain shader, so doTheDynamicLight leaves them out of the vertex colours.
+	// The rest stay per vertex. Their boxes are still walked, which puts back the static colour.
+	W3DDynamicLight *pixelLights[MAX_ENABLED_DYNAMIC_LIGHTS];
+	Int numPixelLights = 0;
+	if (W3DTerrainLighting::Point_Lights_Wanted()) {
+		for (k=0; k<numDynaLights; k++) {
+			W3DDynamicLight *pLight = enabledLights[k];
+			double inner, outer;
+			pLight->Get_Far_Attenuation_Range(inner, outer);
+			// As doTheDynamicLight: directional lights and an inner radius under 0.1 are not point lights.
+			// An inner radius past the outer one lights nothing there, but would light fully here.
+			if (pLight->isEnabled() && pLight->Get_Type() != LightClass::DIRECTIONAL && inner >= 0.1 && outer >= inner &&
+					pLight->m_minX < xCoordMax && pLight->m_minY < yCoordMax &&
+					pLight->m_maxX > xCoordMin && pLight->m_maxY > yCoordMin) {
+				pixelLights[numPixelLights++] = pLight;
+			}
+		}
+		const Real centreX = (xCoordMin + xCoordMax) * 0.5f * MAP_XY_FACTOR;
+		const Real centreY = (yCoordMin + yCoordMax) * 0.5f * MAP_XY_FACTOR;
+		auto distance = [=](const W3DDynamicLight *light) {
+			const Vector3 p = light->Get_Position();
+			return (p.X - centreX) * (p.X - centreX) + (p.Y - centreY) * (p.Y - centreY);
+		};
+		const Int kept = (numPixelLights < W3DTerrainLighting::MAX_POINT_LIGHTS) ? numPixelLights : W3DTerrainLighting::MAX_POINT_LIGHTS;
+		std::partial_sort(pixelLights, pixelLights + kept, pixelLights + numPixelLights,
+			[&](const W3DDynamicLight *a, const W3DDynamicLight *b) { return distance(a) < distance(b); });
+		numPixelLights = kept;
+		for (k=0; k<numPixelLights; k++) {
+			pixelLights[k]->m_pixelLit = true;
+		}
+	}
+	W3DTerrainLighting::Set_Point_Lights(pixelLights, numPixelLights);
+
 	if (numDynaLights > 0) {
 		//step through each vertex buffer that needs updating
 		for (j=0; j<m_numVBTilesY; j++)

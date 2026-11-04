@@ -28,6 +28,7 @@ struct GraphicsOptions
 {
 	bool PerPixelLighting;	// PerPixelLighting: HLSL lighting for meshes and terrain (M3.1)
 	bool NormalMaps;		// NormalMaps: normal maps in the M3.1 material (needs PerPixelLighting)
+	bool PerPixelLights;	// PerPixelLights: dynamic point lights on the terrain per pixel (needs PerPixelLighting)
 	int WaterQuality;		// WaterQuality: 0 classic, 1 waves and Fresnel, 2 adds refraction and shore (M3.3)
 	int ShadowMapSize;		// ShadowMapSize: 0 off (classic shadows), 1024, 2048 or 4096 (M3.4)
 	bool Bloom;				// Bloom (M3.2)
@@ -65,6 +66,7 @@ struct GraphicsOptions
 	GraphicsOptions()
 		: PerPixelLighting(false)
 		, NormalMaps(false)
+		, PerPixelLights(false)
 		, WaterQuality(0)
 		, ShadowMapSize(0)
 		, Bloom(false)

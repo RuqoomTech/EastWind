@@ -34,9 +34,18 @@
 // W3DTreeBuffer::drawTrees binds its own lit shaders (trees.hlsl) and reports here with
 // Tree_Pass(), so the debug status shows trees too.
 
+//
+// PerPixelLights: HeightMapRenderObjClass::On_Frame_Update asks Point_Lights_Wanted() once a
+// frame. When it says yes, the nearest MAX_POINT_LIGHTS dynamic point lights (explosions,
+// muzzle flashes) are left out of the vertex colours and handed to Set_Point_Lights(), and
+// the terrain and road passes light them per pixel. The vertex colours serve every pass, so
+// the choice goes by whether the lit terrain shader drew last frame; a pass that falls back
+// anyway (water reflection with clip planes) misses those lights rather than doubling them.
+
 #pragma once
 
 class WorldHeightMap;
+class W3DDynamicLight;
 
 class W3DTerrainLighting
 {
@@ -71,4 +80,12 @@ public:
 	static void Tree_Pass(const char *fallback_reason);
 	static unsigned Last_Frame_Tree_Passes();
 	static const char *Last_Tree_Reason();
+
+	// Per-pixel point lights (PerPixelLights). Set_Point_Lights() takes at most MAX_POINT_LIGHTS.
+	enum { MAX_POINT_LIGHTS = 8 };
+	static bool Point_Lights_Wanted();
+	static void Set_Point_Lights(W3DDynamicLight *const lights[], int count);
+	// Lights uploaded last frame, and null if the per-pixel path ran, else why not.
+	static unsigned Last_Frame_Point_Lights();
+	static const char *Last_Point_Light_Reason();
 };

@@ -17,6 +17,7 @@
 
 #include "W3DDevice/GameClient/W3DTerrainLighting.h"
 #include "W3DDevice/GameClient/WorldHeightMap.h"
+#include "W3DDevice/GameClient/W3DDynamicLight.h"
 #include "Common/GlobalData.h"
 #include "Common/MapObject.h"
 #include "WW3D2/dx9wrapper.h"
@@ -97,6 +98,12 @@ namespace
 	};
 
 	IDirect3DDevice9Ex *Device;
+
+	// The point lights of this frame (PerPixelLights), as the pixel shader reads them.
+	Float4 PointLights[TERRAIN_MAX_POINT_LIGHTS * 3];
+	unsigned PointLightCount;
+	unsigned LastPointLightCount;
+	const char *PointLightReason = "no terrain was drawn";
 
 	// The grid normals of the whole height map, one texel per height sample, and the heights
 	// they were built from.
@@ -468,6 +475,8 @@ bool Bind(WorldHeightMap *map, ShaderLibrary::VertexShaderId vertex_id, ShaderLi
 	ps[TERRAIN_PS_FOGCOLOR - TERRAIN_SUN] = Color_Value(D3DCOLOR(Render_State(D3DRS_FOGCOLOR)));
 	ps[TERRAIN_PS_DEBUG - TERRAIN_SUN].x = Get_Graphics_Options().TerrainPixelLight() ? 0.0f : 1.0f;
 	ps[TERRAIN_PS_DEBUG - TERRAIN_SUN].y = Get_Graphics_Options().DebugTerrainLightOnly ? 1.0f : 0.0f;
+	ps[TERRAIN_PS_POINT_COUNT - TERRAIN_SUN].x = float(PointLightCount);
+	memcpy(&ps[TERRAIN_PS_POINT_LIGHTS - TERRAIN_SUN], PointLights, sizeof(Float4) * 3 * PointLightCount);
 
 	Device->SetVertexShaderConstantF(0, &vs[0].x, TERRAIN_VS_COUNT);
 	Device->SetPixelShaderConstantF(TERRAIN_SUN, &ps[0].x, TERRAIN_PS_COUNT - TERRAIN_SUN);
@@ -509,6 +518,9 @@ void W3DTerrainLighting::New_Frame()
 	RoadFramePasses = 0;
 	LastTreeFramePasses = TreeFramePasses;
 	TreeFramePasses = 0;
+	// Until On_Frame_Update hands this frame's lights over, the vertex colours have them all.
+	LastPointLightCount = PointLightCount;
+	PointLightCount = 0;
 }
 
 unsigned W3DTerrainLighting::Last_Frame_Passes()
@@ -549,6 +561,58 @@ const char *W3DTerrainLighting::Last_Tree_Reason()
 	return LastTreeReason;
 }
 
+bool W3DTerrainLighting::Point_Lights_Wanted()
+{
+	const GraphicsOptions &options = Get_Graphics_Options();
+	if (!options.PerPixelLights)
+		PointLightReason = "PerPixelLights is off in Options.ini";
+	else if (!options.PerPixelLighting)
+		PointLightReason = "needs PerPixelLighting = yes";
+	else if (!options.TerrainShader() || !options.TerrainPixelLight())
+		PointLightReason = "switched off by a debug key";
+	else if (LastFramePasses == 0)
+		PointLightReason = "the terrain shader did not run last frame";
+	else
+		PointLightReason = nullptr;
+	return PointLightReason == nullptr;
+}
+
+void W3DTerrainLighting::Set_Point_Lights(W3DDynamicLight *const lights[], int count)
+{
+	if (count > TERRAIN_MAX_POINT_LIGHTS)
+		count = TERRAIN_MAX_POINT_LIGHTS;
+	PointLightCount = (count > 0) ? unsigned(count) : 0;
+	for (unsigned i = 0; i < PointLightCount; ++i)
+	{
+		W3DDynamicLight *light = lights[i];
+		const Vector3 position = light->Get_Position();
+		double inner, outer;
+		light->Get_Far_Attenuation_Range(inner, outer);
+		Vector3 diffuse, ambient;
+		light->Get_Diffuse(&diffuse);
+		light->Get_Ambient(&ambient);
+		// Equal radii give a hard edge, as the CPU's divide by zero does.
+		const float span = float(outer - inner);
+		Float4 *out = &PointLights[i * 3];
+		Float4 a = { position.X, position.Y, position.Z, float(outer) };
+		Float4 b = { diffuse.X, diffuse.Y, diffuse.Z, 1.0f / (span > 1e-4f ? span : 1e-4f) };
+		Float4 c = { ambient.X, ambient.Y, ambient.Z, 0.0f };
+		out[0] = a;
+		out[1] = b;
+		out[2] = c;
+	}
+}
+
+unsigned W3DTerrainLighting::Last_Frame_Point_Lights()
+{
+	return LastPointLightCount;
+}
+
+const char *W3DTerrainLighting::Last_Point_Light_Reason()
+{
+	return PointLightReason;
+}
+
 void W3DTerrainLighting::End()
 {
 	Device->SetVertexShader(nullptr);
@@ -584,4 +648,6 @@ void W3DTerrainLighting::Release()
 
 static_assert(TERRAIN_VS_WVP == 0 && TERRAIN_SUN + TERRAIN_SUN_COUNT == TERRAIN_VS_COUNT, "terrain vertex constants are uploaded as one block from c0");
 static_assert(TERRAIN_VS_OPTIONS < TERRAIN_SUN, "terrain vertex constants must not overlap the sun block");
-static_assert(TERRAIN_PS_FOG == TERRAIN_VS_COUNT && TERRAIN_PS_DEBUG + 1 == TERRAIN_PS_COUNT, "terrain pixel constants are uploaded as one block from the sun block");
+static_assert(TERRAIN_PS_FOG == TERRAIN_VS_COUNT && TERRAIN_PS_POINT_LIGHTS + TERRAIN_MAX_POINT_LIGHTS * 3 == TERRAIN_PS_COUNT, "terrain pixel constants are uploaded as one block from the sun block");
+static_assert(TERRAIN_PS_POINT_COUNT == TERRAIN_PS_DEBUG + 1 && TERRAIN_PS_POINT_LIGHTS == TERRAIN_PS_POINT_COUNT + 1, "the point light constants follow the debug register");
+static_assert(W3DTerrainLighting::MAX_POINT_LIGHTS == TERRAIN_MAX_POINT_LIGHTS, "the header's light count must match the shader's");

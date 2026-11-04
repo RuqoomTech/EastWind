@@ -34,6 +34,7 @@ LightClass(LightClass::POINT)
 {
 
 	m_priorEnable = false;
+	m_pixelLit = false;
 	m_enabled = true;
 
 }
