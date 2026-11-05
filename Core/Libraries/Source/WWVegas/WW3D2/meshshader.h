@@ -61,6 +61,12 @@ public:
 	// copies' world rows in stream 1 and the device world at identity. False: draw each copy.
 	// In the shadow map's caster pass it binds the depth-only caster shaders instead.
 	static bool Begin_Instanced(int copies);
+
+	// As Begin(), for a GPU skin (GpuSkinning): the skin vertex shader with the bone palette,
+	// rows (3 per bone, as Matrix3D) for bones bones. The device's FVF must still be the CPU skin's
+	// (XYZNDUV2) so the checks match it; the caller then binds the skin's declaration. Also binds the
+	// caster shaders in the caster passes. False: the caller deforms this draw on the CPU.
+	static bool Begin_Skinned(const float *rows, int bones);
 	static void End();
 
 	// Between these, End() leaves the shaders bound for the next draw, and Begin() unbinds them
@@ -71,15 +77,28 @@ public:
 	// InstancedDraws are the Begin_Instanced() draws among the lit ones, InstancedCopies the copies they drew;
 	// CasterDraws and CasterCopies the same for the caster passes (shadow map and AO depth), whose draws are not lit or unlit ones.
 	// SkinsDeformed and SkinsReused are the skinned meshes drawn, by whether their deform was reused.
+	// SkinsGpu and SkinsCpu are the skins of each skin render, by where they deform; SkinCpuWhy splits
+	// SkinsCpu by SkinCpuReason, and SKIN_CPU_DRAW counts draws that fell back at draw time.
+	enum SkinCpuReason
+	{
+		SKIN_CPU_OFF,		// GpuSkinning or MeshLighting off, or no vs_3_0
+		SKIN_CPU_SORTED,	// drawn through the sorting renderer
+		SKIN_CPU_PASSES,	// has material passes, which draw from the CPU vertices
+		SKIN_CPU_BONES,		// more than MESH_MAX_BONES bones
+		SKIN_CPU_OTHER,		// no HTree, or its vertex buffer failed
+		SKIN_CPU_DRAW,		// a draw MeshShader could not take (clip planes, stage states...)
+		SKIN_CPU_COUNT
+	};
 	struct StatsStruct
 	{
 		float Calls, LitDraws, UnlitDraws, SetupMs, ShaderDrawMs, InstancedDraws, InstancedCopies, CasterDraws, CasterCopies,
-			SkinsDeformed, SkinsReused;
+			SkinsDeformed, SkinsReused, SkinsGpu, SkinsCpu, SkinCpuWhy[SKIN_CPU_COUNT];
 		StatsStruct() : Calls(0), LitDraws(0), UnlitDraws(0), SetupMs(0), ShaderDrawMs(0), InstancedDraws(0), InstancedCopies(0),
-			CasterDraws(0), CasterCopies(0), SkinsDeformed(0), SkinsReused(0) {}
+			CasterDraws(0), CasterCopies(0), SkinsDeformed(0), SkinsReused(0), SkinsGpu(0), SkinsCpu(0), SkinCpuWhy() {}
 	};
 	static StatsStruct Take_Stats();
 	static void Count_Skins(unsigned deformed, unsigned reused);	// from the skin renderer
+	static void Count_Skin(bool gpu, SkinCpuReason why);			// from the skin renderer and DX9Wrapper
 
 	static void Begin_Batch();
 	static void End_Batch();

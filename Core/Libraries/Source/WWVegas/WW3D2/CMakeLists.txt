@@ -71,6 +71,7 @@ set(WW3D2_SRC
     formconv.h
     FramGrab.cpp
     framgrab.h
+    gpuskin.h
     gputimer.cpp
     gputimer.h
     graphicsoptions.h

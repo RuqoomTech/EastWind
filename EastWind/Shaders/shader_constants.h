@@ -49,6 +49,11 @@
 #define MESH_VS_TEXMATRIX         18  // c18..c25: per stage 4 registers, texture transform
 #define MESH_VS_OPTIONS           26  // c26: x range fog
 #define MESH_VS_COUNT             27
+// GPU skinning (GpuSkinning): a skin's bone palette, 3 rows (the bone's world transform) per bone.
+// Every other vertex shader constant (mesh, terrain, water, trees, wave) ends below c34, and the
+// shadow and frame registers above c200 are pixel ones, so c64..c255 is free. vs_3_0 has 256.
+#define MESH_VS_BONES             64  // c64..c255
+#define MESH_MAX_BONES            64
 
 #define MESH_MAX_LIGHTS           4
 #define MESH_PS_STAGE             0   // c0..c7: per stage colour op/args, colour modifiers, alpha op/args, alpha modifiers

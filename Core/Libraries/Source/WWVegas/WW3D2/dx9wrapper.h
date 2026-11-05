@@ -280,7 +280,30 @@ class DX9Wrapper
 		unsigned short min_vertex_index,
 		unsigned short vertex_count);
 
+	// EastWind GPU skinning: Draw with a skin set.
+	static void Draw_Skinned(
+		unsigned primitive_type,
+		unsigned short start_index,
+		unsigned short polygon_count,
+		unsigned short min_vertex_index,
+		unsigned short vertex_count);
+
 public:
+	// EastWind GPU skinning (GpuSkinning): one skin's draws. The skin renderer sets it around them
+	// while the CPU skins' dynamic buffer (XYZNDUV2) is bound; each indexed draw then reads VB instead.
+	struct SkinDrawStruct
+	{
+		IDirect3DVertexBuffer9 *VB;		// bind pose, XYZNDUV2 and the vertex's first palette row: SKIN_VERTEX_SIZE bytes each
+		const float *Rows;				// the bone palette, 3 rows per bone
+		int Bones;
+		int Vertices;
+		// Writes the CPU-deformed XYZNDUV2 vertices of Mesh, for a draw the shaders do not take.
+		void (*Fill)(void *mesh, void *vertices);
+		void *Mesh;
+	};
+	enum { SKIN_VERTEX_SIZE = 48 };
+	static void Set_Skin(const SkinDrawStruct *skin);
+
 	// EastWind M8 R6: until cleared with (nullptr, 0), each indexed draw draws the bound mesh once
 	// at each of these world transforms: one instanced draw when the mesh shader takes it, else a
 	// draw per copy. The transforms must stay alive until cleared.

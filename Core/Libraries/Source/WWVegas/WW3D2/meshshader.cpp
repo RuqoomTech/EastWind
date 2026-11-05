@@ -782,6 +782,16 @@ namespace
 		return true;
 	}
 
+	// Begin_Skinned's bone palette for this draw; null for any other draw.
+	const float *SkinRows;
+	int SkinBones;
+	static_assert(MESH_VS_COUNT <= MESH_VS_BONES && MESH_VS_BONES + MESH_MAX_BONES * 3 <= 256, "the bone palette must fit after the mesh constants");
+
+	void Upload_Bones()
+	{
+		Device->SetVertexShaderConstantF(MESH_VS_BONES, SkinRows, UINT(SkinBones * 3));
+	}
+
 	// The shadow map's caster pass, instanced copies (DX9Wrapper::Draw_Instanced): depth only. With
 	// the alpha test on, the pixel shader runs the texture stages for the alpha; copies whose alpha
 	// needs the vertex colour, camera-space texture coordinates or a DOTPRODUCT3 stage draw one by
@@ -799,6 +809,10 @@ namespace
 		Device->GetFVF(&fvf);
 		const int texcoord_sets = int((fvf & D3DFVF_TEXCOUNT_MASK) >> D3DFVF_TEXCOUNT_SHIFT);
 		const bool alpha_test = Render_State(D3DRS_ALPHATESTENABLE) != FALSE;
+		// GPU skins: one alpha-tested variant, for their XYZNDUV2 layout.
+		const bool skin = SkinRows != nullptr;
+		if (skin && alpha_test && texcoord_sets != 2)
+			return false;
 
 		Float4 vs[MESH_VS_COUNT];
 		Float4 ps[MESH_PS_OPTIONS + 1];
@@ -842,13 +856,14 @@ namespace
 			vs[MESH_VS_TEXGEN + 1] = texgen[1];
 		}
 
-		IDirect3DVertexShader9 *vertex_shader = ShaderLibrary::Peek_Vertex(alpha_test
-			? ShaderLibrary::VertexShaderId(ShaderLibrary::VS_CASTER_ALPHA_T0 + texcoord_sets) : ShaderLibrary::VS_CASTER);
+		IDirect3DVertexShader9 *vertex_shader = ShaderLibrary::Peek_Vertex(skin
+			? (alpha_test ? ShaderLibrary::VS_CASTER_SKIN_ALPHA : ShaderLibrary::VS_CASTER_SKIN)
+			: alpha_test ? ShaderLibrary::VertexShaderId(ShaderLibrary::VS_CASTER_ALPHA_T0 + texcoord_sets) : ShaderLibrary::VS_CASTER);
 		IDirect3DPixelShader9 *pixel_shader = ShaderLibrary::Peek_Pixel(alpha_test ? ShaderLibrary::PS_CASTER_ALPHA : ShaderLibrary::PS_CASTER);
 		if (vertex_shader == nullptr || pixel_shader == nullptr)
 			return Fallback(REASON_NO_SHADER, 4);
 
-		// The device world is identity: the copies' world rows come from stream 1.
+		// The device world is identity: the copies' world rows come from stream 1, a skin's from its bones.
 		D3DMATRIX world, view, projection, world_view, world_view_projection;
 		Device->GetTransform(D3DTS_WORLD, &world);
 		Device->GetTransform(D3DTS_VIEW, &view);
@@ -860,6 +875,8 @@ namespace
 		Upload<true>(vs, alpha_test ? MESH_VS_COUNT : MESH_VS_WVP + 4);
 		if (alpha_test)
 			Upload<false>(ps, MESH_PS_OPTIONS + 1);
+		if (skin)
+			Upload_Bones();
 		Bind_Shaders(vertex_shader, pixel_shader);
 		return true;
 	}
@@ -910,6 +927,15 @@ bool MeshShader::Begin_Instanced(int copies)
 	return shader;
 }
 
+bool MeshShader::Begin_Skinned(const float *rows, int bones)
+{
+	SkinRows = rows;
+	SkinBones = bones;
+	const bool shader = Begin();
+	SkinRows = nullptr;
+	return shader;
+}
+
 MeshShader::StatsStruct MeshShader::Take_Stats()
 {
 	LARGE_INTEGER frequency;
@@ -927,6 +953,10 @@ MeshShader::StatsStruct MeshShader::Take_Stats()
 	s.CasterCopies /= frames;
 	s.SkinsDeformed /= frames;
 	s.SkinsReused /= frames;
+	s.SkinsGpu /= frames;
+	s.SkinsCpu /= frames;
+	for (float &why : s.SkinCpuWhy)
+		why /= frames;
 	s.SetupMs *= to_ms;
 	s.ShaderDrawMs *= to_ms;
 	Stats = StatsStruct();
@@ -940,6 +970,18 @@ void MeshShader::Count_Skins(unsigned deformed, unsigned reused)
 	{
 		Stats.SkinsDeformed += float(deformed);
 		Stats.SkinsReused += float(reused);
+	}
+}
+
+void MeshShader::Count_Skin(bool gpu, SkinCpuReason why)
+{
+	if (Get_Graphics_Options().DebugKeys)
+	{
+		// A draw-time fallback is one draw of a GPU skin, not another skin.
+		if (why != SKIN_CPU_DRAW)
+			++(gpu ? Stats.SkinsGpu : Stats.SkinsCpu);
+		if (!gpu)
+			++Stats.SkinCpuWhy[why];
 	}
 }
 
@@ -968,8 +1010,11 @@ static bool Begin_Draw()
 	// The shadow map's caster pass draws depth only: instanced copies with the caster shaders,
 	// single draws fixed function.
 	if (ShadowMap::Caster_Pass())
-		return Instanced && Begin_Caster(lit);
+		return (Instanced || SkinRows != nullptr) && Begin_Caster(lit);
 	if (Instanced && !lit)
+		return false;
+	// The particle shader would draw a GPU skin's bind pose undeformed, so such a draw goes to the CPU.
+	if (!lit && SceneDepthInvWidth > 0.0f && DX9Wrapper::Get_Soft_Particle() && SkinRows != nullptr)
 		return false;
 	if (!lit && SceneDepthInvWidth > 0.0f && DX9Wrapper::Get_Soft_Particle() && Begin_Particle())
 		return true;
@@ -1003,11 +1048,15 @@ static bool Begin_Draw()
 	const bool has_normal = (fvf & D3DFVF_NORMAL) != 0;
 	if ((fvf & D3DFVF_POSITION_MASK) != D3DFVF_XYZ || (lit && !has_normal) || (fvf & ~allowed) || texcoord_sets > 2)
 		return Fallback(REASON_FVF, fvf);
+	// The skin vertex shader reads the CPU skin's layout (MeshSkinVS = MeshVS_ND_T2).
+	const bool skin = SkinRows != nullptr;
+	if (skin && fvf != (D3DFVF_XYZ | D3DFVF_NORMAL | D3DFVF_DIFFUSE | D3DFVF_TEX2))
+		return Fallback(REASON_FVF, fvf);
 
 	const bool has_diffuse = (fvf & D3DFVF_DIFFUSE) != 0;
 	const bool has_specular = (fvf & D3DFVF_SPECULAR) != 0;
-	IDirect3DVertexShader9 *vertex_shader = ShaderLibrary::Peek_Vertex(Instanced
-		? ShaderLibrary::Mesh_Instanced_Vertex_Id(has_diffuse, has_specular, texcoord_sets)
+	IDirect3DVertexShader9 *vertex_shader = ShaderLibrary::Peek_Vertex(skin ? ShaderLibrary::VS_MESH_SKIN
+		: Instanced ? ShaderLibrary::Mesh_Instanced_Vertex_Id(has_diffuse, has_specular, texcoord_sets)
 		: ShaderLibrary::Mesh_Vertex_Id(has_normal, has_diffuse, has_specular, texcoord_sets));
 	IDirect3DPixelShader9 *pixel_shader = ShaderLibrary::Peek_Pixel(lit ? ShaderLibrary::PS_MESH : ShaderLibrary::PS_UNLIT);
 	if (vertex_shader == nullptr || pixel_shader == nullptr)
@@ -1217,6 +1266,8 @@ static bool Begin_Draw()
 
 	Upload<true>(vs, MESH_VS_COUNT);
 	Upload<false>(ps, MESH_PS_COUNT);
+	if (skin)
+		Upload_Bones();
 	Bind_Shaders(vertex_shader, pixel_shader);
 
 	RestoreMaps = use_material;

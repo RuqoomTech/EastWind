@@ -787,6 +787,7 @@ static void loadGraphicsOptions()
 	options.SoftParticles = prefs.getBool("SoftParticles", options.SoftParticles);
 	options.HeatHaze = prefs.getReal("HeatHaze", options.HeatHaze);
 	options.LinearLighting = prefs.getBool("LinearLighting", options.LinearLighting);
+	options.GpuSkinning = prefs.getBool("GpuSkinning", options.GpuSkinning);
 	options.DebugKeys = prefs.getBool("DebugKeys", options.DebugKeys);
 	options.Validate();
 }
@@ -829,6 +830,7 @@ static void showGraphicsStatus()
 	const WideChar *soft = !o.SoftParticles ? L"off in Options.ini" : o.PostSoftParticles() ? L"on" : L"off";
 	const WideChar *linear = !o.LinearLighting ? L"off in Options.ini" : o.Linear() ? L"on" : L"off (gamma, classic)";
 	const WideChar *unlit = !o.PerPixelLighting ? L"off in Options.ini" : o.UnlitShader() ? L"shader (new)" : L"fixed function (classic)";
+	const WideChar *gpu_skin = !o.GpuSkinning ? L"off in Options.ini" : o.GpuSkin() ? L"on" : L"off (needs the unit and building light)";
 
 	TheInGameUI->message(L"EastWind graphics: %s   [Ctrl+Shift+F9]", o.DebugAllOff ? L"ALL OFF (classic)" : L"ON");
 	TheInGameUI->message(L"Terrain light: %s   [Ctrl+Shift+F10]", terrain);
@@ -860,6 +862,7 @@ static void showGraphicsStatus()
 	TheInGameUI->message(L"Soft particles: %s   [Ctrl+Shift+P]", soft);
 	TheInGameUI->message(L"Linear lighting: %s   [Ctrl+Shift+L]", linear);
 	TheInGameUI->message(L"Unlit draws: %s   [Ctrl+Shift+U]", unlit);
+	TheInGameUI->message(L"GPU skinning: %s", gpu_skin);
 	TheInGameUI->message(L"Keep mesh shaders bound: %s   [Ctrl+Shift+B]", o.DebugShaderBatchOff ? L"off (classic)" : L"on");
 	TheInGameUI->message(L"Send changed constants only: %s   [Ctrl+Shift+K]", o.DebugConstantDiffOff ? L"off (classic)" : L"on");
 	TheInGameUI->message(L"GPU time of each pass: [Ctrl+Shift+T]");
@@ -1017,7 +1020,12 @@ static void showGpuTimes()
 		mesh.Calls, mesh.LitDraws, mesh.UnlitDraws, mesh.SetupMs, mesh.ShaderDrawMs);
 	sayTime(L"   Instanced: %.0f draws of %.0f copies; depth-only passes (shadow casters, AO depth): %.0f draws of %.0f copies",
 		mesh.InstancedDraws, mesh.InstancedCopies, mesh.CasterDraws, mesh.CasterCopies);
-	sayTime(L"   Skinned meshes: %.0f deformed, %.0f reused from an earlier pass of the frame",
+	// Counted once per skin render, so a skin drawn in the shadow and reflection passes too counts in each.
+	sayTime(L"   Skinned meshes: GPU skinning %s, %.0f on GPU, %.0f on CPU (%.0f off, %.0f sorted, %.0f material passes, %.0f over 64 bones, %.0f other); %.0f GPU skin draws done on the CPU",
+		Get_Graphics_Options().GpuSkin() ? L"on" : L"off", mesh.SkinsGpu, mesh.SkinsCpu,
+		mesh.SkinCpuWhy[MeshShader::SKIN_CPU_OFF], mesh.SkinCpuWhy[MeshShader::SKIN_CPU_SORTED], mesh.SkinCpuWhy[MeshShader::SKIN_CPU_PASSES],
+		mesh.SkinCpuWhy[MeshShader::SKIN_CPU_BONES], mesh.SkinCpuWhy[MeshShader::SKIN_CPU_OTHER], mesh.SkinCpuWhy[MeshShader::SKIN_CPU_DRAW]);
+	sayTime(L"   CPU skin deform: %.0f deformed, %.0f reused from an earlier pass of the frame",
 		mesh.SkinsDeformed, mesh.SkinsReused);
 	sayTime(L"GPU time (average of %d frames): %.2f ms a frame", frames, total);
 	for (int p = GpuTimer::FRAME_BEGIN + 1; p < GpuTimer::POINT_COUNT; ++p)

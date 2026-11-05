@@ -11,6 +11,7 @@ set(COREI_GOOGLETEST_SRC
     GameEngineDevice/StdDevice/Common/StdLocalFileSystemTest.cpp
     GameEngineDevice/W3DDevice/GameClient/W3DPostProcessTest.cpp
     Libraries/Compression/CompressionManagerTest.cpp
+    Libraries/WWVegas/WW3D2/gpuskin_test.cpp
     Libraries/WWVegas/WW3D2/hlod_test.cpp
     Libraries/WWVegas/WW3D2/skincache_test.cpp
     Libraries/WWVegas/WWMath/WWMathCalls.h

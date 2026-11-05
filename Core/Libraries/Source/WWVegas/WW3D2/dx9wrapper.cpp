@@ -2135,6 +2135,7 @@ void DX9Wrapper::Draw_Sorting_IB_VB(
 
 static const Matrix3D *const *Instances = nullptr;	// EastWind M8 R6, see Set_Instances
 static int InstanceCount = 0;
+static const DX9Wrapper::SkinDrawStruct *Skin = nullptr;	// EastWind GPU skinning, see Set_Skin
 
 void DX9Wrapper::Draw(
 	unsigned primitive_type,
@@ -2231,6 +2232,10 @@ void DX9Wrapper::Draw(
 					///@todo: MUST FIND OUT WHY THIS HAPPENS WITH LOTS OF PARTICLES ON BIG FIGHT!  -MW
 					break;
 				}*/
+				if (Skin != nullptr) {
+					Draw_Skinned(primitive_type,start_index,polygon_count,min_vertex_index,vertex_count);
+					break;
+				}
 				if (InstanceCount > 0) {
 					Draw_Instanced(primitive_type,start_index,polygon_count,min_vertex_index,vertex_count);
 					break;
@@ -2293,6 +2298,12 @@ struct InstanceDeclarationStruct { DWORD Fvf; IDirect3DVertexDeclaration9 *Decla
 static InstanceDeclarationStruct InstanceDeclarations[16];
 static_assert(sizeof(Matrix3D) == 48, "a copy's world matrix is three float4 rows");
 
+// EastWind GPU skinning: the skin vertex's layout, and the buffer a draw the shaders do not take
+// fills with the CPU-deformed vertices. Released with the instancing resources.
+static IDirect3DVertexDeclaration9 *SkinDeclaration = nullptr;
+static IDirect3DVertexBuffer9 *SkinFallbackBuffer = nullptr;
+static int SkinFallbackVertices = 0;
+
 void DX9Wrapper::Set_Instances(const Matrix3D *const *transforms, int count)
 {
 	Instances = transforms;
@@ -2311,6 +2322,13 @@ void DX9Wrapper::Release_Instancing()
 			d.Declaration->Release();
 		d = InstanceDeclarationStruct();
 	}
+	if (SkinDeclaration != nullptr)
+		SkinDeclaration->Release();
+	SkinDeclaration = nullptr;
+	if (SkinFallbackBuffer != nullptr)
+		SkinFallbackBuffer->Release();
+	SkinFallbackBuffer = nullptr;
+	SkinFallbackVertices = 0;
 }
 
 // The FVF's elements on stream 0 and the world rows as TEXCOORD4..6 on stream 1. Null for an
@@ -2445,6 +2463,90 @@ void DX9Wrapper::Draw_Instanced(
 		if (mesh_shader)
 			MeshShader::End();
 	}
+}
+
+// EastWind GPU skinning: the skin's own buffer with its bone palette, or, for a draw the shaders do not
+// take (clip planes, a stage state they cannot copy...), its CPU-deformed vertices as before. The skin's
+// indices count from its first vertex, so both draw at base vertex 0.
+void DX9Wrapper::Draw_Skinned(
+	unsigned primitive_type,
+	unsigned short start_index,
+	unsigned short polygon_count,
+	unsigned short min_vertex_index,
+	unsigned short vertex_count)
+{
+	const unsigned fvf = render_state.vertex_buffers[0]->FVF_Info().Get_FVF();
+	const unsigned stride = render_state.vertex_buffers[0]->FVF_Info().Get_FVF_Size();
+	if (SkinDeclaration == nullptr)
+	{
+		const D3DVERTEXELEMENT9 elements[] =
+		{
+			{ 0, 0, D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_POSITION, 0 },
+			{ 0, 12, D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_NORMAL, 0 },
+			{ 0, 24, D3DDECLTYPE_D3DCOLOR, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_COLOR, 0 },
+			{ 0, 28, D3DDECLTYPE_FLOAT2, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD, 0 },
+			{ 0, 36, D3DDECLTYPE_FLOAT2, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD, 1 },
+			{ 0, 44, D3DDECLTYPE_FLOAT1, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_BLENDINDICES, 0 },
+			D3DDECL_END()
+		};
+		if (FAILED(D3DDevice->CreateVertexDeclaration(elements, &SkinDeclaration)))
+			SkinDeclaration = nullptr;
+	}
+
+	// Draw() widens a range under 3 vertices to the whole dynamic buffer; a skin's buffers hold only its own.
+	if (unsigned(min_vertex_index) + vertex_count > unsigned(Skin->Vertices))
+	{
+		min_vertex_index = 0;
+		vertex_count = (unsigned short)Skin->Vertices;
+	}
+	DX9_RECORD_RENDER(polygon_count, vertex_count, render_state.shader);
+	DX9_RECORD_DRAW_CALLS();
+	// Begin_Skinned checks the draw against the CPU skin's FVF, still set; the declaration follows.
+	if (SkinDeclaration != nullptr && MeshShader::Begin_Skinned(Skin->Rows, Skin->Bones))
+	{
+		DX9CALL(SetVertexDeclaration(SkinDeclaration));
+		DX9CALL(SetStreamSource(0, Skin->VB, 0, SKIN_VERTEX_SIZE));
+		DX9CALL(DrawIndexedPrimitive((D3DPRIMITIVETYPE)primitive_type, 0, min_vertex_index,
+			vertex_count, start_index + render_state.iba_offset, polygon_count));
+		MeshShader::End();
+	}
+	else
+	{
+		if (SkinFallbackVertices < Skin->Vertices)
+		{
+			if (SkinFallbackBuffer != nullptr)
+				SkinFallbackBuffer->Release();
+			SkinFallbackBuffer = nullptr;
+			SkinFallbackVertices = 0;
+			if (SUCCEEDED(D3DDevice->CreateVertexBuffer(Skin->Vertices * stride, D3DUSAGE_DYNAMIC | D3DUSAGE_WRITEONLY,
+					fvf, D3DPOOL_DEFAULT, &SkinFallbackBuffer, nullptr)))
+				SkinFallbackVertices = Skin->Vertices;
+			else
+				SkinFallbackBuffer = nullptr;
+		}
+		void *data = nullptr;
+		if (SkinFallbackBuffer == nullptr || FAILED(SkinFallbackBuffer->Lock(0, Skin->Vertices * stride, &data, D3DLOCK_DISCARD)))
+			return;
+		Skin->Fill(Skin->Mesh, data);
+		SkinFallbackBuffer->Unlock();
+		MeshShader::Count_Skin(false, MeshShader::SKIN_CPU_DRAW);
+
+		DX9CALL(SetStreamSource(0, SkinFallbackBuffer, 0, stride));
+		const bool mesh_shader = MeshShader::Begin();
+		DX9CALL(DrawIndexedPrimitive((D3DPRIMITIVETYPE)primitive_type, 0, min_vertex_index,
+			vertex_count, start_index + render_state.iba_offset, polygon_count));
+		if (mesh_shader)
+			MeshShader::End();
+	}
+
+	// Back to the wrapper's state: the dynamic buffer and its FVF.
+	DX9CALL(SetStreamSource(0, static_cast<DX9VertexBufferClass *>(render_state.vertex_buffers[0])->Get_DX9_Vertex_Buffer(), 0, stride));
+	DX9CALL(SetFVF(fvf));
+}
+
+void DX9Wrapper::Set_Skin(const SkinDrawStruct *skin)
+{
+	Skin = skin;
 }
 
 // ----------------------------------------------------------------------------

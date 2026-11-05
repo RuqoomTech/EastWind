@@ -43,6 +43,7 @@ struct GraphicsOptions
 	bool SoftParticles;		// SoftParticles: particles fade where they meet the scene (needs the AO depth texture's conditions)
 	float HeatHaze;			// HeatHaze: 0 off .. 1, screen ripple over fire, explosions and exhausts, in the final post pass
 	bool LinearLighting;	// LinearLighting: the shaders add light up in linear space (shader_linear.h)
+	bool GpuSkinning;		// GpuSkinning: skins deform in the mesh vertex shader instead of on the CPU (needs PerPixelLighting)
 	bool DebugKeys;			// DebugKeys: Ctrl+Shift+F1..F12 switch the features above while the game runs
 
 	// Set by the debug keys (W3DDisplay), never saved. They only turn features off that
@@ -84,6 +85,7 @@ struct GraphicsOptions
 		, SoftParticles(false)
 		, HeatHaze(0.0f)
 		, LinearLighting(false)
+		, GpuSkinning(true)
 		, DebugKeys(false)
 		, DebugAllOff(false)
 		, DebugTerrainLightingOff(false)
@@ -127,6 +129,8 @@ struct GraphicsOptions
 	bool Linear() const { return LinearLighting && !DebugAllOff && !DebugLinearLightingOff; }
 	// Unlit draws follow PerPixelLighting, so the classic look and WorldBuilder keep fixed function.
 	bool UnlitShader() const { return PerPixelLighting && !DebugAllOff && !DebugUnlitShaderOff; }
+	// GPU skins draw through the lit mesh shaders, so they follow them.
+	bool GpuSkin() const { return GpuSkinning && MeshLighting(); }
 	bool WaterShader() const { return WaterQuality >= 1 && !DebugAllOff && !DebugWaterOff; }
 	// Sun shadow maps (M3.4) need the lit mesh and terrain shaders, which sample them.
 	bool ShadowMaps() const { return ShadowMapSize > 0 && MeshLighting() && !DebugTerrainLightingOff && !DebugShadowsOff; }

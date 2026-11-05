@@ -86,6 +86,10 @@ public:
 		VS_CASTER_ALPHA_T0,
 		VS_CASTER_ALPHA_T1,
 		VS_CASTER_ALPHA_T2,
+		// mesh.hlsl, GPU skinning (GpuSkinning): skins (always XYZNDUV2), and their shadow casters.
+		VS_MESH_SKIN,
+		VS_CASTER_SKIN,
+		VS_CASTER_SKIN_ALPHA,
 		VS_COUNT
 	};
 

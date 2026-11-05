@@ -61,10 +61,16 @@
 #include "camera.h"
 #include "stripoptimizer.h"
 #include "meshgeometry.h"
+#include "htree.h"
+#include "gpuskin.h"
+#include "graphicsoptions.h"
+#include "shaderlibrary.h"
+#include "shader_constants.h"
 #include <algorithm>
 #include <atomic>
 #include <execution>
 #include <functional>
+#include <unordered_map>
 #include <vector>
 
 /*
@@ -1287,6 +1293,183 @@ void DX9SkinFVFCategoryContainer::Log(bool only_visible)
 }
 
 // ----------------------------------------------------------------------------
+// EastWind GPU skinning (GpuSkinning): a skin model's bind pose in a static buffer, each vertex with its
+// first row in the model's bone palette (the bones its vertices use, at most MESH_MAX_BONES). The mesh
+// vertex shader deforms it, so these skins skip the CPU deform and the dynamic buffer. Built on the
+// model's first GPU render, in the DEFAULT pool, which D3D9Ex keeps across resets; released when the
+// model is unregistered (also when its materials change) and at shutdown.
+// ----------------------------------------------------------------------------
+
+namespace
+{
+	struct GpuSkinModelStruct
+	{
+		IDirect3DVertexBuffer9 *VB = nullptr;
+		std::vector<unsigned short> Bones;
+		MeshShader::SkinCpuReason Rejected = MeshShader::SKIN_CPU_COUNT;	// why it stays on the CPU, if it does
+	};
+	std::unordered_map<const MeshModelClass *, GpuSkinModelStruct> GpuSkinModels;
+
+	struct GpuSkinVertexStruct
+	{
+		float x, y, z, nx, ny, nz;
+		unsigned diffuse;
+		float u1, v1, u2, v2;
+		float row;	// the vertex's first row in the palette
+	};
+	static_assert(sizeof(GpuSkinVertexStruct) == DX9Wrapper::SKIN_VERTEX_SIZE, "the skin vertex is XYZNDUV2 and its palette row");
+}
+
+static void Release_Gpu_Skin(const MeshModelClass *mmc)
+{
+	auto it = GpuSkinModels.find(mmc);
+	if (it == GpuSkinModels.end())
+		return;
+	if (it->second.VB != nullptr)
+		it->second.VB->Release();
+	GpuSkinModels.erase(it);
+}
+
+static void Release_Gpu_Skins()
+{
+	for (auto &model : GpuSkinModels)
+	{
+		if (model.second.VB != nullptr)
+			model.second.VB->Release();
+	}
+	GpuSkinModels.clear();
+}
+
+static const GpuSkinModelStruct &Gpu_Skin_Model(MeshModelClass *mmc)
+{
+	GpuSkinModelStruct &model = GpuSkinModels[mmc];
+	if (model.VB != nullptr || model.Rejected != MeshShader::SKIN_CPU_COUNT)
+		return model;
+
+	const int count = mmc->Get_Vertex_Count();
+	const unsigned short *links = mmc->Get_Vertex_Bone_Links();
+	static std::vector<float> rows;
+	if (!Build_Skin_Palette(links, count, MESH_MAX_BONES, model.Bones, rows))
+	{
+		model.Rejected = (links != nullptr && count > 0) ? MeshShader::SKIN_CPU_BONES : MeshShader::SKIN_CPU_OTHER;
+		return model;
+	}
+
+	IDirect3DDevice9Ex *device = DX9Wrapper::_Get_D3D_Device9();
+	void *data = nullptr;
+	if (device == nullptr || FAILED(device->CreateVertexBuffer(count * DX9Wrapper::SKIN_VERTEX_SIZE, D3DUSAGE_WRITEONLY, 0,
+			D3DPOOL_DEFAULT, &model.VB, nullptr)))
+		model.VB = nullptr;
+	else if (FAILED(model.VB->Lock(0, 0, &data, 0)))
+	{
+		model.VB->Release();
+		model.VB = nullptr;
+	}
+	if (model.VB == nullptr)
+	{
+		model.Rejected = MeshShader::SKIN_CPU_OTHER;
+		return model;
+	}
+
+	// The CPU skin's sources, unchanged: bind-pose positions and normals, then its colour and UVs.
+	const Vector3 *loc = mmc->Get_Vertex_Array();
+	const Vector3 *norm = mmc->Get_Vertex_Normal_Array();
+	const unsigned *diffuse = mmc->Get_Color_Array(0, false);
+	const Vector2 *uv0 = mmc->Get_UV_Array_By_Index(0);
+	const Vector2 *uv1 = mmc->Get_UV_Array_By_Index(1);
+	GpuSkinVertexStruct *verts = static_cast<GpuSkinVertexStruct *>(data);
+	for (int v = 0; v < count; ++v)
+	{
+		GpuSkinVertexStruct &d = verts[v];
+		d.x = loc[v].X;
+		d.y = loc[v].Y;
+		d.z = loc[v].Z;
+		d.nx = norm[v].X;
+		d.ny = norm[v].Y;
+		d.nz = norm[v].Z;
+		d.diffuse = diffuse ? diffuse[v] : 0;
+		d.u1 = uv0 ? uv0[v].X : 0.0f;
+		d.v1 = uv0 ? uv0[v].Y : 0.0f;
+		d.u2 = uv1 ? uv1[v].X : 0.0f;
+		d.v2 = uv1 ? uv1[v].Y : 0.0f;
+		d.row = rows[v];
+	}
+	model.VB->Unlock();
+	return model;
+}
+
+// Why this skin stays on the CPU this render, or SKIN_CPU_COUNT when the vertex shader deforms it.
+// Material passes and sorted draws read the skin's vertices from the dynamic buffer.
+static MeshShader::SkinCpuReason Gpu_Skin_Reason(MeshClass *mesh, bool sorting, const std::vector<const MeshClass *> &passes)
+{
+	const DX9Caps *caps = DX9Wrapper::Get_Current_Caps();
+	if (!Get_Graphics_Options().GpuSkin() || caps->Get_Vertex_Shader_Major_Version() < 3 || caps->Get_Pixel_Shader_Major_Version() < 3
+		|| ShaderLibrary::Peek_Vertex(ShaderLibrary::VS_MESH_SKIN) == nullptr)
+		return MeshShader::SKIN_CPU_OFF;
+	MeshModelClass *mmc = mesh->Peek_Model();
+	if (sorting || (mmc->Get_Flag(MeshGeometryClass::SORT) && WW3D::Is_Sorting_Enabled()))
+		return MeshShader::SKIN_CPU_SORTED;
+	if (std::find(passes.begin(), passes.end(), mesh) != passes.end())
+		return MeshShader::SKIN_CPU_PASSES;
+	if (mesh->Get_Container() == nullptr || mesh->Get_Container()->Get_HTree() == nullptr)
+		return MeshShader::SKIN_CPU_OTHER;
+	const GpuSkinModelStruct &model = Gpu_Skin_Model(mmc);
+	return model.VB != nullptr ? MeshShader::SKIN_CPU_COUNT : model.Rejected;
+}
+
+// Writes the skin's CPU-deformed vertices. True when the deform was reused from an earlier pass.
+static bool Fill_Skin_Vertices(MeshClass *mesh, VertexFormatXYZNDUV2 *verts)
+{
+	MeshModelClass * mmc = mesh->Peek_Model();
+	const int mesh_vertex_count=mmc->Get_Vertex_Count();
+
+	const Vector3* loc;
+	const Vector3* norm;
+	const Vector2* uv0=mmc->Get_UV_Array_By_Index(0);
+	const Vector2* uv1=mmc->Get_UV_Array_By_Index(1);
+	const unsigned* diffuse=mmc->Get_Color_Array(0,false);
+
+	const bool reused = mesh->Get_Frame_Deformed_Vertices(loc,norm);
+
+	for (int v=0;v<mesh_vertex_count;++v) {
+		verts[v].x=(*loc)[0];
+		verts[v].y=(*loc)[1];
+		verts[v].z=(*loc)[2];
+		verts[v].nx=(*norm)[0];
+		verts[v].ny=(*norm)[1];
+		verts[v].nz=(*norm)[2];
+		if (diffuse) {
+			verts[v].diffuse=*diffuse++;
+		}
+		else {
+			verts[v].diffuse=0;
+		}
+		if (uv0) {
+			verts[v].u1=(*uv0)[0];
+			verts[v].v1=(*uv0)[1];
+			uv0++;
+		}
+		else {
+			verts[v].u1=0.0f;
+			verts[v].v1=0.0f;
+		}
+		if (uv1) {
+			verts[v].u2=(*uv1)[0];
+			verts[v].v2=(*uv1)[1];
+			uv1++;
+		}
+		else {
+			verts[v].u2=0.0f;
+			verts[v].v2=0.0f;
+		}
+
+		loc++;
+		norm++;
+	}
+	return reused;
+}
+
+// ----------------------------------------------------------------------------
 
 void DX9SkinFVFCategoryContainer::Render()
 {
@@ -1300,13 +1483,39 @@ void DX9SkinFVFCategoryContainer::Render()
 	DX9Wrapper::Set_Vertex_Buffer(nullptr);	// Free up the reference to the current vertex buffer
 														// (in case it is the dynamic, which may have to be resized)
 
+	// EastWind GPU skinning: the skins the vertex shader deforms draw from their own buffer at base 0;
+	// only the rest fill the dynamic buffer. It is still bound for the GPU skins, whose draws are
+	// checked against its FVF, so the loop runs once even when every skin is on the GPU.
+	static std::vector<const MeshClass *> matpass_meshes;
+	matpass_meshes.clear();
+	for (MatPassTaskClass *task = visible_matpass_head; task != nullptr; task = task->Get_Next_Visible())
+		matpass_meshes.push_back(task->Peek_Mesh());
+	unsigned int cpuVertexCount=0;
+	bool gpuSkinsPending=false;
+	for (MeshClass *skin = VisibleSkinHead; skin != nullptr; skin = skin->Peek_Next_Visible_Skin())
+	{
+		const MeshShader::SkinCpuReason why = Gpu_Skin_Reason(skin, sorting, matpass_meshes);
+		const bool gpu = (why == MeshShader::SKIN_CPU_COUNT);
+		skin->Set_Gpu_Skinned(gpu);
+		MeshShader::Count_Skin(gpu, why);
+		if (gpu)
+		{
+			skin->Set_Base_Vertex_Offset(0);
+			gpuSkinsPending = true;
+		}
+		else
+			cpuVertexCount += skin->Peek_Model()->Get_Vertex_Count();
+	}
+
 	//'Generals' customization to allow more than 65535 vertices
-	unsigned int maxVertexCount=VisibleVertexCount;
+	unsigned int maxVertexCount=cpuVertexCount;
 	if (maxVertexCount > 65535)
 	{
 		//clamp vertex count to maximum size that can be indexed by 16-bit index
 		maxVertexCount = 65535;
 	}
+	if (maxVertexCount == 0)
+		maxVertexCount = 1;	// every skin on the GPU
 
 	DynamicVBAccessClass vb(
 		sorting ? BUFFER_TYPE_DYNAMIC_SORTING : BUFFER_TYPE_DYNAMIC_DX9,
@@ -1318,8 +1527,9 @@ void DX9SkinFVFCategoryContainer::Render()
 
 	MeshClass * mesh = VisibleSkinHead;
 	MeshClass * remainingMesh = VisibleSkinHead;
-	while (renderedVertexCount < VisibleVertexCount)
+	while (renderedVertexCount < cpuVertexCount || gpuSkinsPending)
 	{	mesh = remainingMesh;
+		gpuSkinsPending = false;
 		{	DynamicVBAccessClass::WriteLockClass l(&vb);
 			VertexFormatXYZNDUV2 * dest_verts = l.Get_Formatted_Vertex_Array();
 			unsigned vertex_offset=0;
@@ -1328,6 +1538,11 @@ void DX9SkinFVFCategoryContainer::Render()
 			skins.clear();
 
 			while (mesh != nullptr) {
+
+				if (mesh->Is_Gpu_Skinned()) {
+					mesh = mesh->Peek_Next_Visible_Skin();
+					continue;
+				}
 
 				MeshModelClass * mmc = mesh->Peek_Model();
 				int mesh_vertex_count=mmc->Get_Vertex_Count();
@@ -1345,7 +1560,7 @@ void DX9SkinFVFCategoryContainer::Render()
 
 		// If this assert hits, a skinned mesh has probably been added to the scene more than once.
 		// Example: A skinned mesh was added to the scene then it was attached to a bone without being removed from the scene.
-		WWASSERT((vertex_offset+mesh_vertex_count)<=VisibleVertexCount);
+		WWASSERT((vertex_offset+mesh_vertex_count)<=cpuVertexCount);
 			DX9_RECORD_SKIN_RENDER(mesh->Get_Num_Polys(),mesh_vertex_count);
 
 				skins.push_back(mesh);
@@ -1362,55 +1577,8 @@ void DX9SkinFVFCategoryContainer::Render()
 			// casters, water reflection) is only copied.
 			std::atomic<unsigned> reused(0);
 			auto skin = [dest_verts, &reused](MeshClass *mesh) {
-				MeshModelClass * mmc = mesh->Peek_Model();
-				const int mesh_vertex_count=mmc->Get_Vertex_Count();
-
-				const Vector3* loc;
-				const Vector3* norm;
-				const Vector2* uv0=mmc->Get_UV_Array_By_Index(0);
-				const Vector2* uv1=mmc->Get_UV_Array_By_Index(1);
-				const unsigned* diffuse=mmc->Get_Color_Array(0,false);
-
-				VertexFormatXYZNDUV2* verts=dest_verts+mesh->Get_Base_Vertex_Offset();
-
-				if (mesh->Get_Frame_Deformed_Vertices(loc,norm))
+				if (Fill_Skin_Vertices(mesh, dest_verts + mesh->Get_Base_Vertex_Offset()))
 					++reused;
-
-				for (int v=0;v<mesh_vertex_count;++v) {
-					verts[v].x=(*loc)[0];
-					verts[v].y=(*loc)[1];
-					verts[v].z=(*loc)[2];
-					verts[v].nx=(*norm)[0];
-					verts[v].ny=(*norm)[1];
-					verts[v].nz=(*norm)[2];
-					if (diffuse) {
-						verts[v].diffuse=*diffuse++;
-					}
-					else {
-						verts[v].diffuse=0;
-					}
-					if (uv0) {
-						verts[v].u1=(*uv0)[0];
-						verts[v].v1=(*uv0)[1];
-						uv0++;
-					}
-					else {
-						verts[v].u1=0.0f;
-						verts[v].v1=0.0f;
-					}
-					if (uv1) {
-						verts[v].u2=(*uv1)[0];
-						verts[v].v2=(*uv1)[1];
-						uv1++;
-					}
-					else {
-						verts[v].u2=0.0f;
-						verts[v].v2=0.0f;
-					}
-
-					loc++;
-					norm++;
-				}
 			};
 			// A few small skins cost less than waking the pool.
 			if (vertex_offset < 4096)
@@ -1445,7 +1613,7 @@ void DX9SkinFVFCategoryContainer::Render()
 		}
 	}
 
-	WWASSERT(renderedVertexCount==VisibleVertexCount);
+	WWASSERT(renderedVertexCount==cpuVertexCount);
 
 	clearVisibleSkinList();
 }
@@ -1988,6 +2156,23 @@ void DX9TextureCategoryClass::Render()
 		// of the render state, so sorted draws capture it too.
 		MeshShader::Set_Object(mesh);
 
+		// EastWind GPU skinning: this skin's draws read its bind pose, deformed by its bones' transforms.
+		DX9Wrapper::SkinDrawStruct skin_draw;
+		if (mesh->Is_Gpu_Skinned()) {
+			static float rows[MESH_MAX_BONES * 12];
+			const GpuSkinModelStruct &model = Gpu_Skin_Model(mesh->Peek_Model());
+			const HTreeClass *htree = mesh->Get_Container()->Get_HTree();
+			Pack_Skin_Rows(model.Bones.data(), int(model.Bones.size()),
+				[htree](unsigned short bone) -> const Matrix3D & { return htree->Get_Transform(bone); }, rows);
+			skin_draw.VB = model.VB;
+			skin_draw.Rows = rows;
+			skin_draw.Bones = int(model.Bones.size());
+			skin_draw.Vertices = mesh->Peek_Model()->Get_Vertex_Count();
+			skin_draw.Fill = [](void *skin, void *vertices) { Fill_Skin_Vertices(static_cast<MeshClass *>(skin), static_cast<VertexFormatXYZNDUV2 *>(vertices)); };
+			skin_draw.Mesh = mesh;
+			DX9Wrapper::Set_Skin(&skin_draw);
+		}
+
 		if ((!!mesh->Peek_Model()->Get_Flag(MeshGeometryClass::SORT)) && WW3D::Is_Sorting_Enabled()) {
 			renderer->Render_Sorted(mesh->Get_Base_Vertex_Offset(),mesh->Get_Bounding_Sphere());
 		} else {
@@ -2048,6 +2233,7 @@ void DX9TextureCategoryClass::Render()
 				renderer->Render(mesh->Get_Base_Vertex_Offset());
 		}
 
+		DX9Wrapper::Set_Skin(nullptr);
 		MeshShader::Clear_Object();
 //--------------------------------------------------------------------
 		if (mesh->Get_ObjectScale() != 1.0f)
@@ -2128,6 +2314,7 @@ void DX9MeshRendererClass::Shutdown()
 	visible_decal_meshes = nullptr;
 	Invalidate(true);
 	Clear_Pending_Delete_Lists();
+	Release_Gpu_Skins();
 }
 
 // ----------------------------------------------------------------------------
@@ -2173,6 +2360,7 @@ void DX9MeshRendererClass::Unregister_Mesh_Type(MeshModelClass* mmc)
 		delete n;
 	}
 	_RegisteredMeshList.Remove(mmc);
+	Release_Gpu_Skin(mmc);
 
 	// Also remove the gap filler!
 	if (mmc->GapFiller) {

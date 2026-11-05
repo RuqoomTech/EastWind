@@ -150,6 +150,11 @@ public:
 	void								Set_Base_Vertex_Offset(int base) { BaseVertexOffset = base; }
 	int								Get_Base_Vertex_Offset() { return BaseVertexOffset; }
 
+	// EastWind GPU skinning (GpuSkinning): set each skin render, true when the skin renderer draws this
+	// skin from its bind pose with the bone palette instead of deforming it on the CPU.
+	void								Set_Gpu_Skinned(bool gpu) { GpuSkinned = gpu; }
+	bool								Is_Gpu_Skinned() const { return GpuSkinned; }
+
 	// Do old .w3d mesh files get fog turned on or off?
 	static bool						Legacy_Meshes_Fogged;
 
@@ -184,6 +189,7 @@ protected:
 	int								BaseVertexOffset;		// offset to our first vertex in whatever vb this mesh is in.
 	MeshClass *						NextVisibleSkin;		// linked list of visible skins
 	SkinCacheClass					SkinCache;
+	bool								GpuSkinned = false;
 
 	unsigned							MeshDebugId;
 	bool								IsDisabledByDebugger;

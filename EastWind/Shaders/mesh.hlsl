@@ -66,6 +66,7 @@ float4 WorldViewNormal[3]     : SHADER_REG(MESH_VS_WORLDVIEW_NORMAL);
 float4 TexGen[2]              : SHADER_REG(MESH_VS_TEXGEN);
 float4 TexMatrix[8]           : SHADER_REG(MESH_VS_TEXMATRIX);
 float4 VsOptions              : SHADER_REG(MESH_VS_OPTIONS);
+float4 Bones[MESH_MAX_BONES * 3] : SHADER_REG(MESH_VS_BONES);	// GPU skinning: 3 world rows per bone
 
 struct VsIn
 {
@@ -201,6 +202,24 @@ VsOut MeshVS_I_N_T2(VsIn i, VsInstance w)   { return MeshInstancedVS(i, w, false
 VsOut MeshVS_I_ND_T2(VsIn i, VsInstance w)  { return MeshInstancedVS(i, w, true,  false, 2); }
 VsOut MeshVS_I_NS_T2(VsIn i, VsInstance w)  { return MeshInstancedVS(i, w, false, true,  2); }
 VsOut MeshVS_I_NDS_T2(VsIn i, VsInstance w) { return MeshInstancedVS(i, w, true,  true,  2); }
+
+// GPU skinning (GpuSkinning): a rigid skin, one bone per vertex. The vertex holds its bone's first
+// row in Bones; the rows are the bone's world transform, as the CPU skin uses, so with the device
+// world at identity the rest is MeshVS unchanged. Like the CPU skin, the normal is not normalized
+// here. Skins always have the XYZNDUV2 layout, so one variant does.
+float4 SkinPosition(float3 p, int b)
+{
+	float4 q = float4(p, 1.0);
+	return float4(dot(q, Bones[b]), dot(q, Bones[b + 1]), dot(q, Bones[b + 2]), 1.0);
+}
+
+VsOut MeshSkinVS(VsIn i, float bone : BLENDINDICES0)
+{
+	int b = (int)bone;
+	i.position = SkinPosition(i.position.xyz, b);
+	i.normal = float3(dot(i.normal, Bones[b].xyz), dot(i.normal, Bones[b + 1].xyz), dot(i.normal, Bones[b + 2].xyz));
+	return MeshVS(i, true, true, false, 2);
+}
 
 // ---------------------------------------------------------------------------------------------
 // Pixel shader
@@ -646,6 +665,20 @@ CasterVsOut CasterAlphaVS(VsIn i, VsInstance w, int texSets)
 CasterVsOut CasterAlphaVS_T0(VsIn i, VsInstance w) { return CasterAlphaVS(i, w, 0); }
 CasterVsOut CasterAlphaVS_T1(VsIn i, VsInstance w) { return CasterAlphaVS(i, w, 1); }
 CasterVsOut CasterAlphaVS_T2(VsIn i, VsInstance w) { return CasterAlphaVS(i, w, 2); }
+
+// GPU-skinned casters: the vertex's bone rows take the place of the copy's world rows.
+VsInstance SkinRows(float bone)
+{
+	int b = (int)bone;
+	VsInstance w;
+	w.row0 = Bones[b];
+	w.row1 = Bones[b + 1];
+	w.row2 = Bones[b + 2];
+	return w;
+}
+
+float4 CasterSkinVS(VsIn i, float bone : BLENDINDICES0) : POSITION { return CasterPosition(i, SkinRows(bone)); }
+CasterVsOut CasterSkinAlphaVS(VsIn i, float bone : BLENDINDICES0) { return CasterAlphaVS(i, SkinRows(bone), 2); }
 
 struct CasterPsIn
 {

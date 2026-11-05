@@ -112,6 +112,9 @@ set(HLSL_SHADERS
     caster_alpha_t0_vs      mesh.hlsl        CasterAlphaVS_T0     vs_3_0
     caster_alpha_t1_vs      mesh.hlsl        CasterAlphaVS_T1     vs_3_0
     caster_alpha_t2_vs      mesh.hlsl        CasterAlphaVS_T2     vs_3_0
+    mesh_skin_vs            mesh.hlsl        MeshSkinVS           vs_3_0
+    caster_skin_vs          mesh.hlsl        CasterSkinVS         vs_3_0
+    caster_skin_alpha_vs    mesh.hlsl        CasterSkinAlphaVS    vs_3_0
     caster_ps               mesh.hlsl        CasterPS             ps_3_0
     caster_alpha_ps         mesh.hlsl        CasterAlphaPS        ps_3_0
     water_vs                water.hlsl       WaterVS              vs_3_0
