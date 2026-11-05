@@ -91,6 +91,11 @@
 // them as soft blobs into a 1/4 size mask, and the final pass moves its scene uv by rising waves
 // scaled by the mask. The uv stays inside the view rectangle, and the UI draws after it.
 //
+// Water SSR (WaterSSR): the scene draws with the depth texture of ambient occlusion (or, with
+// AntiAliasing, Draw_Depth_Pass() fills it), and before the first water draw W3DWaterShader calls
+// Copy_Scene_Depth(), which copies its view depth into the soft particles' R32F texture. The
+// particles copy it again later, after the water.
+//
 // Code that copies the screen during the 3D scene must read the current render target, not the
 // back buffer: the DX9 copies of W3DShaderManager (view filters) and W3DSmudgeManager (heat smudges)
 // do.
@@ -99,6 +104,7 @@
 
 class CameraClass;
 class SceneClass;
+struct IDirect3DTexture9;
 
 class W3DPostProcess
 {
@@ -142,6 +148,11 @@ public:
 	// particle shaders, if the scene draws with the depth texture. camera is the 3D camera.
 	static void Begin_Particles(const CameraClass *camera);
 	static void End_Particles();
+
+	// Water SSR: copies the view depth of the scene drawn so far into an R32F texture the size of
+	// the scene texture, and returns it (not AddRef'd). nullptr, with why_not set, if the scene
+	// has no readable depth for the 3D camera, or the current pass is not the scene's.
+	static IDirect3DTexture9 *Copy_Scene_Depth(const char **why_not);
 
 	// Heat haze: whether the particles should hand in heat sources this frame, and one source
 	// (world position, radius and strength 0..1). Sources past the frame's limit are dropped.

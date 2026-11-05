@@ -17,6 +17,7 @@
 
 #include "W3DDevice/GameClient/W3DWaterShader.h"
 #include "W3DDevice/GameClient/BaseHeightMap.h"
+#include "W3DDevice/GameClient/W3DPostProcess.h"
 #include "Common/GlobalData.h"
 #include "WW3D2/dx9wrapper.h"
 #include "WW3D2/dx9caps.h"
@@ -172,6 +173,18 @@ namespace
 	unsigned RefractionFrame = ~0u;	// the frame it was copied in
 	bool RefractionValid;
 
+	// --- WaterSSR: the refraction copy and the scene's view depth (W3DPostProcess), once a frame. ---
+	const float SSR_RAY_LENGTH = 240.0f;	// world units; the camera sees a few hundred across
+	const float SSR_THICKNESS = 15.0f;		// a ray this far behind the scene still hits it
+	const float SSR_EDGE_FADE = 0.1f;		// of the half screen
+	const float SSR_WAVE_STRENGTH = 0.3f;	// of the wave normal that turns the rays
+	IDirect3DTexture9 *SsrDepth;
+	unsigned SsrFrame = ~0u;
+	unsigned FrameSsrPasses;
+	unsigned LastSsrPasses;
+	const char *SsrReason = "no water drawn";
+	const char *LastSsrReason = "no water drawn";
+
 	// For the debug keys: draws seen into, with terrain heights, and why not.
 	unsigned FrameHighQualityPasses;
 	unsigned LastHighQualityPasses;
@@ -194,14 +207,22 @@ namespace
 	{
 		D3DTADDRESS_CLAMP, D3DTADDRESS_CLAMP, D3DTEXF_LINEAR, D3DTEXF_LINEAR, D3DTEXF_NONE,
 	};
+	// Depth is not filtered, and R32F need not filter at all.
+	const DWORD PointSamplerValues[] =
+	{
+		D3DTADDRESS_CLAMP, D3DTADDRESS_CLAMP, D3DTEXF_POINT, D3DTEXF_POINT, D3DTEXF_NONE,
+	};
 	const int SAMPLER_STATE_COUNT = sizeof(SamplerStates) / sizeof(SamplerStates[0]);
 	static_assert(sizeof(WaveSamplerValues) / sizeof(WaveSamplerValues[0]) == SAMPLER_STATE_COUNT, "one value per sampler state");
 	static_assert(sizeof(ReflectionSamplerValues) / sizeof(ReflectionSamplerValues[0]) == SAMPLER_STATE_COUNT, "one value per sampler state");
+	static_assert(sizeof(PointSamplerValues) / sizeof(PointSamplerValues[0]) == SAMPLER_STATE_COUNT, "one value per sampler state");
 
 	// WaterQuality 2 adds s6 the refraction, s7 the terrain heights and s8 the foam noise.
+	// WaterSSR adds s6 and s9 the scene's view depth.
 	const DWORD REFRACTION_SAMPLER = 6;
 	const DWORD HEIGHT_SAMPLER = 7;
 	const DWORD FOAM_SAMPLER = 8;
+	const DWORD SSR_DEPTH_SAMPLER = 9;
 
 	// The samplers Begin() sets, and what they held before, for End().
 	struct SamplerSlot
@@ -770,6 +791,33 @@ namespace
 		return RefractionValid;
 	}
 
+	// WaterSSR: the scene colour and view depth before the first water draw of the frame.
+	bool Update_Ssr()
+	{
+		if (SsrFrame == FrameNumber)
+			return SsrDepth != nullptr;
+		SsrFrame = FrameNumber;
+		SsrDepth = nullptr;
+		if (!Update_Refraction())
+		{
+			SsrReason = "the scene could not be copied";
+			return false;
+		}
+		IDirect3DTexture9 *depth = W3DPostProcess::Copy_Scene_Depth(&SsrReason);
+		if (depth == nullptr)
+			return false;
+		D3DSURFACE_DESC desc;
+		depth->GetLevelDesc(0, &desc);
+		if (desc.Width != RefractionDesc.Width || desc.Height != RefractionDesc.Height)
+		{
+			SsrReason = "the scene depth and colour differ in size";
+			return false;
+		}
+		SsrDepth = depth;
+		SsrReason = nullptr;	// a stale failure would show once the water leaves the view
+		return true;
+	}
+
 	void Release_High_Quality()
 	{
 		Release_Com(HeightTexture);
@@ -781,6 +829,8 @@ namespace
 		Release_Com(RefractionTexture);
 		RefractionFrame = ~0u;
 		RefractionValid = false;
+		SsrDepth = nullptr;	// W3DPostProcess owns it
+		SsrFrame = ~0u;
 	}
 }
 
@@ -979,6 +1029,14 @@ bool W3DWaterShader::Begin(Kind kind, float water_level, float river_width, floa
 		}
 	}
 
+	bool ssr = false;
+	if (Get_Graphics_Options().WaterSsr())
+	{
+		ssr = Update_Ssr();
+		if (ssr)
+			++FrameSsrPasses;
+	}
+
 	D3DMATRIX world, view, projection, world_view, world_view_projection, noise, shroud;
 	Device->GetTransform(D3DTS_WORLD, &world);
 	Device->GetTransform(D3DTS_VIEW, &view);
@@ -1053,17 +1111,10 @@ bool W3DWaterShader::Begin(Kind kind, float water_level, float river_width, floa
 	ps[WATER_PS_WAVE_LOOK].y = TEXTURE_WOBBLE;
 	ps[WATER_PS_WAVE_LOOK].z = REFLECTION_OPACITY;
 
-	if (high_quality)
+	// Clip xy / w to the refraction uv: the viewport within the render target, and D3D9's half
+	// texel between pixel and texel centres.
+	if (high_quality || ssr)
 	{
-		ps[WATER_PS_FRESNEL].x = HQ_FRESNEL_BIAS;
-		ps[WATER_PS_FRESNEL].y = HQ_FRESNEL_SCALE;
-		ps[WATER_PS_FRESNEL].z = HQ_FRESNEL_POWER;
-		ps[WATER_PS_FRESNEL].w = HQ_FRESNEL_MAX;
-		ps[WATER_PS_SUN_COLOR].w = HQ_SPECULAR_POWER;
-		ps[WATER_PS_OPTIONS].z = HQ_SPECULAR_STRENGTH;
-
-		// Clip xy / w to the refraction uv: the viewport within the render target, and D3D9's half
-		// texel between pixel and texel centres.
 		D3DVIEWPORT9 viewport;
 		Device->GetViewport(&viewport);
 		const float target_width = float(RefractionDesc.Width);
@@ -1072,6 +1123,26 @@ bool W3DWaterShader::Begin(Kind kind, float water_level, float river_width, floa
 		ps[WATER_PS_SCREEN].y = -0.5f * viewport.Height / target_height;
 		ps[WATER_PS_SCREEN].z = (viewport.X + 0.5f * viewport.Width + 0.5f) / target_width;
 		ps[WATER_PS_SCREEN].w = (viewport.Y + 0.5f * viewport.Height + 0.5f) / target_height;
+	}
+	if (ssr)
+	{
+		D3DMATRIX view_projection;
+		Multiply(view_projection, view, projection);
+		Columns(&ps[WATER_PS_VIEWPROJ], view_projection, 4);
+		ps[WATER_PS_SSR].x = SSR_RAY_LENGTH;
+		ps[WATER_PS_SSR].y = SSR_THICKNESS;
+		ps[WATER_PS_SSR].z = SSR_EDGE_FADE;
+		ps[WATER_PS_SSR].w = SSR_WAVE_STRENGTH;
+	}
+
+	if (high_quality)
+	{
+		ps[WATER_PS_FRESNEL].x = HQ_FRESNEL_BIAS;
+		ps[WATER_PS_FRESNEL].y = HQ_FRESNEL_SCALE;
+		ps[WATER_PS_FRESNEL].z = HQ_FRESNEL_POWER;
+		ps[WATER_PS_FRESNEL].w = HQ_FRESNEL_MAX;
+		ps[WATER_PS_SUN_COLOR].w = HQ_SPECULAR_POWER;
+		ps[WATER_PS_OPTIONS].z = HQ_SPECULAR_STRENGTH;
 
 		// World xy to the height texel: vertex k of the height map is at (k - border) * MAP_XY_FACTOR.
 		if (has_heights)
@@ -1115,9 +1186,12 @@ bool W3DWaterShader::Begin(Kind kind, float water_level, float river_width, floa
 	SlotCount = 0;
 	Bind_Sampler(WAVE_SAMPLER, WaveTexture, WaveSamplerValues);
 	Bind_Sampler(REFLECTION_SAMPLER, use_reflection ? ReflectionTexture : nullptr, ReflectionSamplerValues);
+	if (high_quality || ssr)
+		Bind_Sampler(REFRACTION_SAMPLER, RefractionTexture, ReflectionSamplerValues);
+	if (ssr)
+		Bind_Sampler(SSR_DEPTH_SAMPLER, SsrDepth, PointSamplerValues);
 	if (high_quality)
 	{
-		Bind_Sampler(REFRACTION_SAMPLER, RefractionTexture, ReflectionSamplerValues);
 		Bind_Sampler(HEIGHT_SAMPLER, has_heights ? HeightTexture : nullptr, ReflectionSamplerValues);
 		Bind_Sampler(FOAM_SAMPLER, FoamTexture, WaveSamplerValues);
 
@@ -1204,6 +1278,9 @@ void W3DWaterShader::New_Frame()
 	LastHighQualityPasses = FrameHighQualityPasses;
 	FrameHighQualityPasses = 0;
 	LastHighQualityReason = HighQualityReason;
+	LastSsrPasses = FrameSsrPasses;
+	FrameSsrPasses = 0;
+	LastSsrReason = SsrReason;
 	LastHasReflection = HasReflection;
 	LastReflectionLevel = ReflectionLevel;
 	LastReflectionReason = ReflectionReason;
@@ -1240,4 +1317,16 @@ const char *W3DWaterShader::Last_Seen_Into()
 }
 
 static_assert(WATER_VS_WVP == 0 && WATER_VS_WAVE_SCALE + 1 == WATER_VS_COUNT, "water vertex constants are uploaded as one block from c0");
-static_assert(WATER_PS_SUN == 0 && WATER_PS_WAVE_MIX + 1 == WATER_PS_COUNT, "water pixel constants are uploaded as one block from c0");
+static_assert(WATER_PS_SUN == 0 && WATER_PS_SSR + 1 == WATER_PS_COUNT, "water pixel constants are uploaded as one block from c0");
+
+const char *W3DWaterShader::Last_Ssr()
+{
+	const GraphicsOptions &o = Get_Graphics_Options();
+	if (!o.WaterSSR)
+		return "off in Options.ini";
+	if (!o.WaterShader())
+		return o.WaterQuality < 1 ? "needs WaterQuality 1 or 2" : "the water shader is switched off by a debug key";
+	if (LastSsrPasses > 0)
+		return nullptr;
+	return LastSsrReason != nullptr ? LastSsrReason : "no water drawn";
+}

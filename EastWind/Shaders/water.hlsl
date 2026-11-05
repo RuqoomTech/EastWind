@@ -149,6 +149,84 @@ struct WaterLight
 
 WaterLight Water_Light_From(WaterPsIn i, float3 n);
 
+// ------------------------------------------------------------------------------------------------
+// WaterSSR (Options.ini): the water also reflects what is on screen. The reflected view ray is
+// marched from the water in even steps, each projected to the screen and tested against the
+// scene's view depth as it was before the water drew (s9); the first step behind the scene, but
+// by less than the thickness, is refined by halving and reads the scene colour there (s6, the same
+// copy the refraction reads). Where the ray leaves the screen, runs out or passes behind thick
+// things, the planar reflection or sky shows as before.
+// ------------------------------------------------------------------------------------------------
+
+float4 RefractionScreen      : SHADER_REG(WATER_PS_SCREEN);	// xy scale, zw offset
+float4 WaterViewProj[4]      : SHADER_REG(WATER_PS_VIEWPROJ);
+float4 Ssr                   : SHADER_REG(WATER_PS_SSR);	// x ray length (0 off), y thickness, z edge fade, w wave strength
+
+sampler2D Refraction     : register(s6);
+sampler2D SceneViewDepth : register(s9);
+
+#define SSR_STEPS 24
+#define SSR_REFINE 5
+
+// xy clip x, y / w, z view depth (w).
+float3 Ssr_Project(float3 world)
+{
+	float4 p = float4(world, 1.0);
+	float w = dot(p, WaterViewProj[3]);
+	return float3(float2(dot(p, WaterViewProj[0]), dot(p, WaterViewProj[1])) / max(w, 1e-3), w);
+}
+
+float Ssr_Scene_Depth(float2 ndc)
+{
+	return tex2Dlod(SceneViewDepth, float4(ndc * RefractionScreen.xy + RefractionScreen.zw, 0, 0)).r;
+}
+
+// The fallback with what the reflected ray hits on screen mixed over it, both gamma.
+float3 Water_Ssr(float3 world, float3 n, float3 toEye, float3 fallback)
+{
+	// The full wave normal turns the rays too far; part of it keeps the reflection readable.
+	float3 wave = normalize(float3(n.xy * Ssr.w, n.z));
+	float3 ray = reflect(-toEye, wave);
+	[branch] if (ray.z <= 0.0)
+		return fallback;
+	float3 step = ray * (Ssr.x / SSR_STEPS);
+
+	float hit = 0.0;
+	[loop] for (int k = 1; k <= SSR_STEPS; ++k)
+	{
+		float3 s = Ssr_Project(world + step * k);
+		if (s.z < 1.0 || max(abs(s.x), abs(s.y)) > 1.0)
+			break;	// behind the camera or off screen
+		float behind = s.z - Ssr_Scene_Depth(s.xy);
+		if (behind > 0.0 && behind < Ssr.y)
+		{
+			hit = k;
+			break;
+		}
+	}
+	[branch] if (hit == 0.0)
+		return fallback;
+
+	float lo = hit - 1.0;
+	float hi = hit;
+	[unroll] for (int r = 0; r < SSR_REFINE; ++r)
+	{
+		float mid = 0.5 * (lo + hi);
+		float3 s = Ssr_Project(world + step * mid);
+		if (s.z > Ssr_Scene_Depth(s.xy))
+			hi = mid;
+		else
+			lo = mid;
+	}
+	float3 s = Ssr_Project(world + step * hi);
+	float2 uv = s.xy * RefractionScreen.xy + RefractionScreen.zw;
+	// Fade out toward the screen edges and the end of the ray, where the next frame may miss.
+	float edge = saturate((1.0 - max(abs(s.x), abs(s.y))) / Ssr.z);
+	float along = hi / SSR_STEPS;
+	float trust = edge * (1.0 - along * along);
+	return lerp(fallback, tex2Dlod(Refraction, float4(uv, 0, 0)).rgb, trust);
+}
+
 WaterLight Water_Light(WaterPsIn i)
 {
 	// Whiteout blend of the two layers, flattened or steepened by the normal strength.
@@ -176,7 +254,10 @@ WaterLight Water_Light_From(WaterPsIn i, float3 n)
 	// Points on the water plane are at the same screen position in the mirrored view.
 	float2 screenUv = i.screen.xy / i.screen.z * float2(0.5, -0.5) + 0.5;
 	float3 mirrored = tex2D(Reflection, screenUv + n.xy * WaterPsOptions.x).rgb;
-	l.reflection = To_Linear(lerp(SkyColor.rgb, mirrored, SkyColor.w));
+	float3 reflected = lerp(SkyColor.rgb, mirrored, SkyColor.w);
+	[branch] if (Ssr.x > 0.0)
+		reflected = Water_Ssr(i.worldFog.xyz, n, toEye, reflected);
+	l.reflection = To_Linear(reflected);
 
 	float3 h = normalize(SunDirection.xyz + toEye);
 	l.specular = To_Linear(SunColor.rgb) * (pow(saturate(dot(n, h)), SunColor.w) * WaterPsOptions.z * l.shadow);
@@ -247,7 +328,6 @@ float4 WaterRiverPS(WaterPsIn i) : COLOR
 // (its smallest mip) tints the deep water, so each map keeps its water colour.
 // ------------------------------------------------------------------------------------------------
 
-float4 RefractionScreen      : SHADER_REG(WATER_PS_SCREEN);	// xy scale, zw offset
 float4 HeightMapping         : SHADER_REG(WATER_PS_HEIGHT);	// xy scale, zw offset
 float4 WaterBody             : SHADER_REG(WATER_PS_BODY);	// x height per value, y has heights, z shore phase, w distortion
 float4 Absorption            : SHADER_REG(WATER_PS_ABSORB);	// rgb per world unit, w deep colour scale
@@ -255,7 +335,6 @@ float4 ShoreFoam             : SHADER_REG(WATER_PS_FOAM);	// x foam depth, y foa
 float4 AmbientLight          : SHADER_REG(WATER_PS_AMBIENT);	// rgb ambient, w broad glint strength
 float4 WaveMix               : SHADER_REG(WATER_PS_WAVE_MIX);	// x swell size, y swell strength, z ripple strength
 
-sampler2D Refraction    : register(s6);
 sampler2D TerrainHeight : register(s7);
 sampler2D FoamNoise     : register(s8);	// r foam lines and caustic web, g foam bubbles
 

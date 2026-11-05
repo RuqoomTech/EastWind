@@ -39,6 +39,11 @@
 // in the shallows and foam along the shore, from a cellular noise texture made here. The classic
 // water texture gives only the colour of the deep water.
 //
+// WaterSSR (at WaterQuality 1 or 2) adds screen-space reflections: before the first water draw of
+// the frame the scene colour is copied (the refraction copy) and W3DPostProcess copies the scene's
+// view depth, neither holding the water yet. The shader marches the reflected view ray through
+// them and shows what it hits over the planar reflection or sky, which still show where it misses.
+//
 // Anything the shader does not handle (no vs_3_0/ps_3_0, clip planes, non-linear fog) leaves
 // the pass as it was, and the reason is logged once.
 
@@ -89,4 +94,6 @@ public:
 	static bool Last_Reflection(float *level, int *width, int *height, const char **why_not);
 	// WaterQuality 2: null if the last frame drew water seen into, with terrain heights; else why not.
 	static const char *Last_Seen_Into();
+	// WaterSSR: null if the last frame's water drew screen-space reflections; else why not.
+	static const char *Last_Ssr();
 };

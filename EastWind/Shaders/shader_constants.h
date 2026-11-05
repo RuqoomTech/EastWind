@@ -150,7 +150,9 @@
 #define WATER_PS_FOAM         14  // c14: x foam depth, y foam strength, z caustic strength, w caustic fade depth
 #define WATER_PS_AMBIENT      15  // c15: rgb ambient light, w broad sun glint strength
 #define WATER_PS_WAVE_MIX     16  // c16: x swell size relative to layer A, y swell strength, z ripple strength
-#define WATER_PS_COUNT        17
+#define WATER_PS_VIEWPROJ     17  // c17..c20: WaterSSR, world -> clip (view * projection)
+#define WATER_PS_SSR          21  // c21: WaterSSR, x ray length in world units (0 off), y thickness, z screen edge fade, w wave strength
+#define WATER_PS_COUNT        22
 
 // --- shader_shadow.h (pixel), M3.4 sun shadow map; set once a frame by shadowmap.cpp ---
 // Every lit pixel shader (mesh, terrain, roads, trees, water) includes shader_shadow.h. The registers

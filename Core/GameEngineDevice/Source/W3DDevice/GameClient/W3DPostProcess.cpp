@@ -243,6 +243,7 @@ namespace
 	IDirect3DSurface9 *ParticleDepthSurface = nullptr;
 	Reason ParticleDepthFailed = REASON_COUNT;	// why it cannot be made; not tried again until Release()
 	bool ParticleDepthBound = false;
+	const CameraClass *SceneCamera = nullptr;	// the 3D camera between Begin_Scene and End_Scene
 
 	// Heat haze: this frame's sources in world space, and the 1/4 size mask End_Scene() draws them into.
 	struct HeatSource
@@ -1035,12 +1036,7 @@ namespace
 			if (ParticleDepthFailed != REASON_COUNT)
 				Log_Once(ParticleDepthFailed, hr);
 		}
-		if (ParticleDepthFailed != REASON_COUNT)
-		{
-			Set_Reason(W3DPostProcess::SOFT_PARTICLES, ParticleDepthFailed);
-			return false;
-		}
-		return true;
+		return ParticleDepthFailed == REASON_COUNT;	// else ParticleDepthFailed says why
 	}
 
 	// Captures all device states into SavedStates, creating it the first time. False without it.
@@ -1056,6 +1052,25 @@ namespace
 			SavedStates->Capture();
 		}
 		return SavedStates != nullptr;
+	}
+
+	// Copies the view depth of DepthTexture into ParticleDepthTexture, between draws of the scene.
+	void Draw_Depth_Copy(IDirect3DDevice9 *device, const CameraClass *camera, IDirect3DSurface9 *target, IDirect3DSurface9 *depth)
+	{
+		// The state block does not hold the render target and depth buffer, so they are put back
+		// first; it does hold the viewport.
+		device->SetDepthStencilSurface(nullptr);
+		device->SetRenderTarget(0, ParticleDepthSurface);
+		Set_Post_States(device);
+		float depth_params[4];
+		Depth_Params(camera, depth_params);
+		device->SetPixelShaderConstantF(POST_PS_DEPTH, depth_params, 1);
+		Set_Texture(device, POST_DEPTH_SAMPLER, DepthTexture, false);
+		device->SetPixelShader(ShaderLibrary::Peek_Pixel(ShaderLibrary::PS_POST_DEPTH_COPY));
+		Draw_Quad(device, 0, 0, (int)TargetDesc.Width, (int)TargetDesc.Height, 0.0f, 0.0f, 1.0f, 1.0f);
+		device->SetRenderTarget(0, target);
+		device->SetDepthStencilSurface(depth);
+		SavedStates->Apply();
 	}
 
 	// Draws the blurred occlusion into AoTexture[0] and sets the constants the final pass reads
@@ -1303,12 +1318,12 @@ bool W3DPostProcess::Begin_Scene(float clear_alpha, CameraClass *camera)
 		device->SetPixelShaderConstantF(FRAME_PS_SUN, sun, 1);
 	}
 
-	// Ambient occlusion, soft particles and TAA read the scene's depth, so the scene draws with its own depth
+	// Ambient occlusion, soft particles, TAA and water SSR read the scene's depth, so the scene draws with its own depth
 	// texture, cleared here as the frame clear cleared the back buffer's.
 	DWORD clear = D3DCLEAR_TARGET;
 	SceneDepthBound = false;
 	// A multisampled depth buffer cannot be read; AO then reads the depth pass.
-	if (TargetDesc.MultiSampleType == D3DMULTISAMPLE_NONE && (o.PostAo() || o.PostSoftParticles() || o.TAA) && Depth_Ready(device))
+	if (TargetDesc.MultiSampleType == D3DMULTISAMPLE_NONE && (o.PostAo() || o.PostSoftParticles() || o.TAA || o.WaterSsr()) && Depth_Ready(device))
 	{
 		hr = device->SetDepthStencilSurface(DepthSurface);
 		if (SUCCEEDED(hr))
@@ -1323,6 +1338,8 @@ bool W3DPostProcess::Begin_Scene(float clear_alpha, CameraClass *camera)
 			Log_Once(REASON_AO_DEPTH_FAILED, hr);
 		}
 	}
+
+	SceneCamera = camera;
 
 	// TAA: the scene draws moved by this frame's jitter, until End_Scene().
 	TaaCamera = nullptr;
@@ -1362,6 +1379,7 @@ void W3DPostProcess::End_Scene(int x, int y, int width, int height, const Camera
 	}
 	const bool scene_depth = SceneDepthBound;
 	SceneDepthBound = false;
+	SceneCamera = nullptr;
 	// Only for the camera the pass drew with; another view has other depth.
 	const bool depth_pass = DepthPassCamera != nullptr && DepthPassCamera == camera;
 	if (depth_pass)
@@ -1599,7 +1617,7 @@ void W3DPostProcess::Draw_Depth_Pass(SceneClass *scene, CameraClass *camera)
 	DepthPassCamera = nullptr;
 	const GraphicsOptions &o = Get_Graphics_Options();
 	// Begin_Scene() makes the scene texture; until then (the first frame) the size is not known.
-	if (!o.PostProcess() || !(o.PostAo() || o.TAA) || SceneTexture == nullptr || TargetDesc.MultiSampleType == D3DMULTISAMPLE_NONE
+	if (!o.PostProcess() || !(o.PostAo() || o.TAA || o.WaterSsr()) || SceneTexture == nullptr || TargetDesc.MultiSampleType == D3DMULTISAMPLE_NONE
 		|| scene == nullptr || camera == nullptr)
 		return;
 	IDirect3DDevice9 *device = DX9Wrapper::_Get_D3D_Device9();
@@ -1646,8 +1664,10 @@ void W3DPostProcess::Begin_Particles(const CameraClass *camera)
 		return Set_Reason(SOFT_PARTICLES, REASON_NO_SHADER);
 
 	IDirect3DDevice9 *device = DX9Wrapper::_Get_D3D_Device9();
-	if (ParticleDepthBound || !Particle_Depth_Ready(device))
+	if (ParticleDepthBound)
 		return;
+	if (!Particle_Depth_Ready(device))
+		return Set_Reason(SOFT_PARTICLES, ParticleDepthFailed);
 
 	// Only the main scene: a pass into another target (the water reflection) has its own depth.
 	IDirect3DSurface9 *depth = nullptr;
@@ -1662,21 +1682,8 @@ void W3DPostProcess::Begin_Particles(const CameraClass *camera)
 		return;
 	}
 
-	// The copy. The state block does not hold the render target and depth buffer, so they are
-	// put back first; it does hold the viewport.
-	device->SetDepthStencilSurface(nullptr);
-	device->SetRenderTarget(0, ParticleDepthSurface);
-	Set_Post_States(device);
-	float depth_params[4];
-	Depth_Params(camera, depth_params);
-	device->SetPixelShaderConstantF(POST_PS_DEPTH, depth_params, 1);
-	Set_Texture(device, POST_DEPTH_SAMPLER, DepthTexture, false);
-	device->SetPixelShader(ShaderLibrary::Peek_Pixel(ShaderLibrary::PS_POST_DEPTH_COPY));
-	Draw_Quad(device, 0, 0, (int)TargetDesc.Width, (int)TargetDesc.Height, 0.0f, 0.0f, 1.0f, 1.0f);
-	device->SetRenderTarget(0, target);
-	device->SetDepthStencilSurface(DepthSurface);
+	Draw_Depth_Copy(device, camera, target, DepthSurface);
 	target->Release();
-	SavedStates->Apply();
 
 	Set_Texture(device, PARTICLE_DEPTH_SAMPLER, ParticleDepthTexture, false);
 	ParticleDepthBound = true;
@@ -1693,6 +1700,61 @@ void W3DPostProcess::End_Particles()
 	IDirect3DDevice9 *device = DX9Wrapper::_Get_D3D_Device9();
 	if (device)
 		device->SetTexture(PARTICLE_DEPTH_SAMPLER, nullptr);
+}
+
+IDirect3DTexture9 *W3DPostProcess::Copy_Scene_Depth(const char **why_not)
+{
+	if (BackBuffer == nullptr)
+	{
+		*why_not = "the scene does not draw into the post-processing scene texture";
+		return nullptr;
+	}
+	// With multisampling only the depth pass of the 3D camera can be read.
+	const bool msaa = TargetDesc.MultiSampleType != D3DMULTISAMPLE_NONE;
+	if (msaa ? DepthPassCamera == nullptr || DepthPassCamera != SceneCamera : !SceneDepthBound)
+	{
+		*why_not = ReasonText[DepthReason];
+		return nullptr;
+	}
+	if (SceneCamera == nullptr)
+	{
+		*why_not = ReasonText[REASON_AO_NO_CAMERA];
+		return nullptr;
+	}
+	if (ShaderLibrary::Peek_Pixel(ShaderLibrary::PS_POST_DEPTH_COPY) == nullptr)
+	{
+		*why_not = ReasonText[REASON_NO_SHADER];
+		return nullptr;
+	}
+	IDirect3DDevice9 *device = DX9Wrapper::_Get_D3D_Device9();
+	if (ParticleDepthBound)
+	{
+		*why_not = "the particles hold the depth copy";
+		return nullptr;
+	}
+	if (!Particle_Depth_Ready(device))
+	{
+		*why_not = ReasonText[ParticleDepthFailed];
+		return nullptr;
+	}
+
+	// Only the main scene: a pass into another target (the water reflection) has its own depth.
+	IDirect3DSurface9 *target = nullptr;
+	IDirect3DSurface9 *depth = nullptr;
+	device->GetRenderTarget(0, &target);
+	device->GetDepthStencilSurface(&depth);
+	const bool scene_pass = msaa ? target == MsaaSurface : depth == DepthSurface;
+	const bool copied = target != nullptr && scene_pass && Save_States(device);
+	if (copied)
+		Draw_Depth_Copy(device, SceneCamera, target, depth);
+	Release_Com(target);
+	Release_Com(depth);
+	if (!copied)
+	{
+		*why_not = "the water is not drawn in the main scene";
+		return nullptr;
+	}
+	return ParticleDepthTexture;
 }
 
 bool W3DPostProcess::Heat_Haze_Wanted()
@@ -1743,6 +1805,7 @@ void W3DPostProcess::Release()
 	DepthFailed = false;
 	DepthReason = REASON_NOT_DRAWN;
 	SceneDepthBound = false;
+	SceneCamera = nullptr;
 }
 
 void W3DPostProcess::New_Frame()

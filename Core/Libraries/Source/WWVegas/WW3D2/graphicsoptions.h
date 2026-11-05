@@ -30,6 +30,7 @@ struct GraphicsOptions
 	bool NormalMaps;		// NormalMaps: normal maps in the M3.1 material (needs PerPixelLighting)
 	bool PerPixelLights;	// PerPixelLights: dynamic point lights on the terrain per pixel (needs PerPixelLighting)
 	int WaterQuality;		// WaterQuality: 0 classic, 1 waves and Fresnel, 2 adds refraction and shore (M3.3)
+	bool WaterSSR;			// WaterSSR: the water also reflects what is on screen, from the scene depth (needs WaterQuality 1 or 2)
 	int ShadowMapSize;		// ShadowMapSize: 0 off (classic shadows), 1024, 2048 or 4096 (M3.4)
 	bool Bloom;				// Bloom (M3.2)
 	bool ToneMapping;		// ToneMapping (M3.2)
@@ -73,6 +74,7 @@ struct GraphicsOptions
 		, NormalMaps(false)
 		, PerPixelLights(false)
 		, WaterQuality(0)
+		, WaterSSR(false)
 		, ShadowMapSize(0)
 		, Bloom(false)
 		, ToneMapping(false)
@@ -117,7 +119,9 @@ struct GraphicsOptions
 	bool TerrainShader() const { return PerPixelLighting && !DebugAllOff && (!DebugTerrainLightingOff || DebugTerrainLightOnly); }
 	bool TerrainPixelLight() const { return !DebugTerrainLightingOff; }
 	// Post-processing (M3.2) runs when any post effect is on.
-	bool PostProcessWanted() const { return Bloom || ToneMapping || ColorGrading || FXAA || TAA || Sharpen > 0.0f || AmbientOcclusion > 0 || SoftParticles || HeatHaze > 0.0f; }
+	// Water SSR reads the depth texture of the scene texture.
+	bool PostProcessWanted() const { return Bloom || ToneMapping || ColorGrading || FXAA || TAA || Sharpen > 0.0f || AmbientOcclusion > 0 || SoftParticles || HeatHaze > 0.0f
+		|| (WaterSSR && WaterQuality >= 1); }
 	bool PostProcess() const { return PostProcessWanted() && !DebugAllOff && !DebugPostOff; }
 	bool PostToneMapping() const { return ToneMapping && !DebugToneMappingOff; }
 	bool PostColorGrading() const { return ColorGrading && !DebugColorGradingOff; }
@@ -134,6 +138,7 @@ struct GraphicsOptions
 	// GPU skins draw through the lit mesh shaders, so they follow them.
 	bool GpuSkin() const { return GpuSkinning && MeshLighting(); }
 	bool WaterShader() const { return WaterQuality >= 1 && !DebugAllOff && !DebugWaterOff; }
+	bool WaterSsr() const { return WaterSSR && WaterShader(); }
 	// Sun shadow maps (M3.4) need the lit mesh and terrain shaders, which sample them.
 	bool ShadowMaps() const { return ShadowMapSize > 0 && MeshLighting() && !DebugTerrainLightingOff && !DebugShadowsOff; }
 

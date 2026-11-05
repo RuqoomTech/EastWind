@@ -775,6 +775,7 @@ static void loadGraphicsOptions()
 	options.NormalMaps = prefs.getBool("NormalMaps", options.NormalMaps);
 	options.PerPixelLights = prefs.getBool("PerPixelLights", options.PerPixelLights);
 	options.WaterQuality = prefs.getInt("WaterQuality", options.WaterQuality);
+	options.WaterSSR = prefs.getBool("WaterSSR", options.WaterSSR);
 	options.ShadowMapSize = prefs.getInt("ShadowMapSize", options.ShadowMapSize);
 	options.Bloom = prefs.getBool("Bloom", options.Bloom);
 	options.ToneMapping = prefs.getBool("ToneMapping", options.ToneMapping);
@@ -931,6 +932,15 @@ static void showGraphicsStatus()
 			UnicodeString text;
 			text.translate(AsciiString(not_seen_into));
 			TheInGameUI->message(L"Water depth, refraction and foam: off - %s", text.str());
+		}
+		const char *no_ssr = W3DWaterShader::Last_Ssr();
+		if (no_ssr == nullptr)
+			TheInGameUI->message(L"Water screen-space reflections: on (GPU time in \"3D scene: water\", Ctrl+Shift+T)");
+		else
+		{
+			UnicodeString text;
+			text.translate(AsciiString(no_ssr));
+			TheInGameUI->message(L"Water screen-space reflections: off - %s", text.str());
 		}
 	}
 	{
