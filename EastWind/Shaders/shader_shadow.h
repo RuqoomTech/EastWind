@@ -68,8 +68,9 @@ float Sun_Shadow(float3 p, float3 n, float3 l)
 		cascade = float4(ShadowParams3.x, ShadowParams.z, ShadowParams.w, ShadowParams2.z);
 		q = float4(p + n * (cascade.z * (1.0 - nl)), 1.0);
 		uvz = float3(dot(q, ShadowMatrix[0]), dot(q, ShadowMatrix[1]), dot(q, ShadowMatrix[2]));
-		// Fade out over the outer texels of the map, so its edge never shows as a line.
-		edge = min(uvz.xy, 1.0 - uvz.xy);
+		// Fade out over the outer texels of the map, so its edge never shows as a line. The fade
+		// ends a filter radius inside, so no tap reaches the near cascade's half of the atlas.
+		edge = min(uvz.xy, 1.0 - uvz.xy) - ShadowParams.y * cascade.y;
 		fade = saturate(min(edge.x, edge.y) * 24.0);
 		atlasU = 0.5;
 	}
