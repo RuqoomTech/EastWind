@@ -122,6 +122,8 @@ public:
 	void drawProps(RenderInfoClass &rinfo);
 	/// Called when the view changes, and sort key needs to be recalculated.
 	void doFullUpdate() {m_doCull = true;};
+	/// EastWind: the props the last drawProps() drew and how many models they are copies of.
+	static void getLastDrawCounts(Int &props, Int &models);
 
 protected:
 	// snapshot methods

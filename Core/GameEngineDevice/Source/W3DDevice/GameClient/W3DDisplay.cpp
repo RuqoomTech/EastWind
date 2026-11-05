@@ -87,6 +87,7 @@ static void drawFramerateBar();
 #include "W3DDevice/GameClient/W3DShroud.h"
 #include "W3DDevice/GameClient/W3DTerrainLighting.h"
 #include "W3DDevice/GameClient/W3DPostProcess.h"
+#include "W3DDevice/GameClient/W3DPropBuffer.h"
 #include "W3DDevice/GameClient/W3DWaterShader.h"
 #include "shader_constants.h"
 #include "WWMath/wwmath.h"
@@ -1020,6 +1021,11 @@ static void showGpuTimes()
 		mesh.Calls, mesh.LitDraws, mesh.UnlitDraws, mesh.SetupMs, mesh.ShaderDrawMs);
 	sayTime(L"   Instanced: %.0f draws of %.0f copies; depth-only passes (shadow casters, AO depth): %.0f draws of %.0f copies",
 		mesh.InstancedDraws, mesh.InstancedCopies, mesh.CasterDraws, mesh.CasterCopies);
+	{
+		Int props, models;
+		W3DPropBuffer::getLastDrawCounts(props, models);
+		sayTime(L"   Map props: %d drawn, copies of %d models", props, models);
+	}
 	// Counted once per skin render, so a skin drawn in the shadow and reflection passes too counts in each.
 	sayTime(L"   Skinned meshes: GPU skinning %s, %.0f on GPU, %.0f on CPU (%.0f off, %.0f sorted, %.0f material passes, %.0f over 64 bones, %.0f other); %.0f GPU skin draws done on the CPU",
 		Get_Graphics_Options().GpuSkin() ? L"on" : L"off", mesh.SkinsGpu, mesh.SkinsCpu,

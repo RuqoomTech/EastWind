@@ -174,7 +174,8 @@ VsOut MeshVS_DS_T2(VsIn i) { return MeshVS(i, false, true,  true,  2); }
 
 // Instanced (M8 R6): many copies of one lit mesh in one draw. Each copy's world rows come from
 // stream 1; the world constants hold identity, so the copy's transform runs first and the rest
-// is MeshVS unchanged. Copies are rigid (no scale), so the rows also turn the normal.
+// is MeshVS unchanged. Copies are rigid or scaled evenly, so the rows also turn the normal; the
+// pixel shader normalizes it.
 struct VsInstance
 {
 	float4 row0 : TEXCOORD4;

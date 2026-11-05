@@ -314,6 +314,16 @@ void W3DPropBuffer::notifyShroudChanged()
 
 DECLARE_PERF_TIMER(Prop_Render)
 
+// For the Ctrl+Shift+T readout: the last drawProps(), normally the main view (the reflection draws first).
+static Int s_lastPropsDrawn = 0;
+static Int s_lastPropModels = 0;
+
+void W3DPropBuffer::getLastDrawCounts(Int &props, Int &models)
+{
+	props = s_lastPropsDrawn;
+	models = s_lastPropModels;
+}
+
 //=============================================================================
 // W3DPropBuffer::drawProps
 //=============================================================================
@@ -352,6 +362,9 @@ void W3DPropBuffer::drawProps(RenderInfoClass &rinfo)
 	}
 
 	rinfo.light_environment = &lightEnv;
+	Bool modelDrawn[MAX_TYPES] = {};
+	s_lastPropsDrawn = 0;
+	s_lastPropModels = 0;
 	for	(i=0; i<m_numProps; i++) {
 		if (!m_props[i].visible) {
 			continue;
@@ -372,6 +385,11 @@ void W3DPropBuffer::drawProps(RenderInfoClass &rinfo)
 		}
 		if (m_props[i].ss <= OBJECTSHROUD_INVALID) {
 			continue;
+		}
+		++s_lastPropsDrawn;
+		if (!modelDrawn[m_props[i].propType]) {
+			modelDrawn[m_props[i].propType] = true;
+			++s_lastPropModels;
 		}
 		if (TheTerrainRenderObject->getShroud() && m_props[i].ss != CELLSHROUD_CLEAR) {
 			rinfo.Push_Material_Pass(m_propShroudMaterialPass);

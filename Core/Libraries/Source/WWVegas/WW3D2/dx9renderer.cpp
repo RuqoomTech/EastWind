@@ -1866,7 +1866,7 @@ unsigned DX9TextureCategoryClass::Add_Mesh(
 
 // ----------------------------------------------------------------------------
 // EastWind M8 R6: a mesh that can be drawn as one copy among others: placed by its own transform
-// alone (not camera-aligned, not a skin, not scaled), with no per-object material change, and
+// alone (not camera-aligned, not a skin), with no per-object material change, and
 // with a light environment to compare.
 static bool Instancable(MeshClass *mesh)
 {
@@ -1876,7 +1876,6 @@ static bool Instancable(MeshClass *mesh)
 		&& !model->Get_Flag(MeshModelClass::ALIGNED)
 		&& !model->Get_Flag(MeshModelClass::ORIENTED)
 		&& !model->Get_Flag(MeshModelClass::SKIN)
-		&& mesh->Get_ObjectScale() == 1.0f
 		&& mesh->Get_Alpha_Override() == 1.0f
 		&& !(mesh->Get_User_Data() && *(int *)mesh->Get_User_Data() == RenderObjClass::USER_DATA_MATERIAL_OVERRIDE)
 		&& mesh->Get_Base_Vertex_Offset() != VERTEX_BUFFER_OVERFLOW;
@@ -2107,11 +2106,6 @@ void DX9TextureCategoryClass::Render()
 		}
 
 
-//--------------------------------------------------------------------
-		if (mesh->Get_ObjectScale() != 1.0f)
-			DX9Wrapper::Set_DX9_Render_State(D3DRS_NORMALIZENORMALS, TRUE);
-//--------------------------------------------------------------------
-
 		// EastWind M8 R6: the later tasks that draw the same mesh with the same lights and house
 		// colour go along as copies in one draw. Their tasks leave the list and are deleted after
 		// the draw, which keeps their meshes alive until then. Draw order within a texture
@@ -2120,6 +2114,8 @@ void DX9TextureCategoryClass::Render()
 		static std::vector<const Matrix3D *> copies;
 		copies.clear();
 		PolyRenderTaskClass *copy_tasks = nullptr;
+		// A scaled copy needs it too when the copies fall back to fixed function, one draw each.
+		bool normalize_normals = mesh->Get_ObjectScale() != 1.0f;
 		if (!DX9RendererDebugger::Is_Enabled() && Instancable(mesh))
 		{
 			const unsigned colour = MeshShader::Object_Color(mesh);
@@ -2134,6 +2130,7 @@ void DX9TextureCategoryClass::Render()
 					if (copies.empty())
 						copies.push_back(world_transform);
 					copies.push_back(&m->Get_Transform());
+					normalize_normals |= m->Get_ObjectScale() != 1.0f;
 					before->Set_Next_Visible(next);
 					other->Set_Next_Visible(copy_tasks);
 					copy_tasks = other;
@@ -2145,6 +2142,11 @@ void DX9TextureCategoryClass::Render()
 		}
 		if (!copies.empty())
 			DX9Wrapper::Set_Instances(copies.data(), int(copies.size()));
+
+//--------------------------------------------------------------------
+		if (normalize_normals)
+			DX9Wrapper::Set_DX9_Render_State(D3DRS_NORMALIZENORMALS, TRUE);
+//--------------------------------------------------------------------
 
 		/*
 		** Render mesh using either sorting or immediate pipeline
@@ -2236,7 +2238,7 @@ void DX9TextureCategoryClass::Render()
 		DX9Wrapper::Set_Skin(nullptr);
 		MeshShader::Clear_Object();
 //--------------------------------------------------------------------
-		if (mesh->Get_ObjectScale() != 1.0f)
+		if (normalize_normals)
 			DX9Wrapper::Set_DX9_Render_State(D3DRS_NORMALIZENORMALS, FALSE);
 //--------------------------------------------------------------------
 
