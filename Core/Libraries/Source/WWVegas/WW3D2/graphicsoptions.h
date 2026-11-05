@@ -44,6 +44,7 @@ struct GraphicsOptions
 	float HeatHaze;			// HeatHaze: 0 off .. 1, screen ripple over fire, explosions and exhausts, in the final post pass
 	bool LinearLighting;	// LinearLighting: the shaders add light up in linear space (shader_linear.h)
 	bool GpuSkinning;		// GpuSkinning: skins deform in the mesh vertex shader instead of on the CPU (needs PerPixelLighting)
+	bool ParallelParticles;	// ParallelParticles: many particles update on worker threads, with the same result
 	bool DebugKeys;			// DebugKeys: Ctrl+Shift+F1..F12 switch the features above while the game runs
 
 	// Set by the debug keys (W3DDisplay), never saved. They only turn features off that
@@ -86,6 +87,7 @@ struct GraphicsOptions
 		, HeatHaze(0.0f)
 		, LinearLighting(false)
 		, GpuSkinning(true)
+		, ParallelParticles(true)
 		, DebugKeys(false)
 		, DebugAllOff(false)
 		, DebugTerrainLightingOff(false)

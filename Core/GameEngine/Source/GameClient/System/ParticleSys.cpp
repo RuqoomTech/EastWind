@@ -51,6 +51,13 @@
 #include "GameLogic/Object.h"
 #include "GameLogic/TerrainLogic.h"
 
+#include "WW3D2/graphicsoptions.h"
+
+#include <execution>
+
+// EastWind: fewer particles than this update on the main thread; they cost less than waking the worker pool.
+static const UnsignedInt PARALLEL_PARTICLE_MIN = 1024;
+
 
 //------------------------------------------------------------------------------ Performance Timers
 //#include "Common/PerfMetrics.h"
@@ -595,41 +602,8 @@ void Particle::doWindMotion(Real timeScale)
 	// get the angle of the wind
 	Real windAngle = m_system->getWindAngle();
 
-	// get the system position
-	Coord3D systemPos;
-	m_system->getPosition( &systemPos );
-
-	// when we're attached objects and drawables we offset by that position as well
-	if( ObjectID attachedObj = m_system->getAttachedObject() )
-	{
-		Object *obj = TheGameLogic->findObjectByID( attachedObj );
-
-		if( obj )
-		{
-			const Coord3D *objPos = obj->getPosition();
-
-			systemPos.x += objPos->x;
-			systemPos.y += objPos->y;
-			systemPos.z += objPos->z;
-
-		}
-
-	}
-	else if( DrawableID attachedDraw = m_system->getAttachedDrawable() )
-	{
-		Drawable *draw = TheGameClient->findDrawableByID( attachedDraw );
-
-		if( draw )
-		{
-			const Coord3D *drawPos = draw->getPosition();
-
-			systemPos.x += drawPos->x;
-			systemPos.y += drawPos->y;
-			systemPos.z += drawPos->z;
-
-		}
-
-	}
+	// EastWind: the system position, found once a render update by ParticleSystem::beginDraw
+	const Coord3D &systemPos = *m_system->getWindCenter();
 
 	//
 	// compute a vector from the system position in the world to the particle ... we will use
@@ -1346,6 +1320,7 @@ ParticleSystem::ParticleSystem( const ParticleSystemTemplate *sysTemplate,
 	m_windMotionStartAngle = GameClientRandomValueReal( m_windMotionStartAngleMin, m_windMotionStartAngleMax );
 	m_windMotionEndAngle = GameClientRandomValueReal( m_windMotionEndAngleMin, m_windMotionEndAngleMax );
 	m_windAngle = GameClientRandomValueReal( m_windMotionStartAngle, m_windMotionEndAngle );
+	m_windCenter.zero();
 
 	m_shaderType = sysTemplate->m_shaderType;
 
@@ -2174,28 +2149,62 @@ Bool ParticleSystem::update( Int localPlayerIndex  )
 	//
 	// Update all particles in the system
 	//
-	Particle *p = m_systemParticlesHead;
-	Particle *oldParticle;
-	while (p)
+	// EastWind: a big system runs the per-particle maths on worker threads, then deletes the dead in
+	// list order as the loop below does. A particle's update reads only itself, its system and the frame.
+	if (m_particleCount >= PARALLEL_PARTICLE_MIN && Get_Graphics_Options().ParallelParticles)
 	{
+		static std::vector<Particle *> particles;	// main thread only
+		static std::vector<char> alive;
+		particles.clear();
+		for (Particle *p = m_systemParticlesHead; p; p = p->m_systemNext)
+			particles.push_back(p);
+		alive.resize(particles.size());
 
-		// apply 'gravity' force
-		if (m_gravity != 0.0f)
+		Particle *const *first = particles.data();
+		const Real gravity = m_gravity;
+		std::for_each(std::execution::par, particles.begin(), particles.end(), [&](Particle *const &p)
 		{
-			Coord3D force;
-			force.x = 0.0f;
-			force.y = 0.0f;
-			force.z = m_gravity;
-			p->applyForce( &force );
+			if (gravity != 0.0f)
+			{
+				const Coord3D force = { 0.0f, 0.0f, gravity };
+				p->applyForce( &force );
+			}
+			alive[&p - first] = p->update();
+		});
+
+		for (size_t i = 0; i < particles.size(); ++i)
+		{
+			if (!alive[i])
+				deleteInstance(particles[i]);
 		}
-
-		if (p->update() == false)
+		TheParticleSystemManager->countUpdates(particles.size(), TRUE);
+	}
+	else
+	{
+		TheParticleSystemManager->countUpdates(m_particleCount, FALSE);
+		Particle *p = m_systemParticlesHead;
+		Particle *oldParticle;
+		while (p)
 		{
-			oldParticle = p;
-			p = p->m_systemNext;
-			deleteInstance(oldParticle);
-		} else {
-			p = p->m_systemNext;
+
+			// apply 'gravity' force
+			if (m_gravity != 0.0f)
+			{
+				Coord3D force;
+				force.x = 0.0f;
+				force.y = 0.0f;
+				force.z = m_gravity;
+				p->applyForce( &force );
+			}
+
+			if (p->update() == false)
+			{
+				oldParticle = p;
+				p = p->m_systemNext;
+				deleteInstance(oldParticle);
+			} else {
+				p = p->m_systemNext;
+			}
 		}
 	}
 
@@ -2379,20 +2388,55 @@ ParticleSystem::VisibilityState ParticleSystem::updateVisibility( Int localPlaye
 }
 
 // ------------------------------------------------------------------------------------------------
-void ParticleSystem::draw(Real timeScale)
+// EastWind: the serial part of the render update, so that Particle::draw reads only its particle and
+// this system. Returns false when the particles do not move.
+Bool ParticleSystem::beginDraw()
 {
 	if (TheGlobalData->m_useFX == FALSE)
-		return;
+		return false;
 
 	if (m_delayLeft != 0)
-		return;
+		return false;
 
-	Particle *p = m_systemParticlesHead;
-	while (p)
+	if (m_windMotion == ParticleSystemInfo::WIND_MOTION_NOT_USED)
+		return true;
+
+	// the wind blows from the system position
+	getPosition( &m_windCenter );
+
+	// when we're attached objects and drawables we offset by that position as well
+	if( ObjectID attachedObj = getAttachedObject() )
 	{
-		p->draw(timeScale);
-		p = p->m_systemNext;
+		Object *obj = TheGameLogic->findObjectByID( attachedObj );
+
+		if( obj )
+		{
+			const Coord3D *objPos = obj->getPosition();
+
+			m_windCenter.x += objPos->x;
+			m_windCenter.y += objPos->y;
+			m_windCenter.z += objPos->z;
+
+		}
+
 	}
+	else if( DrawableID attachedDraw = getAttachedDrawable() )
+	{
+		Drawable *draw = TheGameClient->findDrawableByID( attachedDraw );
+
+		if( draw )
+		{
+			const Coord3D *drawPos = draw->getPosition();
+
+			m_windCenter.x += drawPos->x;
+			m_windCenter.y += drawPos->y;
+			m_windCenter.z += drawPos->z;
+
+		}
+
+	}
+
+	return true;
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -3153,6 +3197,11 @@ ParticleSystemManager::ParticleSystemManager()
 	m_fieldParticleCount = 0;
 	m_particleSystemCount = 0;
 
+	m_parallelUpdates = 0;
+	m_serialUpdates = 0;
+	m_lastParallelUpdates = 0;
+	m_lastSerialUpdates = 0;
+
 	for( Int i = 0; i < NUM_PARTICLE_PRIORITIES; ++i )
 	{
 
@@ -3313,6 +3362,12 @@ void ParticleSystemManager::draw()
 		drawSystems(timeScale);
 		m_drawnLogicFramePhase = logicFramePhase;
 	}
+
+	// EastWind: the Ctrl+Shift+T readout shows the updates since the last render update.
+	m_lastParallelUpdates = m_parallelUpdates;
+	m_lastSerialUpdates = m_serialUpdates;
+	m_parallelUpdates = 0;
+	m_serialUpdates = 0;
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -3331,14 +3386,31 @@ void ParticleSystemManager::drawSystems(Real timeScale)
 {
 	DEBUG_ASSERTCRASH(timeScale > 0.0f, ("ParticleSystemManager::drawSystems: timeScale %f is not greater than zero", timeScale));
 
+	// EastWind: the systems' serial part first, in list order, then every particle's maths on its own,
+	// on worker threads when there are enough. Each particle writes only itself, so the result is the same.
+	static std::vector<Particle *> particles;	// main thread only
+	particles.clear();
+
 	ParticleSystemListIt it = m_allParticleSystemList.begin();
 	while( it != m_allParticleSystemList.end() )
 	{
 		ParticleSystem* sys = *it++;
 		DEBUG_ASSERTCRASH(sys != nullptr, ("ParticleSystemManager::drawSystems: ParticleSystem is null"));
 
-		sys->draw(timeScale);
+		if (sys->beginDraw())
+		{
+			for (Particle *p = sys->getFirstParticle(); p; p = p->m_systemNext)
+				particles.push_back(p);
+		}
 	}
+
+	auto step = [timeScale](Particle *p) { p->draw(timeScale); };
+	const Bool parallel = particles.size() >= PARALLEL_PARTICLE_MIN && Get_Graphics_Options().ParallelParticles;
+	if (parallel)
+		std::for_each(std::execution::par, particles.begin(), particles.end(), step);
+	else
+		std::for_each(particles.begin(), particles.end(), step);
+	countUpdates(particles.size(), parallel);
 }
 
 // ------------------------------------------------------------------------------------------------

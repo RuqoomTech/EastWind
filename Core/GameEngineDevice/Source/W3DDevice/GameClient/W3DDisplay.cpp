@@ -789,6 +789,7 @@ static void loadGraphicsOptions()
 	options.HeatHaze = prefs.getReal("HeatHaze", options.HeatHaze);
 	options.LinearLighting = prefs.getBool("LinearLighting", options.LinearLighting);
 	options.GpuSkinning = prefs.getBool("GpuSkinning", options.GpuSkinning);
+	options.ParallelParticles = prefs.getBool("ParallelParticles", options.ParallelParticles);
 	options.DebugKeys = prefs.getBool("DebugKeys", options.DebugKeys);
 	options.Validate();
 }
@@ -864,6 +865,7 @@ static void showGraphicsStatus()
 	TheInGameUI->message(L"Linear lighting: %s   [Ctrl+Shift+L]", linear);
 	TheInGameUI->message(L"Unlit draws: %s   [Ctrl+Shift+U]", unlit);
 	TheInGameUI->message(L"GPU skinning: %s", gpu_skin);
+	TheInGameUI->message(L"Particles on worker threads: %s", o.ParallelParticles ? L"on" : L"off in Options.ini");
 	TheInGameUI->message(L"Keep mesh shaders bound: %s   [Ctrl+Shift+B]", o.DebugShaderBatchOff ? L"off (classic)" : L"on");
 	TheInGameUI->message(L"Send changed constants only: %s   [Ctrl+Shift+K]", o.DebugConstantDiffOff ? L"off (classic)" : L"on");
 	TheInGameUI->message(L"GPU time of each pass: [Ctrl+Shift+T]");
@@ -1033,6 +1035,10 @@ static void showGpuTimes()
 		mesh.SkinCpuWhy[MeshShader::SKIN_CPU_BONES], mesh.SkinCpuWhy[MeshShader::SKIN_CPU_OTHER], mesh.SkinCpuWhy[MeshShader::SKIN_CPU_DRAW]);
 	sayTime(L"   CPU skin deform: %.0f deformed, %.0f reused from an earlier pass of the frame",
 		mesh.SkinsDeformed, mesh.SkinsReused);
+	if (TheParticleSystemManager != nullptr)
+		sayTime(L"Particle updates last frame: %u on worker threads, %u on the main thread (ParallelParticles %s)",
+			TheParticleSystemManager->getLastParallelUpdates(), TheParticleSystemManager->getLastSerialUpdates(),
+			Get_Graphics_Options().ParallelParticles ? L"on" : L"off in Options.ini");
 	sayTime(L"GPU time (average of %d frames): %.2f ms a frame", frames, total);
 	for (int p = GpuTimer::FRAME_BEGIN + 1; p < GpuTimer::POINT_COUNT; ++p)
 	{

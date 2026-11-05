@@ -648,7 +648,7 @@ public:
 	virtual Bool update( Int localPlayerIndex );								///< update this particle system, return false if dead
 	void updateWindMotion();							///< update wind motion
 
-	void draw( Real timeScale ); ///< render update
+	Bool beginDraw(); ///< serial part of the render update, false when the particles do not move
 
 	void setControlParticle( Particle *p );			///< set control particle
 
@@ -732,6 +732,7 @@ public:
 	// Access to wind motion
 	Real getWindAngle() { return m_windAngle; }
 	WindMotion getWindMotion() { return m_windMotion; }
+	const Coord3D *getWindCenter() const { return &m_windCenter; }	///< set by beginDraw
 
 protected:
 
@@ -791,6 +792,7 @@ protected:
 
 	Coord3D						m_pos;													///< this is the position to emit at.
 	Coord3D						m_lastPos;											///< this is the previous position we emitted at.
+	Coord3D						m_windCenter;										///< EastWind: where the wind blows from, found once a render update
 
 	ParticleSystem *	m_slaveSystem;									///< if non-null, another system this one has control of
 	ParticleSystemID	m_slaveSystemID;								///< id of slave system (if present)
@@ -893,6 +895,11 @@ public:
 
 	UnsignedInt getParticleSystemCount() const { return m_particleSystemCount; }
 
+	// EastWind: particle updates on worker threads and on the main thread, for the Ctrl+Shift+T readout.
+	void countUpdates( size_t count, Bool parallel ) { (parallel ? m_parallelUpdates : m_serialUpdates) += UnsignedInt(count); }
+	UnsignedInt getLastParallelUpdates() const { return m_lastParallelUpdates; }
+	UnsignedInt getLastSerialUpdates() const { return m_lastSerialUpdates; }
+
 	// @todo const this jkmcd
 	ParticleSystemList &getAllParticleSystems() { return m_allParticleSystemList; }
 
@@ -928,6 +935,8 @@ protected:
 	Int m_onScreenParticleCount;                ///< number of particles displayed on screen per frame
 	Int m_localPlayerIndex;	///<used to tell particle systems which particles can be skipped due to player shroud status
 	Real m_drawnLogicFramePhase; ///< How far the render updates have integrated the current logic frame, ranging 0 to 1.
+	UnsignedInt m_parallelUpdates, m_serialUpdates;			///< since the last render update
+	UnsignedInt m_lastParallelUpdates, m_lastSerialUpdates;	///< up to the last render update
 
 private:
 	TemplateMap m_templateMap;		///< a hash map of all particle system templates
