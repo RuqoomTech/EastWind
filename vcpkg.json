@@ -6,6 +6,7 @@
     "stb",
     "ffmpeg",
     "openal-soft",
-    "drlibs"
+    "drlibs",
+    "pugixml"
   ]
 }

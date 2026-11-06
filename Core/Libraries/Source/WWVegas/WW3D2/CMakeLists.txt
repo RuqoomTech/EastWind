@@ -234,6 +234,8 @@ set(WW3D2_SRC
     w3derr.h
     w3dexclusionlist.cpp
     w3dexclusionlist.h
+    w3xconvert.cpp
+    w3xconvert.h
     ww3d.cpp
     ww3d.h
     ww3dformat.cpp
@@ -263,4 +265,5 @@ target_link_libraries(corei_ww3d2 INTERFACE
     core_browserengine
     core_wwlib
     core_wwmath
+    pugixml::pugixml
 )

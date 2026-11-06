@@ -17,3 +17,10 @@ endif()
 add_compile_definitions(FORCE_DETERMINISTIC_MATH=1)
 
 include(cmake/eastwind_shaders.cmake)
+
+# RA3 W3X art is XML; WW3D2 w3xconvert.cpp parses it with pugixml.
+find_package(pugixml CONFIG REQUIRED)
+
+if(RTS_BUILD_ZEROHOUR_TOOLS)
+    add_subdirectory(EastWind/Tools/w3x2w3d)
+endif()
