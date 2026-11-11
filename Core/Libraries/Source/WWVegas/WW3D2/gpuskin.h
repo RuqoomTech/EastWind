@@ -24,6 +24,19 @@
 #include <cstring>
 #include <vector>
 
+// The two-bone skin vertex: the 48-byte skin vertex (XYZNDUV2 and the first palette row) then the second
+// bone's position, normal, palette row and weight.
+struct GpuSkinVertex2Struct
+{
+	float x, y, z, nx, ny, nz;
+	unsigned diffuse;
+	float u1, v1, u2, v2;
+	float row;
+	float x2, y2, z2, nx2, ny2, nz2;
+	float row2;
+	float weight2;
+};
+
 // Fills bones with the distinct bones of links in first-use order, and row_base with each
 // vertex's first palette row (its palette index * 3). False, with both empty, when there are no
 // links or more than max_bones distinct bones: that mesh deforms on the CPU.
@@ -51,6 +64,43 @@ inline bool Build_Skin_Palette(const unsigned short *links, int count, int max_b
 			bones.push_back(links[v]);
 		}
 		row_base[size_t(v)] = float(k * 3);
+	}
+	return true;
+}
+
+// As Build_Skin_Palette for a two-bone skin: one palette for the bones of both link arrays, and
+// each vertex's first palette row for its first (row_base) and second (row_base2) bone.
+inline bool Build_Skin_Palette2(const unsigned short *links, const unsigned short *links2, int count, int max_bones,
+	std::vector<unsigned short> &bones, std::vector<float> &row_base, std::vector<float> &row_base2)
+{
+	bones.clear();
+	row_base.clear();
+	row_base2.clear();
+	if (links == nullptr || links2 == nullptr || count <= 0)
+		return false;
+	row_base.resize(size_t(count));
+	row_base2.resize(size_t(count));
+	for (int v = 0; v < count; ++v)
+	{
+		for (int pass = 0; pass < 2; ++pass)
+		{
+			const unsigned short bone = pass == 0 ? links[v] : links2[v];
+			size_t k = 0;
+			while (k < bones.size() && bones[k] != bone)
+				++k;
+			if (k == bones.size())
+			{
+				if (int(k) >= max_bones)
+				{
+					bones.clear();
+					row_base.clear();
+					row_base2.clear();
+					return false;
+				}
+				bones.push_back(bone);
+			}
+			(pass == 0 ? row_base : row_base2)[size_t(v)] = float(k * 3);
+		}
 	}
 	return true;
 }

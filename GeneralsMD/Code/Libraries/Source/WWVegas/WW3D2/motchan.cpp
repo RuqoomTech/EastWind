@@ -98,7 +98,8 @@ MotionChannelClass::MotionChannelClass() :
 	LastFrame(-1),
 	CompressedData(nullptr),
 	ValueScale(0.0f),
-	ValueOffset(0.0f)
+	ValueOffset(0.0f),
+	StepBits(nullptr)
 {
 }
 
@@ -135,6 +136,9 @@ void MotionChannelClass::Free()
 {
 	delete[] CompressedData;
 	CompressedData=nullptr;
+
+	delete[] StepBits;
+	StepBits = nullptr;
 
 	delete[] Data;
 	Data = nullptr;
@@ -191,7 +195,7 @@ bool MotionChannelClass::Load_W3D(ChunkLoadClass & cload)
 }
 
 
-bool MotionChannelClass::Init(uint32 pivot, uint32 type, int vectorLen, int firstFrame, int lastFrame, const float * data)
+bool MotionChannelClass::Init(uint32 pivot, uint32 type, int vectorLen, int firstFrame, int lastFrame, const float * data, const uint8 * stepBits)
 {
 	Free();
 
@@ -208,6 +212,12 @@ bool MotionChannelClass::Init(uint32 pivot, uint32 type, int vectorLen, int firs
 	const unsigned int num_floats = (LastFrame - FirstFrame + 1) * VectorLen;
 	Data = MSGW3DNEWARRAY("MotionChannelClass::Data") float32[num_floats];
 	memcpy(Data, data, num_floats * sizeof(float));
+
+	if (stepBits != nullptr) {
+		const size_t nbytes = ((size_t)(LastFrame - FirstFrame + 1) + 7) / 8;
+		StepBits = W3DNEWARRAY uint8[nbytes];
+		memcpy(StepBits, stepBits, nbytes);
+	}
 	return true;
 }
 

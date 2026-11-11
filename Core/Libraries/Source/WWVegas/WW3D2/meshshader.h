@@ -65,8 +65,9 @@ public:
 	// As Begin(), for a GPU skin (GpuSkinning): the skin vertex shader with the bone palette,
 	// rows (3 per bone, as Matrix3D) for bones bones. The device's FVF must still be the CPU skin's
 	// (XYZNDUV2) so the checks match it; the caller then binds the skin's declaration. Also binds the
-	// caster shaders in the caster passes. False: the caller deforms this draw on the CPU.
-	static bool Begin_Skinned(const float *rows, int bones);
+	// caster shaders in the caster passes. False: the caller deforms this draw on the CPU. blend picks the
+	// two-bone shaders (the caller binds the 80-byte blend vertex layout).
+	static bool Begin_Skinned(const float *rows, int bones, bool blend = false);
 	static void End();
 
 	// Between these, End() leaves the shaders bound for the next draw, and Begin() unbinds them
@@ -107,6 +108,7 @@ public:
 	// is taken from the first container that has one.
 	static void Set_Object(const RenderObjClass *object);
 	static unsigned Object_Color(const RenderObjClass *object);	// the colour Set_Object sets
+	static float Object_Damage(const RenderObjClass *object);	// the damage amount Set_Object sets
 	static void Clear_Object();
 
 	// Soft particles (SoftParticles): W3DPostProcess bound the scene's view depth on

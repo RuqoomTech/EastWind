@@ -2301,6 +2301,7 @@ static_assert(sizeof(Matrix3D) == 48, "a copy's world matrix is three float4 row
 // EastWind GPU skinning: the skin vertex's layout, and the buffer a draw the shaders do not take
 // fills with the CPU-deformed vertices. Released with the instancing resources.
 static IDirect3DVertexDeclaration9 *SkinDeclaration = nullptr;
+static IDirect3DVertexDeclaration9 *Skin2Declaration = nullptr;	// two-bone skins, 80-byte vertices
 static IDirect3DVertexBuffer9 *SkinFallbackBuffer = nullptr;
 static int SkinFallbackVertices = 0;
 
@@ -2325,6 +2326,9 @@ void DX9Wrapper::Release_Instancing()
 	if (SkinDeclaration != nullptr)
 		SkinDeclaration->Release();
 	SkinDeclaration = nullptr;
+	if (Skin2Declaration != nullptr)
+		Skin2Declaration->Release();
+	Skin2Declaration = nullptr;
 	if (SkinFallbackBuffer != nullptr)
 		SkinFallbackBuffer->Release();
 	SkinFallbackBuffer = nullptr;
@@ -2492,6 +2496,27 @@ void DX9Wrapper::Draw_Skinned(
 		if (FAILED(D3DDevice->CreateVertexDeclaration(elements, &SkinDeclaration)))
 			SkinDeclaration = nullptr;
 	}
+	if (Skin->Blend && Skin2Declaration == nullptr)
+	{
+		// The 48-byte layout plus the second bone's position, normal, palette row and weight.
+		const D3DVERTEXELEMENT9 elements[] =
+		{
+			{ 0, 0, D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_POSITION, 0 },
+			{ 0, 12, D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_NORMAL, 0 },
+			{ 0, 24, D3DDECLTYPE_D3DCOLOR, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_COLOR, 0 },
+			{ 0, 28, D3DDECLTYPE_FLOAT2, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD, 0 },
+			{ 0, 36, D3DDECLTYPE_FLOAT2, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD, 1 },
+			{ 0, 44, D3DDECLTYPE_FLOAT1, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_BLENDINDICES, 0 },
+			{ 0, 48, D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_POSITION, 1 },
+			{ 0, 60, D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_NORMAL, 1 },
+			{ 0, 72, D3DDECLTYPE_FLOAT1, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_BLENDINDICES, 1 },
+			{ 0, 76, D3DDECLTYPE_FLOAT1, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_BLENDWEIGHT, 0 },
+			D3DDECL_END()
+		};
+		if (FAILED(D3DDevice->CreateVertexDeclaration(elements, &Skin2Declaration)))
+			Skin2Declaration = nullptr;
+	}
+	IDirect3DVertexDeclaration9 *skin_declaration = Skin->Blend ? Skin2Declaration : SkinDeclaration;
 
 	// Draw() widens a range under 3 vertices to the whole dynamic buffer; a skin's buffers hold only its own.
 	if (unsigned(min_vertex_index) + vertex_count > unsigned(Skin->Vertices))
@@ -2502,10 +2527,10 @@ void DX9Wrapper::Draw_Skinned(
 	DX9_RECORD_RENDER(polygon_count, vertex_count, render_state.shader);
 	DX9_RECORD_DRAW_CALLS();
 	// Begin_Skinned checks the draw against the CPU skin's FVF, still set; the declaration follows.
-	if (SkinDeclaration != nullptr && MeshShader::Begin_Skinned(Skin->Rows, Skin->Bones))
+	if (skin_declaration != nullptr && MeshShader::Begin_Skinned(Skin->Rows, Skin->Bones, Skin->Blend))
 	{
-		DX9CALL(SetVertexDeclaration(SkinDeclaration));
-		DX9CALL(SetStreamSource(0, Skin->VB, 0, SKIN_VERTEX_SIZE));
+		DX9CALL(SetVertexDeclaration(skin_declaration));
+		DX9CALL(SetStreamSource(0, Skin->VB, 0, Skin->Blend ? SKIN2_VERTEX_SIZE : SKIN_VERTEX_SIZE));
 		DX9CALL(DrawIndexedPrimitive((D3DPRIMITIVETYPE)primitive_type, 0, min_vertex_index,
 			vertex_count, start_index + render_state.iba_offset, polygon_count));
 		MeshShader::End();

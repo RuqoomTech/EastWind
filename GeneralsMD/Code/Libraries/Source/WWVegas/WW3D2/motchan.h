@@ -68,7 +68,14 @@ public:
 
 	bool	Load_W3D(ChunkLoadClass & cload);
 	// Takes (lastFrame - firstFrame + 1) * vectorLen floats; the same state Load_W3D leaves.
-	bool	Init(uint32 pivot, uint32 type, int vectorLen, int firstFrame, int lastFrame, const float * data);
+	// stepBits (optional): one bit per frame from firstFrame; a set bit means "hold the previous frame's value".
+	bool	Init(uint32 pivot, uint32 type, int vectorLen, int firstFrame, int lastFrame, const float * data, const uint8 * stepBits = nullptr);
+	WWINLINE bool Is_Step(int frame) const
+	{
+		if (StepBits == nullptr || frame < FirstFrame || frame > LastFrame) return false;
+		const int f = frame - FirstFrame;
+		return (StepBits[f >> 3] >> (f & 7)) & 1;
+	}
 	WWINLINE int Get_Type() const { return Type; }
 	WWINLINE int Get_Pivot() const { return PivotIdx; }
 	WWINLINE void Set_Pivot(int idx) { PivotIdx=idx; }
@@ -89,6 +96,7 @@ private:
 	unsigned short* CompressedData;
 
 	float	*	Data;					// pointer to the raw floating point data
+	uint8 *	StepBits;			// W3X BinaryMove flags, null for W3D channels
 	int		FirstFrame;			// first frame which was non-identity
 	int		LastFrame;			// last frame which was non-identity
 	void Free();

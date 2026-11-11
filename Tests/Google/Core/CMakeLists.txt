@@ -12,8 +12,10 @@ set(COREI_GOOGLETEST_SRC
     GameEngineDevice/W3DDevice/GameClient/W3DPostProcessTest.cpp
     Libraries/Compression/CompressionManagerTest.cpp
     Libraries/WWVegas/WW3D2/gpuskin_test.cpp
+    Libraries/WWVegas/WW3D2/gridmapper_test.cpp
     Libraries/WWVegas/WW3D2/hlod_test.cpp
     Libraries/WWVegas/WW3D2/skincache_test.cpp
+    Libraries/WWVegas/WW3D2/vertmatextras_test.cpp
     Libraries/WWVegas/WW3D2/w3xbuild_test.cpp
     Libraries/WWVegas/WW3D2/w3xconvert_test.cpp
     Libraries/WWVegas/WW3D2/w3xparse_test.cpp

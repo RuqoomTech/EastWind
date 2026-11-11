@@ -2057,6 +2057,14 @@ void W3DModelDraw::doDrawModule(const Matrix3D* transformMtx)
 			m_renderObject->Set_ObjectScale(getDrawable()->getInstanceScale());
 	}
 
+	if (m_renderObject)
+	{
+		// The damage map of RA3 buildings follows the body damage state (client-only read).
+		const ModelConditionFlags &f = getDrawable()->getModelConditionFlags();
+		m_renderObject->Set_ObjectDamage(f.test(MODELCONDITION_REALLY_DAMAGED) || f.test(MODELCONDITION_RUBBLE) ? 1.0f
+			: f.test(MODELCONDITION_DAMAGED) ? 0.5f : 0.0f);
+	}
+
 	if (isAnimationComplete(m_renderObject))
 	{
 		if (m_curState != nullptr && m_nextState != nullptr)

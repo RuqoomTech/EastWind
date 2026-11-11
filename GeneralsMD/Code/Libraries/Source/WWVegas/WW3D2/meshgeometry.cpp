@@ -139,6 +139,10 @@ MeshGeometryClass::MeshGeometryClass() :
 	PlaneEq(nullptr),
 	VertexShadeIdx(nullptr),
 	VertexBoneLink(nullptr),
+	VertexBoneLink2(nullptr),
+	VertexBoneWeight2(nullptr),
+	VertexSecondVert(nullptr),
+	VertexSecondNorm(nullptr),
 	BoundBoxMin(0,0,0),
 	BoundBoxMax(1,1,1),
 	BoundSphereCenter(0,0,0),
@@ -175,6 +179,10 @@ MeshGeometryClass::MeshGeometryClass(const MeshGeometryClass & that) :
 	PlaneEq(nullptr),
 	VertexShadeIdx(nullptr),
 	VertexBoneLink(nullptr),
+	VertexBoneLink2(nullptr),
+	VertexBoneWeight2(nullptr),
+	VertexSecondVert(nullptr),
+	VertexSecondNorm(nullptr),
 	BoundBoxMin(0,0,0),
 	BoundBoxMax(1,1,1),
 	BoundSphereCenter(0,0,0),
@@ -220,6 +228,10 @@ MeshGeometryClass & MeshGeometryClass::operator = (const MeshGeometryClass & tha
 		REF_PTR_SET(PlaneEq,that.PlaneEq);
 		REF_PTR_SET(VertexShadeIdx,that.VertexShadeIdx);
 		REF_PTR_SET(VertexBoneLink,that.VertexBoneLink);
+		REF_PTR_SET(VertexBoneLink2,that.VertexBoneLink2);
+		REF_PTR_SET(VertexBoneWeight2,that.VertexBoneWeight2);
+		REF_PTR_SET(VertexSecondVert,that.VertexSecondVert);
+		REF_PTR_SET(VertexSecondNorm,that.VertexSecondNorm);
 
 		// Clone the cull tree..
 		REF_PTR_RELEASE(CullTree);
@@ -281,6 +293,10 @@ void MeshGeometryClass::Reset_Geometry(int polycount,int vertcount)
 	REF_PTR_RELEASE(PlaneEq);
 	REF_PTR_RELEASE(VertexShadeIdx);
 	REF_PTR_RELEASE(VertexBoneLink);
+	REF_PTR_RELEASE(VertexBoneLink2);
+	REF_PTR_RELEASE(VertexBoneWeight2);
+	REF_PTR_RELEASE(VertexSecondVert);
+	REF_PTR_RELEASE(VertexSecondNorm);
 	REF_PTR_RELEASE(CullTree);
 
 	PolyCount = polycount;
@@ -2006,6 +2022,14 @@ void MeshGeometryClass::Scale(const Vector3 &sc)
 		vert[i].Y *= sc.Y;
 		vert[i].Z *= sc.Z;
 	}
+	if (VertexSecondVert) {
+		Vector3 * vert2 = VertexSecondVert->Get_Array();
+		for (int i=0;i<VertexCount; i++) {
+			vert2[i].X *= sc.X;
+			vert2[i].Y *= sc.Y;
+			vert2[i].Z *= sc.Z;
+		}
+	}
 
 	BoundBoxMin.Scale(sc);
 	BoundBoxMax.Scale(sc);
@@ -2046,6 +2070,21 @@ void MeshGeometryClass::Scale(const Vector3 &sc)
 // Destination pointers MUST point to arrays large enough to hold all vertices
 void MeshGeometryClass::get_deformed_vertices(Vector3 *dst_vert,const HTreeClass * htree)
 {
+	if (VertexBoneLink2) {
+		const uint16 * link = VertexBoneLink->Get_Array();
+		const uint16 * link2 = VertexBoneLink2->Get_Array();
+		const float * weight2 = VertexBoneWeight2->Get_Array();
+		const Vector3 * v = Vertex->Get_Array();
+		const Vector3 * v2 = VertexSecondVert->Get_Array();
+		for (int vi = 0; vi < Get_Vertex_Count(); vi++) {
+			const float w2 = weight2[vi];
+			Vector3 p0, p1;
+			Matrix3D::Transform_Vector(htree->Get_Transform(link[vi]), v[vi], &p0);
+			Matrix3D::Transform_Vector(htree->Get_Transform(link2[vi]), v2[vi], &p1);
+			dst_vert[vi] = (1.0f - w2) * p0 + w2 * p1;
+		}
+		return;
+	}
 	Vector3 * src_vert = Vertex->Get_Array();
 	uint16 * bonelink = VertexBoneLink->Get_Array();
 	for (int vi = 0; vi < Get_Vertex_Count(); vi++) {
@@ -2066,6 +2105,27 @@ void MeshGeometryClass::get_deformed_vertices(Vector3 *dst_vert, Vector3 *dst_no
 #else
 	Vector3 * src_norm = VertexNorm->Get_Array();
 #endif
+	if (VertexBoneLink2) {
+		const uint16 * link = VertexBoneLink->Get_Array();
+		const uint16 * link2 = VertexBoneLink2->Get_Array();
+		const float * weight2 = VertexBoneWeight2->Get_Array();
+		const Vector3 * v2 = VertexSecondVert->Get_Array();
+		const Vector3 * n2 = VertexSecondNorm->Get_Array();
+		for (vi = 0; vi < vertex_count; vi++) {
+			const Matrix3D & tm0 = htree->Get_Transform(link[vi]);
+			const Matrix3D & tm1 = htree->Get_Transform(link2[vi]);
+			const float w2 = weight2[vi];
+			const float w1 = 1.0f - w2;
+			Vector3 p0, p1;
+			Matrix3D::Transform_Vector(tm0, src_vert[vi], &p0);
+			Matrix3D::Transform_Vector(tm1, v2[vi], &p1);
+			dst_vert[vi] = w1 * p0 + w2 * p1;
+			Vector3 n = w1 * tm0.Rotate_Vector(src_norm[vi]) + w2 * tm1.Rotate_Vector(n2[vi]);
+			n.Normalize();
+			dst_norm[vi] = n;
+		}
+		return;
+	}
 	uint16 * bonelink = VertexBoneLink->Get_Array();
 
 	for (vi = 0; vi < vertex_count;) {
@@ -2098,6 +2158,18 @@ void MeshGeometryClass::get_deformed_screenspace_vertices(Vector4 *dst_vert,cons
 	int vertex_count=Get_Vertex_Count();
 
 	if (Get_Flag(SKIN) && VertexBoneLink && htree) {
+		if (VertexBoneLink2) {
+			const uint16 * link = VertexBoneLink->Get_Array();
+			const uint16 * link2 = VertexBoneLink2->Get_Array();
+			const float * weight2 = VertexBoneWeight2->Get_Array();
+			const Vector3 * v2 = VertexSecondVert->Get_Array();
+			for (int vi = 0; vi < vertex_count; vi++) {
+				const float w2 = weight2[vi];
+				dst_vert[vi] = (1.0f - w2) * ((prj * htree->Get_Transform(link[vi])) * src_vert[vi])
+					+ w2 * ((prj * htree->Get_Transform(link2[vi])) * v2[vi]);
+			}
+			return;
+		}
 		uint16 * bonelink = VertexBoneLink->Get_Array();
 		for (int vi = 0; vi < vertex_count;) {
 			int idx=bonelink[vi];

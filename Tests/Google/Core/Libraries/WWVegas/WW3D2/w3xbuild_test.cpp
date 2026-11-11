@@ -148,6 +148,82 @@ TEST(W3xBuild, PartialChannelHoldsEdgeKeys)
 	}
 }
 
+TEST(W3xBuild, StepKeyHoldsPreviousValue)
+{
+	const W3xHierarchy source = sampleTree();
+	HTreeClass tree;
+	ASSERT_TRUE(tree.Load_W3X(source, "T"));
+
+	W3xAnimation anim;
+	anim.id = "STEP";
+	anim.hierarchy = "T";
+	anim.numFrames = 4;
+	anim.frameRate = 30;
+	W3xChannel ch = channel(1, W3X_CHANNEL_X_TRANSLATION, 0, { 0.0f, 10.0f, 20.0f, 30.0f });
+	ch.binaryMove = { false, false, true, false };
+	anim.channels.push_back(ch);
+
+	HRawAnimClass raw;
+	ASSERT_TRUE(raw.Load_W3X(anim, "T.STEP", "T", &tree));
+
+	const struct { float frame; float x; } expected[] = {
+		{ 0.5f, 5.0f }, { 1.5f, 10.0f }, { 2.0f, 20.0f }, { 2.5f, 25.0f },
+	};
+	for (const auto &e : expected) {
+		Vector3 t;
+		raw.Get_Translation(t, 1, e.frame);
+		EXPECT_NEAR(t.X, e.x, 1e-4f) << "frame " << e.frame;
+	}
+}
+
+TEST(W3xBuild, StepKeyOnOrientation)
+{
+	const W3xHierarchy source = sampleTree();
+	HTreeClass tree;
+	ASSERT_TRUE(tree.Load_W3X(source, "T"));
+
+	const float s = 0.70710678f; // 90 degrees about Z
+	W3xAnimation anim;
+	anim.id = "TURN";
+	anim.hierarchy = "T";
+	anim.numFrames = 2;
+	anim.frameRate = 30;
+	W3xChannel ch = channel(1, W3X_CHANNEL_ORIENTATION, 0, { 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, s, s });
+	ch.binaryMove = { false, true };
+	anim.channels.push_back(ch);
+
+	HRawAnimClass raw;
+	ASSERT_TRUE(raw.Load_W3X(anim, "T.TURN", "T", &tree));
+
+	Quaternion q;
+	raw.Get_Orientation(q, 1, 0.5f);
+	EXPECT_NEAR(q.X, 0.0f, 1e-4f);
+	EXPECT_NEAR(q.Y, 0.0f, 1e-4f);
+	EXPECT_NEAR(q.Z, 0.0f, 1e-4f);
+	EXPECT_NEAR(q.W, 1.0f, 1e-4f);
+}
+
+TEST(W3xBuild, NoBinaryMoveStillLerps)
+{
+	const W3xHierarchy source = sampleTree();
+	HTreeClass tree;
+	ASSERT_TRUE(tree.Load_W3X(source, "T"));
+
+	W3xAnimation anim;
+	anim.id = "LERP";
+	anim.hierarchy = "T";
+	anim.numFrames = 4;
+	anim.frameRate = 30;
+	anim.channels.push_back(channel(1, W3X_CHANNEL_X_TRANSLATION, 0, { 0.0f, 10.0f, 20.0f, 30.0f }));
+
+	HRawAnimClass raw;
+	ASSERT_TRUE(raw.Load_W3X(anim, "T.LERP", "T", &tree));
+
+	Vector3 t;
+	raw.Get_Translation(t, 1, 1.5f);
+	EXPECT_NEAR(t.X, 15.0f, 1e-4f);
+}
+
 TEST(W3xBuild, VisibilityChannelIsABitChannel)
 {
 	const W3xHierarchy source = sampleTree();
@@ -222,5 +298,17 @@ TEST(W3xBuild, BoxHasLongNameAndCollisionBits)
 	OBBoxRenderObjClass *obb = static_cast<OBBoxRenderObjClass *>(obj);
 	EXPECT_NEAR(obb->Get_Local_Center().Z, 3.0f, 1e-6f);
 	EXPECT_NEAR(obb->Get_Local_Extent().Y, 5.0f, 1e-6f);
+	obj->Release_Ref();
+}
+
+TEST(W3xBuild, ObjectDamageDefaultsToZeroAndRoundTrips)
+{
+	W3xBox box;
+	box.id = "BOX";
+	RenderObjClass *obj = W3x_Create_Box(box, "DAMAGE_BOX");
+	ASSERT_NE(obj, nullptr);
+	EXPECT_EQ(obj->Get_ObjectDamage(), 0.0f);
+	obj->Set_ObjectDamage(0.5f);
+	EXPECT_EQ(obj->Get_ObjectDamage(), 0.5f);
 	obj->Release_Ref();
 }

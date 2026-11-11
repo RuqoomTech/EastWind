@@ -192,10 +192,12 @@ void LinearOffsetTextureMapperClass::Calculate_Texture_Matrix(Matrix4x4 &tex_mat
 // HY 5/16/01
 GridTextureMapperClass::GridTextureMapperClass(float fps, unsigned int gridwidth_log2, unsigned int last_frame, unsigned int offset, unsigned int stage) :
 	TextureMapperClass(stage),
+	GridWidthLog2(gridwidth_log2),
+	GridWidth(0),
 	LastFrame(last_frame),
 	Offset(offset)
 {
-	initialize(fps, gridwidth_log2);
+	initialize(fps, 1u << gridwidth_log2);
 }
 
 GridTextureMapperClass::GridTextureMapperClass(const INIClass &ini, const char *section, unsigned int stage) :
@@ -205,7 +207,9 @@ GridTextureMapperClass::GridTextureMapperClass(const INIClass &ini, const char *
 	unsigned int gridwidth_log2 = ini.Get_Int(section, "Log2Width", 1);
 	LastFrame = ini.Get_Int(section, "Last", 0);
 	Offset = ini.Get_Int(section, "Offset", 0); // Added in Zero Hour
-	initialize(fps, gridwidth_log2);
+	GridWidthLog2 = gridwidth_log2;
+	GridWidth = 0;
+	initialize(fps, 1u << gridwidth_log2);
 }
 
 GridTextureMapperClass::GridTextureMapperClass(const GridTextureMapperClass & src) :
@@ -214,10 +218,22 @@ GridTextureMapperClass::GridTextureMapperClass(const GridTextureMapperClass & sr
 	MSPerFrame(src.MSPerFrame),
 	OOGridWidth(src.OOGridWidth),
 	GridWidthLog2(src.GridWidthLog2),
+	GridWidth(src.GridWidth),
 	LastFrame(src.LastFrame),
 	Offset(src.Offset)
 {
 	Reset();
+}
+
+GridTextureMapperClass * GridTextureMapperClass::Create_With_Width(float fps, unsigned int grid_width, unsigned int last_frame, unsigned int offset, unsigned int stage)
+{
+	if (grid_width == 0) grid_width = 1;
+	if (last_frame == 0) last_frame = grid_width * grid_width;
+	// Built with the log2 ctor's state first, so the offset is wrapped against the final LastFrame
+	GridTextureMapperClass *mapper = NEW_REF(GridTextureMapperClass, (fps, 0, last_frame, offset, stage));
+	mapper->GridWidth = grid_width;
+	mapper->initialize(fps, grid_width);
+	return mapper;
 }
 
 void GridTextureMapperClass::Apply(int uv_array_index)
@@ -263,17 +279,14 @@ void GridTextureMapperClass::Calculate_Texture_Matrix(Matrix4x4 &tex_matrix)
 
 void GridTextureMapperClass::Set_Frame_Per_Second(float fps)
 {
-	initialize(fps, GridWidthLog2);
+	initialize(fps, GridWidth ? GridWidth : (1u << GridWidthLog2));
 }
 
-void GridTextureMapperClass::initialize(float fps, unsigned int gridwidth_log2)
+void GridTextureMapperClass::initialize(float fps, unsigned int grid_width)
 {
-	unsigned int grid_width = (1 << gridwidth_log2);
-
 	if (LastFrame == 0) LastFrame = (grid_width * grid_width);
 	Offset = Offset % LastFrame;
 	LastUsedSyncTime = WW3D::Get_Sync_Time();
-	GridWidthLog2 = gridwidth_log2;
 	OOGridWidth = 1.0f / (float)(grid_width);
 	if (fps == 0.0f) {
 		// Value of MSPerFrame does not matter as long as it is not 0 - sign will multiply results,
@@ -313,6 +326,11 @@ void GridTextureMapperClass::update_temporal_state()
 
 void GridTextureMapperClass::calculate_uv_offset(float * u_offset, float * v_offset)
 {
+	if (GridWidth > 0) {
+		*u_offset = (CurrentFrame % GridWidth) * OOGridWidth;
+		*v_offset = (CurrentFrame / GridWidth) * OOGridWidth;
+		return;
+	}
 	unsigned int row_mask = ~(0xFFFFFFFF << GridWidthLog2);
 	unsigned int col_mask = row_mask << GridWidthLog2;
 	unsigned int x = CurrentFrame & row_mask;

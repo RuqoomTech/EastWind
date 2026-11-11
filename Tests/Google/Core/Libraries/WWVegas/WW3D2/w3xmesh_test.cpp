@@ -65,3 +65,56 @@ TEST(W3xMesh, AttributesFollowGeometryTypeAndFlags)
 	mesh.geometryType = W3X_GEOMETRY_CAMERA_ORIENTED;
 	EXPECT_EQ(W3x_Mesh_Attributes(mesh, false) & W3D_MESH_FLAG_GEOMETRY_TYPE_MASK, (uint32)W3D_MESH_FLAG_GEOMETRY_TYPE_CAMERA_ORIENTED);
 }
+
+static W3xHierarchy ThreePivotTree()
+{
+	W3xHierarchy tree;
+	tree.pivots.resize(3);
+	tree.pivots[0].parent = -1;
+	tree.pivots[1].parent = 0;
+	tree.pivots[2].parent = 0;
+	return tree;
+}
+
+static W3xMesh TwoBlockSkin(float w0, float w1)
+{
+	W3xMesh mesh;
+	mesh.id = "skin";
+	mesh.geometryType = W3X_GEOMETRY_SKIN;
+	mesh.blocks.resize(2);
+	// Vertex 0 is split between bones 1 and 2; vertex 1 is all bone 1.
+	mesh.blocks[0].positions = { Vector3(1, 0, 0), Vector3(5, 0, 0) };
+	mesh.blocks[0].normals = { Vector3(0, 0, 1), Vector3(0, 0, 1) };
+	mesh.blocks[0].bones = { 1, 1 };
+	mesh.blocks[0].weights = { w0, 1.0f };
+	mesh.blocks[1].positions = { Vector3(2, 0, 0), Vector3(6, 0, 0) };
+	mesh.blocks[1].normals = { Vector3(0, 1, 0), Vector3(0, 1, 0) };
+	mesh.blocks[1].bones = { 2, 1 };
+	mesh.blocks[1].weights = { w1, 0.0f };
+	return mesh;
+}
+
+TEST(W3xMesh, SecondInfluenceIsKept)
+{
+	const W3xHierarchy tree = ThreePivotTree();
+	W3xMeshVertices out;
+	std::string error;
+	ASSERT_TRUE(W3x_Single_Bone_Vertices(TwoBlockSkin(0.75f, 0.25f), &tree, out, error)) << error;
+	ASSERT_EQ(out.bones2.size(), 2u);
+	EXPECT_EQ(out.bones2[0], 2);
+	EXPECT_EQ(out.bones2[1], 1);
+	EXPECT_FLOAT_EQ(out.weights2[0], 0.25f);
+	EXPECT_FLOAT_EQ(out.weights2[1], 0.0f);
+	EXPECT_FLOAT_EQ(out.positions2[0].X, 2.0f);
+	EXPECT_FLOAT_EQ(out.positions2[1].X, 5.0f);
+}
+
+TEST(W3xMesh, UnblendedSkinHasNoSecondInfluence)
+{
+	const W3xHierarchy tree = ThreePivotTree();
+	W3xMeshVertices out;
+	std::string error;
+	ASSERT_TRUE(W3x_Single_Bone_Vertices(TwoBlockSkin(1.0f, 0.0f), &tree, out, error)) << error;
+	EXPECT_TRUE(out.bones2.empty());
+	EXPECT_TRUE(out.weights2.empty());
+}

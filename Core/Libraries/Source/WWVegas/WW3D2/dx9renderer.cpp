@@ -1307,6 +1307,7 @@ namespace
 		IDirect3DVertexBuffer9 *VB = nullptr;
 		std::vector<unsigned short> Bones;
 		MeshShader::SkinCpuReason Rejected = MeshShader::SKIN_CPU_COUNT;	// why it stays on the CPU, if it does
+		bool Blend = false;	// two-bone skin: VB holds GpuSkinVertex2Struct
 	};
 	std::unordered_map<const MeshModelClass *, GpuSkinModelStruct> GpuSkinModels;
 
@@ -1318,6 +1319,7 @@ namespace
 		float row;	// the vertex's first row in the palette
 	};
 	static_assert(sizeof(GpuSkinVertexStruct) == DX9Wrapper::SKIN_VERTEX_SIZE, "the skin vertex is XYZNDUV2 and its palette row");
+	static_assert(sizeof(GpuSkinVertex2Struct) == DX9Wrapper::SKIN2_VERTEX_SIZE, "the blend skin vertex adds the second bone");
 }
 
 static void Release_Gpu_Skin(const MeshModelClass *mmc)
@@ -1348,8 +1350,22 @@ static const GpuSkinModelStruct &Gpu_Skin_Model(MeshModelClass *mmc)
 
 	const int count = mmc->Get_Vertex_Count();
 	const unsigned short *links = mmc->Get_Vertex_Bone_Links();
+	// A blended (two-bone) skin has the second block's arrays; one without them is a single-bone skin.
+	const unsigned short *links2 = mmc->Get_Vertex_Bone_Links2();
+	const float *weight2 = mmc->Get_Vertex_Bone_Weights2();
+	const Vector3 *loc2 = mmc->Get_Vertex_Second_Array();
+	const Vector3 *norm2 = mmc->Get_Vertex_Second_Normal_Array();
+	model.Blend = mmc->Has_Blended_Skin();
+	if (model.Blend && (links2 == nullptr || weight2 == nullptr || loc2 == nullptr || norm2 == nullptr))
+	{
+		model.Rejected = MeshShader::SKIN_CPU_OTHER;
+		return model;
+	}
+	const int stride = model.Blend ? DX9Wrapper::SKIN2_VERTEX_SIZE : DX9Wrapper::SKIN_VERTEX_SIZE;
 	static std::vector<float> rows;
-	if (!Build_Skin_Palette(links, count, MESH_MAX_BONES, model.Bones, rows))
+	static std::vector<float> rows2;
+	if (!(model.Blend ? Build_Skin_Palette2(links, links2, count, MESH_MAX_BONES, model.Bones, rows, rows2)
+		: Build_Skin_Palette(links, count, MESH_MAX_BONES, model.Bones, rows)))
 	{
 		model.Rejected = (links != nullptr && count > 0) ? MeshShader::SKIN_CPU_BONES : MeshShader::SKIN_CPU_OTHER;
 		return model;
@@ -1357,7 +1373,7 @@ static const GpuSkinModelStruct &Gpu_Skin_Model(MeshModelClass *mmc)
 
 	IDirect3DDevice9Ex *device = DX9Wrapper::_Get_D3D_Device9();
 	void *data = nullptr;
-	if (device == nullptr || FAILED(device->CreateVertexBuffer(count * DX9Wrapper::SKIN_VERTEX_SIZE, D3DUSAGE_WRITEONLY, 0,
+	if (device == nullptr || FAILED(device->CreateVertexBuffer(count * stride, D3DUSAGE_WRITEONLY, 0,
 			D3DPOOL_DEFAULT, &model.VB, nullptr)))
 		model.VB = nullptr;
 	else if (FAILED(model.VB->Lock(0, 0, &data, 0)))
@@ -1377,10 +1393,10 @@ static const GpuSkinModelStruct &Gpu_Skin_Model(MeshModelClass *mmc)
 	const unsigned *diffuse = mmc->Get_Color_Array(0, false);
 	const Vector2 *uv0 = mmc->Get_UV_Array_By_Index(0);
 	const Vector2 *uv1 = mmc->Get_UV_Array_By_Index(1);
-	GpuSkinVertexStruct *verts = static_cast<GpuSkinVertexStruct *>(data);
 	for (int v = 0; v < count; ++v)
 	{
-		GpuSkinVertexStruct &d = verts[v];
+		// The first 48 bytes are the same in both layouts.
+		GpuSkinVertexStruct &d = *reinterpret_cast<GpuSkinVertexStruct *>(static_cast<char *>(data) + size_t(v) * stride);
 		d.x = loc[v].X;
 		d.y = loc[v].Y;
 		d.z = loc[v].Z;
@@ -1393,6 +1409,18 @@ static const GpuSkinModelStruct &Gpu_Skin_Model(MeshModelClass *mmc)
 		d.u2 = uv1 ? uv1[v].X : 0.0f;
 		d.v2 = uv1 ? uv1[v].Y : 0.0f;
 		d.row = rows[v];
+		if (model.Blend)
+		{
+			GpuSkinVertex2Struct &d2 = *reinterpret_cast<GpuSkinVertex2Struct *>(&d);
+			d2.x2 = loc2[v].X;
+			d2.y2 = loc2[v].Y;
+			d2.z2 = loc2[v].Z;
+			d2.nx2 = norm2[v].X;
+			d2.ny2 = norm2[v].Y;
+			d2.nz2 = norm2[v].Z;
+			d2.row2 = rows2[v];
+			d2.weight2 = weight2[v];
+		}
 	}
 	model.VB->Unlock();
 	return model;
@@ -1412,6 +1440,8 @@ static MeshShader::SkinCpuReason Gpu_Skin_Reason(MeshClass *mesh, bool sorting, 
 	if (std::find(passes.begin(), passes.end(), mesh) != passes.end())
 		return MeshShader::SKIN_CPU_PASSES;
 	if (mesh->Get_Container() == nullptr || mesh->Get_Container()->Get_HTree() == nullptr)
+		return MeshShader::SKIN_CPU_OTHER;
+	if (mmc->Has_Blended_Skin() && ShaderLibrary::Peek_Vertex(ShaderLibrary::VS_MESH_SKIN2) == nullptr)
 		return MeshShader::SKIN_CPU_OTHER;
 	const GpuSkinModelStruct &model = Gpu_Skin_Model(mmc);
 	return model.VB != nullptr ? MeshShader::SKIN_CPU_COUNT : model.Rejected;
@@ -2119,13 +2149,14 @@ void DX9TextureCategoryClass::Render()
 		if (!DX9RendererDebugger::Is_Enabled() && Instancable(mesh))
 		{
 			const unsigned colour = MeshShader::Object_Color(mesh);
+			const float damage = MeshShader::Object_Damage(mesh);
 			PolyRenderTaskClass *before = prt;
 			for (PolyRenderTaskClass *other = prt->Get_Next_Visible(); other != nullptr && other->Peek_Polygon_Renderer() == renderer
 				&& other->Peek_Mesh()->Get_Base_Vertex_Offset() == mesh->Get_Base_Vertex_Offset(); )
 			{
 				PolyRenderTaskClass *next = other->Get_Next_Visible();
 				MeshClass *m = other->Peek_Mesh();
-				if (Instancable(m) && MeshShader::Object_Color(m) == colour && Same_Lights(*lenv, *m->Get_Lighting_Environment()))
+				if (Instancable(m) && MeshShader::Object_Color(m) == colour && MeshShader::Object_Damage(m) == damage && Same_Lights(*lenv, *m->Get_Lighting_Environment()))
 				{
 					if (copies.empty())
 						copies.push_back(world_transform);
@@ -2172,6 +2203,7 @@ void DX9TextureCategoryClass::Render()
 			skin_draw.Vertices = mesh->Peek_Model()->Get_Vertex_Count();
 			skin_draw.Fill = [](void *skin, void *vertices) { Fill_Skin_Vertices(static_cast<MeshClass *>(skin), static_cast<VertexFormatXYZNDUV2 *>(vertices)); };
 			skin_draw.Mesh = mesh;
+			skin_draw.Blend = model.Blend;
 			DX9Wrapper::Set_Skin(&skin_draw);
 		}
 

@@ -23,6 +23,7 @@
 #include "dx9wrapper.h"
 #include "dx9caps.h"
 #include "texture.h"
+#include "vertmaterial.h"
 #include "assetmgr.h"
 #include "rendobj.h"
 #include "ww3d.h"
@@ -241,14 +242,25 @@ namespace
 		out[length] = '\0';
 	}
 
+	// <dir>/<prefix><file><suffix><ext>: a prefix goes before the file name, not the directory.
+	void Map_Name(char *out, size_t size, const char *base, const char *suffix, int ext, const char *prefix)
+	{
+		const char *slash = strrchr(base, '/');
+		const char *backslash = strrchr(base, '\\');
+		if (backslash > slash)
+			slash = backslash;
+		const int dir = (slash != nullptr) ? int(slash - base) + 1 : 0;
+		snprintf(out, size, "%.*s%s%s%s%s", dir, base, prefix, base + dir, suffix, MapExtensions[ext]);
+	}
+
 	// Which file of <base><suffix> exists: MAP_DDS, MAP_TGA or MAP_NONE. Checking first keeps the
 	// asset manager from making a missing-texture placeholder for maps the art does not have.
-	int Find_Map(const char *base, const char *suffix)
+	int Find_Map(const char *base, const char *suffix, const char *prefix = "")
 	{
 		for (int ext = MAP_DDS; ext <= MAP_TGA; ++ext)
 		{
 			char name[260];
-			snprintf(name, sizeof(name), "%s%s%s", base, suffix, MapExtensions[ext]);
+			Map_Name(name, sizeof(name), base, suffix, ext, prefix);
 			FileClass *file = _TheFileFactory->Get_File(name);
 			if (file == nullptr)
 				continue;
@@ -263,12 +275,12 @@ namespace
 		return MAP_NONE;
 	}
 
-	TextureClass *Load_Map(const char *base, const char *suffix, int ext)
+	TextureClass *Load_Map(const char *base, const char *suffix, int ext, const char *prefix = "")
 	{
 		if (ext == MAP_NONE)
 			return nullptr;
 		char name[260];
-		snprintf(name, sizeof(name), "%s%s%s", base, suffix, MapExtensions[ext]);
+		Map_Name(name, sizeof(name), base, suffix, ext, prefix);
 		return WW3DAssetManager::Get_Instance()->Get_Texture(name);
 	}
 
@@ -292,10 +304,18 @@ namespace
 		if (!MapFiles.Get(key, found))
 		{
 			found = Find_Map(base, "_nrm") | (Find_Map(base, "_spm") << 2);
+			// RA3 infantry: the house mask is the alpha of hc_<name>.
+			if (((found >> 2) & 3) == MAP_NONE)
+				found |= Find_Map(base, "", "hc_") << 4;
 			MapFiles.Insert(key, found);
 		}
 		maps.Normal = Load_Map(base, "_nrm", found & 3);
 		maps.Spec = Load_Map(base, "_spm", (found >> 2) & 3);
+		if (maps.Spec == nullptr)
+		{
+			maps.Spec = Load_Map(base, "", (found >> 4) & 3, "hc_");
+			maps.MaskAlpha = (maps.Spec != nullptr);
+		}
 		return maps;
 	}
 
@@ -785,6 +805,7 @@ namespace
 	// Begin_Skinned's bone palette for this draw; null for any other draw.
 	const float *SkinRows;
 	int SkinBones;
+	bool SkinBlend;	// the skin is two-bone: its vertex shaders blend
 	static_assert(MESH_VS_COUNT <= MESH_VS_BONES && MESH_VS_BONES + MESH_MAX_BONES * 3 <= 256, "the bone palette must fit after the mesh constants");
 
 	void Upload_Bones()
@@ -857,7 +878,8 @@ namespace
 		}
 
 		IDirect3DVertexShader9 *vertex_shader = ShaderLibrary::Peek_Vertex(skin
-			? (alpha_test ? ShaderLibrary::VS_CASTER_SKIN_ALPHA : ShaderLibrary::VS_CASTER_SKIN)
+			? (SkinBlend ? (alpha_test ? ShaderLibrary::VS_CASTER_SKIN2_ALPHA : ShaderLibrary::VS_CASTER_SKIN2)
+				: (alpha_test ? ShaderLibrary::VS_CASTER_SKIN_ALPHA : ShaderLibrary::VS_CASTER_SKIN))
 			: alpha_test ? ShaderLibrary::VertexShaderId(ShaderLibrary::VS_CASTER_ALPHA_T0 + texcoord_sets) : ShaderLibrary::VS_CASTER);
 		IDirect3DPixelShader9 *pixel_shader = ShaderLibrary::Peek_Pixel(alpha_test ? ShaderLibrary::PS_CASTER_ALPHA : ShaderLibrary::PS_CASTER);
 		if (vertex_shader == nullptr || pixel_shader == nullptr)
@@ -927,10 +949,11 @@ bool MeshShader::Begin_Instanced(int copies)
 	return shader;
 }
 
-bool MeshShader::Begin_Skinned(const float *rows, int bones)
+bool MeshShader::Begin_Skinned(const float *rows, int bones, bool blend)
 {
 	SkinRows = rows;
 	SkinBones = bones;
+	SkinBlend = blend;
 	const bool shader = Begin();
 	SkinRows = nullptr;
 	return shader;
@@ -1055,7 +1078,7 @@ static bool Begin_Draw()
 
 	const bool has_diffuse = (fvf & D3DFVF_DIFFUSE) != 0;
 	const bool has_specular = (fvf & D3DFVF_SPECULAR) != 0;
-	IDirect3DVertexShader9 *vertex_shader = ShaderLibrary::Peek_Vertex(skin ? ShaderLibrary::VS_MESH_SKIN
+	IDirect3DVertexShader9 *vertex_shader = ShaderLibrary::Peek_Vertex(skin ? (SkinBlend ? ShaderLibrary::VS_MESH_SKIN2 : ShaderLibrary::VS_MESH_SKIN)
 		: Instanced ? ShaderLibrary::Mesh_Instanced_Vertex_Id(has_diffuse, has_specular, texcoord_sets)
 		: ShaderLibrary::Mesh_Vertex_Id(has_normal, has_diffuse, has_specular, texcoord_sets));
 	IDirect3DPixelShader9 *pixel_shader = ShaderLibrary::Peek_Pixel(lit ? ShaderLibrary::PS_MESH : ShaderLibrary::PS_UNLIT);
@@ -1115,6 +1138,8 @@ static bool Begin_Draw()
 	IDirect3DBaseTexture9 *normal_map = nullptr;
 	IDirect3DBaseTexture9 *spec_map = nullptr;
 	unsigned house_color = 0;
+	bool mask_alpha = false;
+	bool damage_map = false;
 	TextureBaseClass *stage0 = DX9Wrapper::Peek_Render_State_Texture(0);
 	TextureClass *diffuse = (stage0 != nullptr) ? stage0->As_TextureClass() : nullptr;
 	if (lit && Get_Graphics_Options().MeshNormalMaps() && diffuse != nullptr && has_texture[0] > 0.5f && texgen[0].x == 0.0f
@@ -1130,11 +1155,35 @@ static bool Begin_Draw()
 				normal_map = Map_Texture(maps.Normal);
 				spec_map = Map_Texture(maps.Spec);
 				house_color = maps.Recolored ? 0 : (DX9Wrapper::Get_House_Color() & 0xffffff);
+				mask_alpha = maps.MaskAlpha;
+
+				// A damage map (RA3 DamagedTexture) waits on stage 1, whose fixed-function op is DISABLE,
+				// and is read through the second texture coordinate set.
+				TextureBaseClass *stage1 = DX9Wrapper::Peek_Render_State_Texture(1);
+				TextureClass *damage = (stage1 != nullptr) ? stage1->As_TextureClass() : nullptr;
+				if (damage != nullptr && damage->Material_Maps().Damage && DX9Wrapper::Get_Damage() > 0.0f && texcoord_sets >= 2
+					&& Stage_State(1, D3DTSS_TEXCOORDINDEX) == DWORD(D3DTSS_TCI_PASSTHRU | 1)
+					&& Stage_State(1, D3DTSS_TEXTURETRANSFORMFLAGS) == DWORD(D3DTTFF_DISABLE))
+				{
+					IDirect3DBaseTexture9 *bound1 = nullptr;
+					Device->GetTexture(1, &bound1);
+					if (bound1 != nullptr)
+					{
+						damage_map = (bound1 == damage->Peek_D3D_Base_Texture());
+						bound1->Release();
+					}
+				}
 			}
 			bound->Release();
 		}
 	}
 	const bool use_material = normal_map != nullptr || spec_map != nullptr;
+	damage_map = damage_map && use_material;
+	if (damage_map)
+	{
+		texgen[1].y = 1.0f;	// stage 1 passes the second texture coordinate set through
+		has_texture[1] = 1.0f;
+	}
 	if (use_material)
 	{
 		IDirect3DPixelShader9 *material_shader = ShaderLibrary::Peek_Pixel(ShaderLibrary::PS_MESH_MATERIAL);
@@ -1253,12 +1302,32 @@ static bool Begin_Draw()
 	ps[MESH_PS_CAMERA] = camera;
 	ps[MESH_PS_VIEWDIR] = view_dir;
 	memcpy(&ps[MESH_PS_LIGHTS], lights, sizeof(lights));
+	ps[MESH_PS_MATERIAL2].x = 1.0f;	// BumpScale
+	if (const VertexMaterialClass *vmat = DX9Wrapper::Peek_Render_State_Material())
+	{
+		const VertexMaterialClass::W3xExtrasStruct &extras = vmat->Get_W3x_Extras();
+		if (!extras.Is_Default())
+		{
+			ps[MESH_PS_MATERIAL2].x = extras.BumpScale;
+			ps[MESH_PS_MATERIAL2].y = extras.EdgeFadeOut;
+			ps[MESH_PS_MATERIAL2].z = (Render_State(D3DRS_DESTBLEND) == D3DBLEND_ONE) ? 1.0f : 0.0f;
+			if (extras.EmissiveHDR > 1.0f)
+			{
+				ps[MESH_PS_MATERIAL2].w = 1.0f;
+				for (float *c = &ps[MESH_PS_MATERIAL + 3].x; c != &ps[MESH_PS_MATERIAL + 3].w; ++c)
+					*c *= extras.EmissiveHDR;
+			}
+		}
+	}
 	if (use_material)
 	{
 		ps[MESH_PS_MATERIAL_OPTIONS].x = (normal_map != nullptr) ? 1.0f : 0.0f;
 		ps[MESH_PS_MATERIAL_OPTIONS].y = (spec_map != nullptr) ? 1.0f : 0.0f;
 		ps[MESH_PS_MATERIAL_OPTIONS].z = (house_color != 0) ? 1.0f : 0.0f;
 		ps[MESH_PS_MATERIAL_OPTIONS].w = 0.5f;	// ambient light from below, relative to the sky
+		ps[MESH_PS_MATERIAL_EXTRA].x = damage_map ? DX9Wrapper::Get_Damage() : 0.0f;
+		ps[MESH_PS_MATERIAL_EXTRA].y = damage_map ? 1.0f : 0.0f;
+		ps[MESH_PS_MATERIAL_EXTRA].z = mask_alpha ? 1.0f : 0.0f;
 		ps[MESH_PS_HOUSECOLOR] = Color(D3DCOLOR(house_color));
 		// W3D materials rarely set a shininess, so the SpecMap highlight falls back to a tight one.
 		ps[MESH_PS_HOUSECOLOR].w = (material.Power > 1.0f) ? material.Power : 32.0f;
@@ -1323,14 +1392,31 @@ unsigned MeshShader::Object_Color(const RenderObjClass *object)
 	return colour;
 }
 
+float MeshShader::Object_Damage(const RenderObjClass *object)
+{
+	float damage = 0.0f;
+	if (Get_Graphics_Options().MeshNormalMaps())
+	{
+		for (const RenderObjClass *o = object; o != nullptr; o = o->Get_Container())
+		{
+			damage = o->Get_ObjectDamage();
+			if (damage != 0.0f)
+				break;
+		}
+	}
+	return damage;
+}
+
 void MeshShader::Set_Object(const RenderObjClass *object)
 {
 	DX9Wrapper::Set_House_Color(Object_Color(object));
+	DX9Wrapper::Set_Damage(Object_Damage(object));
 }
 
 void MeshShader::Clear_Object()
 {
 	DX9Wrapper::Set_House_Color(0);
+	DX9Wrapper::Set_Damage(0.0f);
 }
 
 void MeshShader::Shutdown()
@@ -1339,5 +1425,5 @@ void MeshShader::Shutdown()
 }
 
 static_assert(MESH_VS_WVP == 0 && MESH_VS_OPTIONS + 1 == MESH_VS_COUNT, "mesh vertex constants are uploaded as one block from c0");
-static_assert(MESH_PS_STAGE == 0 && MESH_PS_HOUSECOLOR + 1 == MESH_PS_COUNT, "mesh pixel constants are uploaded as one block from c0");
+static_assert(MESH_PS_STAGE == 0 && MESH_PS_MATERIAL2 + 1 == MESH_PS_COUNT, "mesh pixel constants are uploaded as one block from c0");
 static_assert(MESH_PS_LIGHTS + MESH_MAX_LIGHTS * 5 == MESH_PS_MATERIAL_OPTIONS, "mesh pixel constants must not overlap");

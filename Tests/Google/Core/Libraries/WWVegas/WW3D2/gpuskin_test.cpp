@@ -17,6 +17,8 @@
 
 #include <gtest/gtest.h>
 
+#include <cstddef>
+
 #include "WWMath/matrix3d.h"
 #include "WW3D2/gpuskin.h"
 
@@ -55,6 +57,47 @@ TEST(GpuSkinTest, PaletteWithoutLinksFails)
 	EXPECT_TRUE(bones.empty());
 	EXPECT_TRUE(rows.empty());
 	EXPECT_FALSE(Build_Skin_Palette(links, 0, 64, bones, rows));
+}
+
+TEST(GpuSkinTest, Palette2UnionOfBothLinks)
+{
+	const unsigned short links[] = { 5, 2, 5 };
+	const unsigned short links2[] = { 2, 7, 5 };
+	std::vector<unsigned short> bones;
+	std::vector<float> rows, rows2;
+	ASSERT_TRUE(Build_Skin_Palette2(links, links2, 3, 64, bones, rows, rows2));
+	EXPECT_EQ(bones, (std::vector<unsigned short>{ 5, 2, 7 }));
+	EXPECT_EQ(rows, (std::vector<float>{ 0, 3, 0 }));
+	EXPECT_EQ(rows2, (std::vector<float>{ 3, 6, 0 }));
+}
+
+TEST(GpuSkinTest, Palette2RejectsTooManyBones)
+{
+	// 33 vertices, each with two new bones: 66 distinct, over 64.
+	std::vector<unsigned short> links, links2;
+	for (unsigned short v = 0; v < 33; ++v)
+	{
+		links.push_back(v * 2);
+		links2.push_back(v * 2 + 1);
+	}
+	std::vector<unsigned short> bones;
+	std::vector<float> rows, rows2;
+	EXPECT_FALSE(Build_Skin_Palette2(links.data(), links2.data(), 33, 64, bones, rows, rows2));
+	EXPECT_TRUE(bones.empty());
+	EXPECT_TRUE(rows.empty());
+	EXPECT_TRUE(rows2.empty());
+	EXPECT_TRUE(Build_Skin_Palette2(links.data(), links2.data(), 32, 64, bones, rows, rows2));
+	EXPECT_FALSE(Build_Skin_Palette2(links.data(), nullptr, 1, 64, bones, rows, rows2));
+}
+
+TEST(GpuSkinTest, BlendVertexLayout)
+{
+	static_assert(sizeof(GpuSkinVertex2Struct) == 80, "the blend skin vertex is 80 bytes");
+	EXPECT_EQ(offsetof(GpuSkinVertex2Struct, row), 44u);
+	EXPECT_EQ(offsetof(GpuSkinVertex2Struct, x2), 48u);
+	EXPECT_EQ(offsetof(GpuSkinVertex2Struct, nx2), 60u);
+	EXPECT_EQ(offsetof(GpuSkinVertex2Struct, row2), 72u);
+	EXPECT_EQ(offsetof(GpuSkinVertex2Struct, weight2), 76u);
 }
 
 // The vertex shader's dot(row, (p, 1)) per packed row must give the CPU skin's tm * p.

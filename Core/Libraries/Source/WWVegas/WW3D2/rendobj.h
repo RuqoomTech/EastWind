@@ -435,6 +435,8 @@ public:
 	float							Get_ObjectScale() const { return ObjectScale; };
  	void							Set_ObjectColor(unsigned int color) { ObjectColor=color;}	//the color that was used to modify the asset for player team color (for Generals). -MW
 	unsigned int					Get_ObjectColor() const { return ObjectColor; };
+	void							Set_ObjectDamage(float damage) { ObjectDamage=damage;}	//EastWind: 0..1 building damage amount, read by the material shader
+	float							Get_ObjectDamage() const { return ObjectDamage; };
 
    virtual int						Get_Sort_Level() const													{ return 0; /* SORT_LEVEL_NONE */ }
    virtual void					Set_Sort_Level(int level)													{ }
@@ -522,6 +524,7 @@ protected:
 	Matrix3D							Transform;
  	float						ObjectScale;					//user applied scaling factor inside Transform matrix.
 	unsigned int				ObjectColor;					//user applied coloring to the asset/prototype used to make this robj. - For Generals -MW
+	float						ObjectDamage;					//EastWind: damage amount 0..1 for the damage texture map
 	mutable SphereClass			CachedBoundingSphere;
 	mutable AABoxClass			CachedBoundingBox;
 	float								NativeScreenSize;		// The screen size at which the object was designed to be viewed (used in texture resizing).

@@ -376,8 +376,19 @@ bool HRawAnimClass::Load_W3X(const W3xAnimation & anim, const char * name, const
 			}
 		}
 
+		// BinaryMove: bit f is set only for real keys of this channel flagged as a step.
+		std::vector<uint8> step((size_t)(hi - lo + 1 + 7) / 8, 0);
+		bool anyStep = false;
+		for (size_t f = 0; f < frames && f < c.binaryMove.size(); f++) {
+			if (c.binaryMove[f]) {
+				const size_t b = (size_t)(first + (int)f - lo);
+				step[b >> 3] |= (uint8)(1 << (b & 7));
+				anyStep = true;
+			}
+		}
+
 		MotionChannelClass * chan = W3DNEW MotionChannelClass;
-		if (!chan->Init(c.pivot, type, (int)len, lo, hi, padded.data())) {
+		if (!chan->Init(c.pivot, type, (int)len, lo, hi, padded.data(), anyStep ? step.data() : nullptr)) {
 			delete chan;
 			continue;
 		}
@@ -588,6 +599,9 @@ void HRawAnimClass::Get_Translation(Vector3& trans, int pividx, float frame ) co
 	if (motion->Z != nullptr) {
 		motion->Z->Get_Vector((int)frame1,&(trans1[2]));
 	}
+	if (motion->X != nullptr && motion->X->Is_Step(frame1)) trans1.X = trans0.X;
+	if (motion->Y != nullptr && motion->Y->Is_Step(frame1)) trans1.Y = trans0.Y;
+	if (motion->Z != nullptr && motion->Z->Is_Step(frame1)) trans1.Z = trans0.Z;
 
 	Vector3::Lerp( trans0, trans1, ratio, &trans );
 }
@@ -627,6 +641,7 @@ void HRawAnimClass::Get_Orientation(Quaternion& q, int pividx,float frame) const
 	{
 		mc->Get_Vector_As_Quat((int)frame0, q0);
 		mc->Get_Vector_As_Quat((int)frame1, q1);
+		if (mc->Is_Step(frame1)) q1 = q0;
 	}
 	else
 	{
@@ -722,6 +737,7 @@ void HRawAnimClass::Get_Transform(Matrix3D& mtx, int pividx, float frame ) const
 	if (NodeMotion[pividx].Q != nullptr) {
 		NodeMotion[pividx].Q->Get_Vector((int)frame1,vals);
 		q1.Set(vals[0],vals[1],vals[2],vals[3]);
+		if (NodeMotion[pividx].Q->Is_Step(frame1)) q1 = q0;
 	}
 
 	Quaternion q;
@@ -737,6 +753,9 @@ void HRawAnimClass::Get_Transform(Matrix3D& mtx, int pividx, float frame ) const
 	if (motion->X != nullptr) motion->X->Get_Vector((int)frame1,&(trans1[0]));
 	if (motion->Y != nullptr) motion->Y->Get_Vector((int)frame1,&(trans1[1]));
 	if (motion->Z != nullptr) motion->Z->Get_Vector((int)frame1,&(trans1[2]));
+	if (motion->X != nullptr && motion->X->Is_Step(frame1)) trans1.X = trans0.X;
+	if (motion->Y != nullptr && motion->Y->Is_Step(frame1)) trans1.Y = trans0.Y;
+	if (motion->Z != nullptr && motion->Z->Is_Step(frame1)) trans1.Z = trans0.Z;
 
 	Vector3 trans;
 	Vector3::Lerp( trans0, trans1, ratio, &trans );

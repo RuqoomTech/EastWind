@@ -142,6 +142,12 @@ public:
 	void							Compute_Plane(int pidx,PlaneClass * set_plane) const;
 	const uint32 *				Get_Vertex_Shade_Index_Array(bool create = true)	{ return get_shade_indices(create); }
 	const uint16 *				Get_Vertex_Bone_Links()								{ return get_bone_links(); }
+	bool							Has_Blended_Skin() const							{ return VertexBoneLink2 != nullptr; }
+	// The second bone of a blended skin (null when absent): bone, weight, position and normal.
+	const uint16 *				Get_Vertex_Bone_Links2()							{ return get_bone_links2(false); }
+	const float *					Get_Vertex_Bone_Weights2()							{ return get_bone_weights2(false); }
+	const Vector3 *				Get_Vertex_Second_Array()							{ return get_second_verts(false); }
+	const Vector3 *				Get_Vertex_Second_Normal_Array()					{ return get_second_norms(false); }
 	uint8 *						Get_Poly_Surface_Type_Array()						{ WWASSERT(PolySurfaceType); return PolySurfaceType->Get_Array(); }
 	uint8							Get_Poly_Surface_Type(int poly_index) const;
 
@@ -187,6 +193,10 @@ protected:
 	uint32 *						get_shade_indices(bool create = true);
 	Vector4 *					get_planes(bool create = true);
 	uint16 *						get_bone_links(bool create = true);
+	uint16 *						get_bone_links2(bool create = true);
+	float *						get_bone_weights2(bool create = true);
+	Vector3 *					get_second_verts(bool create = true);
+	Vector3 *					get_second_norms(bool create = true);
 
 	// Utility functions (used by collision/intersection functions)
 	int							cast_semi_infinite_axis_aligned_ray(const Vector3 & start_point, int axis_dir, unsigned char & flags);
@@ -240,6 +250,10 @@ protected:
 	ShareBufferClass<Vector4> *						PlaneEq;
 	ShareBufferClass<uint32> *							VertexShadeIdx;
 	ShareBufferClass<uint16> *							VertexBoneLink;
+	ShareBufferClass<uint16> *							VertexBoneLink2;
+	ShareBufferClass<float> *							VertexBoneWeight2;
+	ShareBufferClass<Vector3> *						VertexSecondVert;
+	ShareBufferClass<Vector3> *						VertexSecondNorm;
 	ShareBufferClass<uint8> *							PolySurfaceType;
 
 	Vector3													BoundBoxMin;
@@ -280,6 +294,38 @@ inline uint16 * MeshGeometryClass::get_bone_links(bool create)
 		return VertexBoneLink->Get_Array();
 	}
 	return nullptr;
+}
+
+inline uint16 * MeshGeometryClass::get_bone_links2(bool create)
+{
+	if (create && !VertexBoneLink2) {
+		VertexBoneLink2 = NEW_REF(ShareBufferClass<uint16>,(VertexCount, "MeshGeometryClass::VertexBoneLink2"));
+	}
+	return VertexBoneLink2 ? VertexBoneLink2->Get_Array() : nullptr;
+}
+
+inline float * MeshGeometryClass::get_bone_weights2(bool create)
+{
+	if (create && !VertexBoneWeight2) {
+		VertexBoneWeight2 = NEW_REF(ShareBufferClass<float>,(VertexCount, "MeshGeometryClass::VertexBoneWeight2"));
+	}
+	return VertexBoneWeight2 ? VertexBoneWeight2->Get_Array() : nullptr;
+}
+
+inline Vector3 * MeshGeometryClass::get_second_verts(bool create)
+{
+	if (create && !VertexSecondVert) {
+		VertexSecondVert = NEW_REF(ShareBufferClass<Vector3>,(VertexCount, "MeshGeometryClass::VertexSecondVert"));
+	}
+	return VertexSecondVert ? VertexSecondVert->Get_Array() : nullptr;
+}
+
+inline Vector3 * MeshGeometryClass::get_second_norms(bool create)
+{
+	if (create && !VertexSecondNorm) {
+		VertexSecondNorm = NEW_REF(ShareBufferClass<Vector3>,(VertexCount, "MeshGeometryClass::VertexSecondNorm"));
+	}
+	return VertexSecondNorm ? VertexSecondNorm->Get_Array() : nullptr;
 }
 
 inline uint8 MeshGeometryClass::Get_Poly_Surface_Type(int poly_index) const

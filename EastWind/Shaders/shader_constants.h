@@ -69,7 +69,9 @@
 #define MESH_PS_LIGHTS            20  // c20..c39: MESH_MAX_LIGHTS lights, 5 registers each
 #define MESH_PS_MATERIAL_OPTIONS  40  // c40: M3.1b normal map, SpecMap, house colour on, ground ambient scale
 #define MESH_PS_HOUSECOLOR        41  // c41: rgb house colour, w SpecMap specular power
-#define MESH_PS_COUNT             42
+#define MESH_PS_MATERIAL_EXTRA    42  // c42: x damage amount, y damage map on (Phase 2 F5), z SpecMap alpha is the house mask, w spare
+#define MESH_PS_MATERIAL2         43  // c43: x BumpScale (material maps only), y EdgeFadeOut (0 off), z 1 = edge fade scales colour (additive), 0 = alpha, w 1 = HDR emissive (no clamp to 1)
+#define MESH_PS_COUNT             44
 // ParticleVS/ParticlePS (soft particles) use the WVP, world-view and options registers of the
 // vertex side and the stage, texture factor, options and fog registers of the pixel side, plus:
 #define PARTICLE_PS_SOFT          42  // c42: xy 1 / render target size, z 1 / fade distance (world units), w fade mode

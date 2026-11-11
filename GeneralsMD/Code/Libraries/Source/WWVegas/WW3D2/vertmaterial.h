@@ -233,7 +233,19 @@ public:
 
 	void Make_Unique();
 
+	// RA3 W3X material constants: edge fade (0 off), normal map strength, emissive HDR multiplier.
+	struct W3xExtrasStruct
+	{
+		float EdgeFadeOut = 0.0f;
+		float BumpScale = 1.0f;
+		float EmissiveHDR = 1.0f;
+		bool Is_Default() const { return EdgeFadeOut == 0.0f && BumpScale == 1.0f && EmissiveHDR == 1.0f; }
+	};
+	const W3xExtrasStruct & Get_W3x_Extras() const { return W3xExtras; }
+	void Set_W3x_Extras(const W3xExtrasStruct & extras) { W3xExtras = extras; CRCDirty = true; }
+
 private:
+	W3xExtrasStruct				W3xExtras;
 	// We're using the pointer instead of the actual structure
 	// so we don't have to include the d3d header - HY
 #ifdef DYN_MAT8

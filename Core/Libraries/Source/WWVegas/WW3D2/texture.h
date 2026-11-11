@@ -341,7 +341,7 @@ public:
 	// The texture holds a reference to each, so they are released with it.
 	struct MaterialMapsStruct
 	{
-		MaterialMapsStruct() : Normal(nullptr), Spec(nullptr), Resolved(false), Recolored(false) {}
+		MaterialMapsStruct() : Normal(nullptr), Spec(nullptr), Resolved(false), Recolored(false), MaskAlpha(false), Damage(false) {}
 		~MaterialMapsStruct();
 		MaterialMapsStruct(const MaterialMapsStruct &) = delete;
 		MaterialMapsStruct &operator=(const MaterialMapsStruct &) = delete;
@@ -350,6 +350,8 @@ public:
 		TextureClass *Spec;		// <name>_spm, or null
 		bool Resolved;			// looked up already
 		bool Recolored;			// recoloured by the game on the CPU, so the SpecMap's house mask is not used
+		bool MaskAlpha;			// Spec is an HC_ house-colour mask whose alpha is the mask
+		bool Damage;			// this texture is a damage map (RA3 DamagedTexture), not a diffuse
 	};
 	MaterialMapsStruct &Material_Maps() { return MaterialMaps; }
 

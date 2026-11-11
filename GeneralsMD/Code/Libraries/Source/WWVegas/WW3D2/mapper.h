@@ -184,6 +184,7 @@ public:
 	GridTextureMapperClass(float fps, unsigned int gridwidth_log2, unsigned int last_frame, unsigned int offset, unsigned int stage);
 	GridTextureMapperClass(const INIClass &ini, const char *section, unsigned int stage);
 	GridTextureMapperClass(const GridTextureMapperClass & src);
+	static GridTextureMapperClass * Create_With_Width(float fps, unsigned int grid_width, unsigned int last_frame, unsigned int offset, unsigned int stage);
 
 	virtual int	Mapper_ID() const override { return MAPPER_ID_GRID;}
 
@@ -199,7 +200,7 @@ public:
 
 protected:
 	// Utility functions
-	void initialize(float fps, unsigned int gridwidth_log2);
+	void initialize(float fps, unsigned int grid_width);
 	void update_temporal_state();
 	void calculate_uv_offset(float * u_offset, float * v_offset);
 
@@ -208,6 +209,7 @@ protected:
 	unsigned int	MSPerFrame;			// milliseconds per frame
 	float				OOGridWidth;		// 1.0f / size of the side of the grid)
 	unsigned int	GridWidthLog2;		// log base 2 of size of the side of the grid
+	unsigned int	GridWidth;			// size of the side of the grid, 0 = use GridWidthLog2
 	unsigned int	LastFrame;			// Last frame to use
 	unsigned int	Offset;				// Only affects initialization, but need to store it for copy CTors to work
 

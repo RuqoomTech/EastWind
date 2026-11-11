@@ -216,6 +216,7 @@ struct RenderStateStruct
 	IndexBufferClass* index_buffer;
 	unsigned short index_base_offset;
 	unsigned HouseColor;	// EastWind M3.1b: 0x00RRGGBB house colour of the object drawn, 0 for none
+	float ObjectDamage;	// EastWind: 0..1 damage amount of the object drawn, for the damage texture map
 	bool SoftParticle;	// EastWind: a camera-facing particle, which may fade against the scene depth
 
 	RenderStateStruct();
@@ -300,8 +301,9 @@ public:
 		// Writes the CPU-deformed XYZNDUV2 vertices of Mesh, for a draw the shaders do not take.
 		void (*Fill)(void *mesh, void *vertices);
 		void *Mesh;
+		bool Blend;						// two-bone skin: VB holds SKIN2_VERTEX_SIZE-byte vertices
 	};
-	enum { SKIN_VERTEX_SIZE = 48 };
+	enum { SKIN_VERTEX_SIZE = 48, SKIN2_VERTEX_SIZE = 80 };
 	static void Set_Skin(const SkinDrawStruct *skin);
 
 	// EastWind M8 R6: until cleared with (nullptr, 0), each indexed draw draws the bound mesh once
@@ -358,9 +360,12 @@ public:
 	// sorting renderer replays it with the deferred draws.
 	static void Set_House_Color(unsigned color) { render_state.HouseColor = color; }
 	static unsigned Get_House_Color() { return render_state.HouseColor; }
+	static void Set_Damage(float damage) { render_state.ObjectDamage = damage; }
+	static float Get_Damage() { return render_state.ObjectDamage; }
 	static void Set_Soft_Particle(bool on) { render_state.SoftParticle = on; }
 	static bool Get_Soft_Particle() { return render_state.SoftParticle; }
 	static TextureBaseClass *Peek_Render_State_Texture(unsigned stage) { return render_state.Textures[stage]; }
+	static const VertexMaterialClass *Peek_Render_State_Material() { return render_state.material; }
 	static void Release_Render_State();
 
 	static void Set_DX9_Material(const D3DMATERIAL9* mat);
@@ -1455,6 +1460,7 @@ WWINLINE RenderStateStruct::RenderStateStruct()
 	material(0),
 	index_buffer(0),
 	HouseColor(0),
+	ObjectDamage(0.0f),
 	SoftParticle(false)
 {
 	unsigned i;
@@ -1521,6 +1527,7 @@ WWINLINE RenderStateStruct& RenderStateStruct::operator= (const RenderStateStruc
 	iba_offset=src.iba_offset;
 	index_base_offset=src.index_base_offset;
 	HouseColor=src.HouseColor;
+	ObjectDamage=src.ObjectDamage;
 	SoftParticle=src.SoftParticle;
 
 	return *this;

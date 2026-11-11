@@ -112,6 +112,9 @@
 #include "mesh_skin_vs.h"
 #include "caster_skin_vs.h"
 #include "caster_skin_alpha_vs.h"
+#include "mesh_skin2_vs.h"
+#include "caster_skin2_vs.h"
+#include "caster_skin2_alpha_vs.h"
 
 namespace
 {
@@ -174,6 +177,9 @@ namespace
 		{ g_shader_mesh_skin_vs, "mesh_skin_vs" },
 		{ g_shader_caster_skin_vs, "caster_skin_vs" },
 		{ g_shader_caster_skin_alpha_vs, "caster_skin_alpha_vs" },
+		{ g_shader_mesh_skin2_vs, "mesh_skin2_vs" },
+		{ g_shader_caster_skin2_vs, "caster_skin2_vs" },
+		{ g_shader_caster_skin2_alpha_vs, "caster_skin2_alpha_vs" },
 	};
 	static_assert(sizeof(VertexCode) / sizeof(VertexCode[0]) == ShaderLibrary::VS_COUNT, "VertexCode must match ShaderLibrary::VertexShaderId");
 

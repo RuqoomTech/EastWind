@@ -118,6 +118,8 @@ VertexMaterialClass::VertexMaterialClass(const VertexMaterialClass & src) :
 	UniqueID(src.UniqueID),
 	CRCDirty(true)
 {
+	W3xExtras=src.W3xExtras;
+
 	int i;
 	for (i=0; i<MeshBuilderClass::MAX_STAGES; i++)
 	{
@@ -177,6 +179,7 @@ VertexMaterialClass & VertexMaterialClass::operator = (const VertexMaterialClass
 		EmissiveColorSource = src.EmissiveColorSource;
 		DiffuseColorSource = src.DiffuseColorSource;
 		UseLighting=src.UseLighting;
+		W3xExtras=src.W3xExtras;
 		UniqueID=src.UniqueID;
 		CRCDirty=src.CRCDirty;
 		int stage;
@@ -215,6 +218,9 @@ unsigned long VertexMaterialClass::Compute_CRC() const
 	crc = CRC_Memory(reinterpret_cast<const unsigned char *>(&UVSource),sizeof(UVSource),crc);
 	crc = CRC_Memory(reinterpret_cast<const unsigned char *>(&UseLighting),sizeof(UseLighting),crc);
 	crc = CRC_Memory(reinterpret_cast<const unsigned char *>(&UniqueID),sizeof(UniqueID),crc);
+
+	// Only when set, so W3D materials keep their CRC.
+	if (!W3xExtras.Is_Default()) crc = CRC_Memory(reinterpret_cast<const unsigned char *>(&W3xExtras),sizeof(W3xExtras),crc);
 
 	int i;
 	for (i=0; i<MeshBuilderClass::MAX_STAGES; i++)

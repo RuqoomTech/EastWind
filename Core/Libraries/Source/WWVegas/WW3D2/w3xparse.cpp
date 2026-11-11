@@ -425,8 +425,14 @@ bool W3x_Single_Bone_Vertices(const W3xMesh &mesh, const W3xHierarchy *tree, W3x
 	out = W3xMeshVertices();
 	out.positions.resize(count);
 	out.normals.resize(count);
-	if (skin)
+	bool blended2 = false;
+	if (skin) {
 		out.bones.resize(count);
+		out.bones2.resize(count);
+		out.weights2.resize(count);
+		out.positions2.resize(count);
+		out.normals2.resize(count);
+	}
 	std::vector<Vector3> model_pos(count);
 	for (size_t i = 0; i < count; ++i) {
 		bool blended = false;
@@ -443,7 +449,39 @@ bool W3x_Single_Bone_Vertices(const W3xMesh &mesh, const W3xHierarchy *tree, W3x
 			}
 			out.bones[i] = (uint16)bone;
 			model_pos[i] = bind_t[bone] + bind_q[bone].Rotate_Vector(out.positions[i]);
+
+			// The second influence: the heaviest other usable block that pulls to another bone.
+			size_t second = k;
+			const size_t usable = Usable_Blocks(mesh);
+			for (size_t b = 0; b < usable; ++b)
+				if (b != k && mesh.blocks[b].weights[i] > 1e-4f && mesh.blocks[b].bones[i] != bone
+					&& (second == k || mesh.blocks[b].weights[i] > mesh.blocks[second].weights[i]))
+					second = b;
+			out.bones2[i] = (uint16)bone;
+			out.weights2[i] = 0.0f;
+			out.positions2[i] = out.positions[i];
+			out.normals2[i] = out.normals[i];
+			if (second != k) {
+				blended2 = true;
+				const unsigned bone2 = mesh.blocks[second].bones[i];
+				if (bone2 >= tree->pivots.size()) {
+					error = Format("skin mesh %s: vertex %d follows bone %u, the hierarchy has %d", id, (int)i, bone2, (int)tree->pivots.size());
+					return false;
+				}
+				const float w1 = mesh.blocks[k].weights[i], w2 = mesh.blocks[second].weights[i];
+				out.bones2[i] = (uint16)bone2;
+				out.weights2[i] = w2 / (w1 + w2);
+				out.positions2[i] = mesh.blocks[second].positions[i];
+				out.normals2[i] = mesh.blocks[second].normals[i];
+			}
 		}
+	}
+
+	if (!blended2) {
+		out.bones2.clear();
+		out.weights2.clear();
+		out.positions2.clear();
+		out.normals2.clear();
 	}
 
 	out.min = out.max = model_pos[0];
@@ -474,6 +512,8 @@ void W3x_Map_Shader(const W3xMesh &mesh, bool hasUvs, W3xShading &out, std::vect
 				normal_map = c.text;
 			else if (Same(cname, "SpecMap"))
 				spec_map = c.text;
+			else if (Same(cname, "DamagedTexture"))
+				;	// read by the loader, which installs it on stage 1
 			else if (!c.text.empty() && !Same(c.text.c_str(), diffuse.c_str()))
 				warnings.push_back(Format("mesh %s: texture %s (%s) is not converted", id, cname, c.text.c_str()));
 		} else if (Same(cname, "AlphaTestEnable"))

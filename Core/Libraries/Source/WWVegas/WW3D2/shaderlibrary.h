@@ -90,6 +90,10 @@ public:
 		VS_MESH_SKIN,
 		VS_CASTER_SKIN,
 		VS_CASTER_SKIN_ALPHA,
+		// The same for two-bone (blended) skins.
+		VS_MESH_SKIN2,
+		VS_CASTER_SKIN2,
+		VS_CASTER_SKIN2_ALPHA,
 		VS_COUNT
 	};
 

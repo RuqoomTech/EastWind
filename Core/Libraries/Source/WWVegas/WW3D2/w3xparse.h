@@ -196,6 +196,10 @@ struct W3xMeshVertices
 	Vector3 center = Vector3(0, 0, 0);
 	float radius = 0.0f;
 	int blended = 0; // vertices that were pulled by more than one bone
+	// The second influence of a skin, empty unless a vertex is blended. A vertex without one has bones2 = bones, weights2 = 0.
+	std::vector<uint16> bones2;
+	std::vector<float> weights2; // w2 of w1 + w2 = 1
+	std::vector<Vector3> positions2, normals2;
 };
 bool W3x_Single_Bone_Vertices(const W3xMesh &mesh, const W3xHierarchy *tree, W3xMeshVertices &out, std::string &error);
 

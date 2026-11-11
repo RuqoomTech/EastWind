@@ -222,6 +222,26 @@ VsOut MeshSkinVS(VsIn i, float bone : BLENDINDICES0)
 	return MeshVS(i, true, true, false, 2);
 }
 
+// Two-bone (blended) skin: the vertex also holds its second block's position, normal, palette row
+// and weight. Like the CPU blend: p = w1*(T0*v) + w2*(T1*v2), n = normalize(w1*R0*n + w2*R1*n2).
+void SkinBlend(inout VsIn i, float bone0, float bone1, float w2, float3 p2, float3 n2)
+{
+	int b0 = (int)bone0;
+	int b1 = (int)bone1;
+	float w1 = 1.0 - w2;
+	float3 n1 = float3(dot(i.normal, Bones[b0].xyz), dot(i.normal, Bones[b0 + 1].xyz), dot(i.normal, Bones[b0 + 2].xyz));
+	float3 nb = float3(dot(n2, Bones[b1].xyz), dot(n2, Bones[b1 + 1].xyz), dot(n2, Bones[b1 + 2].xyz));
+	i.position = float4(w1 * SkinPosition(i.position.xyz, b0).xyz + w2 * SkinPosition(p2, b1).xyz, 1.0);
+	i.normal = normalize(w1 * n1 + w2 * nb);
+}
+
+VsOut MeshSkin2VS(VsIn i, float bone0 : BLENDINDICES0, float bone1 : BLENDINDICES1, float w2 : BLENDWEIGHT0,
+	float3 p2 : POSITION1, float3 n2 : NORMAL1)
+{
+	SkinBlend(i, bone0, bone1, w2, p2, n2);
+	return MeshVS(i, true, true, false, 2);
+}
+
 // ---------------------------------------------------------------------------------------------
 // Pixel shader
 // ---------------------------------------------------------------------------------------------
@@ -246,6 +266,11 @@ float4 Lights[MESH_MAX_LIGHTS * 5] : SHADER_REG(MESH_PS_LIGHTS);
 
 float4 MaterialOptions        : SHADER_REG(MESH_PS_MATERIAL_OPTIONS);	// x normal map, y SpecMap, z house colour on, w ground ambient scale
 float4 HouseColor             : SHADER_REG(MESH_PS_HOUSECOLOR);		// rgb house colour, w SpecMap specular power
+float4 MaterialExtra          : SHADER_REG(MESH_PS_MATERIAL_EXTRA);	// x damage amount, y damage map on, z SpecMap alpha is the house mask
+float4 Material2              : SHADER_REG(MESH_PS_MATERIAL2);	// x BumpScale, y EdgeFadeOut, z fade scales colour, w HDR emissive
+
+// Light_Clamp, also open for a material whose emissive is lifted above white.
+float3 Mesh_Clamp(float3 c) { return (FrameSun.x > 1.0 || Material2.w > 0.5) ? max(c, 0.0) : saturate(c); }
 
 sampler2D Stage0Texture : register(s0);
 sampler2D Stage1Texture : register(s1);
@@ -338,7 +363,7 @@ float4 StageArg(float select, float modifier, float4 diffuse, float4 current, fl
 // SunIntensity (Light_Clamp); alpha always clamps, as it feeds the alpha test and blending.
 float4 Stage_Clamp(float4 r, uniform bool lit)
 {
-	return float4(lit ? Light_Clamp(r.rgb) : saturate(r.rgb), saturate(r.a));
+	return float4(lit ? Mesh_Clamp(r.rgb) : saturate(r.rgb), saturate(r.a));
 }
 
 // One texture stage. Ops are per channel: rgb takes the colour op and arguments, a the alpha ones.
@@ -448,8 +473,10 @@ float4 ShadeMesh(PsIn i, uniform bool material)
 	if (material)
 	{
 		float3 tangentNormal = tex2D(NormalMap, uv0).xyz * 2.0 - 1.0;
+		tangentNormal.xy *= Material2.x;
 		N = (MaterialOptions.x > 0.5) ? PerturbNormal(N, P, uv0, tangentNormal) : N;
-		spm = (MaterialOptions.y > 0.5) ? tex2D(SpecMap, uv0).rgb : spm;
+		float4 s = (MaterialOptions.y > 0.5) ? tex2D(SpecMap, uv0) : float4(0.0, 0.0, 0.0, 0.0);
+		spm = (MaterialExtra.z > 0.5) ? float3(0.0, 0.0, s.a) : s.rgb;	// an HC_ mask has no specular or glow
 
 		// House colour: the masked part of the diffuse is painted grey and tinted with an overlay
 		// blend, so mid grey gives the house colour itself, darker paint darkens it and lighter
@@ -457,6 +484,10 @@ float4 ShadeMesh(PsIn i, uniform bool material)
 		float3 base = tex0.rgb;
 		float3 tinted = lerp(2.0 * base * HouseColor.rgb, 1.0 - 2.0 * (1.0 - base) * (1.0 - HouseColor.rgb), step(0.5, base));
 		tex0.rgb = lerp(base, saturate(tinted), spm.b * MaterialOptions.z);
+
+		// Damage map (RA3 DamagedTexture): fades in with the damage amount, its alpha punches holes.
+		if (MaterialExtra.y > 0.5)
+			tex0 *= lerp(float4(1.0, 1.0, 1.0, 1.0), tex2D(Stage1Texture, i.uv1.xy / i.uv1.w), MaterialExtra.x);
 	}
 
 	// Light sums run in linear space (shader_linear.h); the stages and fog below stay gamma.
@@ -483,7 +514,7 @@ float4 ShadeMesh(PsIn i, uniform bool material)
 	if (material)
 		ambient *= lerp(MaterialOptions.w, 1.0, saturate(N.z * 0.5 + 0.5));
 
-	float4 litDiffuse = float4(To_Gamma(Light_Clamp(matAmbient.rgb * ambient + matDiffuse.rgb * diffuse + matEmissive.rgb)), matDiffuse.a);
+	float4 litDiffuse = float4(To_Gamma(Mesh_Clamp(matAmbient.rgb * ambient + matDiffuse.rgb * diffuse + matEmissive.rgb)), matDiffuse.a);
 	float3 specularLinear = matSpecular.rgb * specular * PsOptions.y;
 	float4 litSpecular = float4(To_Gamma(Light_Clamp(specularLinear)), 0.0);
 
@@ -514,6 +545,14 @@ float4 ShadeMesh(PsIn i, uniform bool material)
 	{
 		// Glow shows the (house-coloured) texture unlit.
 		current.rgb = lerp(current.rgb, tex0.rgb, spm.g);
+	}
+
+	// RA3 EdgeFadeOut: fade towards grazing angles, the colour when additive, else the alpha.
+	[branch] if (Material2.y > 0.0)
+	{
+		float edge = smoothstep(0.0, 1.0, saturate(abs(dot(N, V)) / Material2.y));
+		current.rgb *= (Material2.z > 0.5) ? edge : 1.0;
+		current.a *= (Material2.z > 0.5) ? 1.0 : edge;
 	}
 
 	[branch] if (Fog.x > 0.5)
@@ -680,6 +719,30 @@ VsInstance SkinRows(float bone)
 
 float4 CasterSkinVS(VsIn i, float bone : BLENDINDICES0) : POSITION { return CasterPosition(i, SkinRows(bone)); }
 CasterVsOut CasterSkinAlphaVS(VsIn i, float bone : BLENDINDICES0) { return CasterAlphaVS(i, SkinRows(bone), 2); }
+
+// Blended skins: the position is already in world space, so the caster rows are identity.
+VsInstance IdentityRows()
+{
+	VsInstance w;
+	w.row0 = float4(1.0, 0.0, 0.0, 0.0);
+	w.row1 = float4(0.0, 1.0, 0.0, 0.0);
+	w.row2 = float4(0.0, 0.0, 1.0, 0.0);
+	return w;
+}
+
+float4 CasterSkin2VS(VsIn i, float bone0 : BLENDINDICES0, float bone1 : BLENDINDICES1, float w2 : BLENDWEIGHT0,
+	float3 p2 : POSITION1, float3 n2 : NORMAL1) : POSITION
+{
+	SkinBlend(i, bone0, bone1, w2, p2, n2);
+	return CasterPosition(i, IdentityRows());
+}
+
+CasterVsOut CasterSkin2AlphaVS(VsIn i, float bone0 : BLENDINDICES0, float bone1 : BLENDINDICES1, float w2 : BLENDWEIGHT0,
+	float3 p2 : POSITION1, float3 n2 : NORMAL1)
+{
+	SkinBlend(i, bone0, bone1, w2, p2, n2);
+	return CasterAlphaVS(i, IdentityRows(), 2);
+}
 
 struct CasterPsIn
 {

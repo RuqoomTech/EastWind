@@ -31,6 +31,8 @@
 #include "assetmgr.h"
 #include "dx9wrapper.h"
 #include "WWDebug/wwdebug.h"
+#include "WWLib/ffactory.h"
+#include "WWLib/WWFILE.h"
 
 #include <algorithm>
 #include <cctype>
@@ -58,7 +60,7 @@ float Byte_Color(float f)
 }
 
 // A flipbook or a scale and scroll mapper for the stage, or null. The caller owns the returned reference.
-TextureMapperClass *Make_Mapper(const W3xMaterial &m, int stage, const char *id)
+TextureMapperClass *Make_Mapper(const W3xMaterial &m, int stage)
 {
 	char name[64];
 	snprintf(name, sizeof(name), "TexCoordMapper_%d", stage);
@@ -72,16 +74,15 @@ TextureMapperClass *Make_Mapper(const W3xMaterial &m, int stage, const char *id)
 			const int per_row = (int)(anim->values[1] + 0.5f);
 			// Mapper 2 is RA3's video mapping; "0 1 1 0" is its no-animation default.
 			if (per_row >= 2 && (mapper == 2 || fps != 0.0f)) {
+				const unsigned last = (unsigned)std::max(0.0f, anim->values[2] + 0.5f);
+				const unsigned offset = (unsigned)std::max(0.0f, anim->values[3] + 0.5f);
 				if ((per_row & (per_row - 1)) == 0) {
 					unsigned grid_log2 = 0;
 					while ((1 << grid_log2) < per_row)
 						++grid_log2;
-					const unsigned last = (unsigned)std::max(0.0f, anim->values[2] + 0.5f);
-					const unsigned offset = (unsigned)std::max(0.0f, anim->values[3] + 0.5f);
 					return NEW_REF(GridTextureMapperClass, (fps, grid_log2, last, offset, 0));
 				}
-				// shortcut: GridTextureMapperClass needs a power of two grid, so the flipbook is not played; upgrade with Phase 2 F7.
-				WWDEBUG_SAY(("W3X mesh %s: flipbook with %d frames per row is not a power of two, not played", id, per_row));
+				return GridTextureMapperClass::Create_With_Width(fps, (unsigned)per_row, last, offset, 0);
 			}
 		}
 	}
@@ -115,6 +116,22 @@ std::string W3x_Texture_File(const std::string &id, const std::map<std::string, 
 	return found->second.substr(found->second.find_last_of("/\\") + 1);
 }
 
+static bool W3x_Texture_Exists(const std::string &file)
+{
+	// The asset manager takes .dds in place of .tga, so either extension counts.
+	const std::string base = file.substr(0, file.find_last_of('.'));
+	for (const char *ext : { ".dds", ".tga" }) {
+		FileClass *f = _TheFileFactory->Get_File((base + ext).c_str());
+		if (f == nullptr)
+			continue;
+		const bool found = f->Is_Available() != 0;
+		_TheFileFactory->Return_File(f);
+		if (found)
+			return true;
+	}
+	return false;
+}
+
 ShaderClass::DetailColorFuncType W3x_Detail_Color_Func(int secondaryBlendMode)
 {
 	switch (secondaryBlendMode) {
@@ -146,6 +163,7 @@ bool MeshModelClass::Load_W3X(const W3xMesh &mesh, const char *name, const W3xHi
 	const std::map<std::string, std::string> &textureFiles)
 {
 	const char *id = mesh.id.c_str();
+	(void)id; // only logged, and WWDEBUG_SAY is empty in Release
 
 	// Everything that can fail comes before Reset, so a refused mesh leaves the model as it was.
 	W3xMeshVertices verts;
@@ -161,7 +179,7 @@ bool MeshModelClass::Load_W3X(const W3xMesh &mesh, const char *name, const W3xHi
 		return false;
 	}
 	if (verts.blended)
-		WWDEBUG_SAY(("W3X mesh %s: %d vertices are blended between bones and follow only their heaviest bone", id, verts.blended));
+		WWDEBUG_SAY(("W3X mesh %s: %d vertices are blended between two bones", id, verts.blended));
 
 	const bool skin = mesh.geometryType == W3X_GEOMETRY_SKIN;
 	std::vector<std::string> warnings;
@@ -245,10 +263,22 @@ bool MeshModelClass::Load_W3X(const W3xMesh &mesh, const char *name, const W3xHi
 		poly[i].K = (unsigned short)mesh.triangles[i].v[2];
 	}
 	if (skin) {
-		// The engine has one bone per vertex; W3x_Single_Bone_Vertices chose the heaviest. shortcut: two-bone blending is Phase 2 F2.
+		// The first influence is the heaviest bone; a blended skin adds the second one.
 		uint16 *links = get_bone_links(true);
 		for (size_t i = 0; i < count; ++i)
 			links[i] = verts.bones[i];
+		if (!verts.weights2.empty()) {
+			uint16 *links2 = get_bone_links2(true);
+			float *weights2 = get_bone_weights2(true);
+			Vector3 *vertex2 = get_second_verts(true);
+			Vector3 *normal2 = get_second_norms(true);
+			for (size_t i = 0; i < count; ++i) {
+				links2[i] = verts.bones2[i];
+				weights2[i] = verts.weights2[i];
+				vertex2[i] = verts.positions2[i];
+				normal2[i] = verts.normals2[i];
+			}
+		}
 	}
 
 	/*
@@ -258,6 +288,19 @@ bool MeshModelClass::Load_W3X(const W3xMesh &mesh, const char *name, const W3xHi
 
 	VertexMaterialClass *vmat = NEW_REF(VertexMaterialClass, ());
 	vmat->Parse_W3dVertexMaterialStruct(shading.material);
+	{
+		VertexMaterialClass::W3xExtrasStruct extras;
+		auto read = [&mat](const char *name, float &value) {
+			const W3xConstant *c = Find_Constant(mat, name);
+			if (c && !c->values.empty())
+				value = c->values[0];
+		};
+		read("EdgeFadeOut", extras.EdgeFadeOut);
+		read("BumpScale", extras.BumpScale);
+		read("EmissiveHDRMultipler", extras.EmissiveHDR);	// RA3's spelling
+		extras.EmissiveHDR = std::min(std::max(extras.EmissiveHDR, 1.0f), 4.0f);
+		vmat->Set_W3x_Extras(extras);
+	}
 	DefMatDesc->Set_Single_Material(vmat, 0);
 	DefMatDesc->Set_Single_Shader(shader, 0);
 
@@ -287,7 +330,7 @@ bool MeshModelClass::Load_W3X(const W3xMesh &mesh, const char *name, const W3xHi
 			uvs[i] = Vector2(mesh.uvSets[0][i].X, 1.0f - mesh.uvSets[0][i].Y);
 		DefMatDesc->Install_UV_Array(0, 0, uvs.data(), (int)count);
 
-		if (TextureMapperClass *mapper = Make_Mapper(mat, 0, id)) {
+		if (TextureMapperClass *mapper = Make_Mapper(mat, 0)) {
 			vmat->Set_Mapper(mapper, 0);
 			mapper->Release_Ref();
 		}
@@ -300,9 +343,27 @@ bool MeshModelClass::Load_W3X(const W3xMesh &mesh, const char *name, const W3xHi
 			uvs[i] = Vector2(mesh.uvSets[1][i].X, 1.0f - mesh.uvSets[1][i].Y);
 		DefMatDesc->Install_UV_Array(0, 1, uvs.data(), (int)count);
 
-		if (TextureMapperClass *mapper = Make_Mapper(mat, 1, id)) {
+		if (TextureMapperClass *mapper = Make_Mapper(mat, 1)) {
 			vmat->Set_Mapper(mapper, 1);
 			mapper->Release_Ref();
+		}
+	}
+
+	// RA3 DamagedTexture: a damage map on the free stage 1 (its detail colour func stays DISABLE, so
+	// fixed function ignores it); MeshShader reads it with the second UV set. A missing file is not
+	// installed, or the engine would draw its missing-texture pattern.
+	const W3xConstant *damaged = Find_Constant(mat, "DamagedTexture");
+	if (!texture_1_ptr && !shading.textureId.empty() && damaged && damaged->kind == W3xConstant::Texture && !damaged->text.empty()
+		&& mesh.uvSets.size() >= 2 && mesh.uvSets[1].size() == count) {
+		const std::string damage_file = W3x_Texture_File(damaged->text, textureFiles);
+		if (W3x_Texture_Exists(damage_file)) {
+			texture_1_ptr = assets->Get_Texture(damage_file.c_str());
+			texture_1_ptr->Material_Maps().Damage = true;
+			DefMatDesc->Set_Single_Texture(texture_1_ptr, 0, 1);
+			std::vector<Vector2> uvs(count);
+			for (size_t i = 0; i < count; ++i)
+				uvs[i] = Vector2(mesh.uvSets[1][i].X, 1.0f - mesh.uvSets[1][i].Y);
+			DefMatDesc->Install_UV_Array(0, 1, uvs.data(), (int)count);
 		}
 	}
 

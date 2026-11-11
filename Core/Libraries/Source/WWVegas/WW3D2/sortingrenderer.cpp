@@ -367,6 +367,7 @@ static void Apply_Render_State(RenderStateStruct& render_state)
 {
 	DX9Wrapper::Set_Shader(render_state.shader);
 	DX9Wrapper::Set_House_Color(render_state.HouseColor);
+	DX9Wrapper::Set_Damage(render_state.ObjectDamage);
 	DX9Wrapper::Set_Soft_Particle(render_state.SoftParticle);
 
 	DX9Wrapper::Set_Material(render_state.material);
