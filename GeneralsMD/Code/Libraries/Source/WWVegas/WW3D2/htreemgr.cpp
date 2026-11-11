@@ -207,22 +207,11 @@ int HTreeManagerClass::Load_Tree(ChunkLoadClass & cload)
 		delete newtree;
 		goto Error;
 
-	} else if (Get_Tree_ID(newtree->Get_Name()) != -1) {
+	} else if (!Add_Tree(newtree)) {
 
-		// tree with this name already exists, reject it!
+		// tree with this name already exists or the array is full, reject it!
 		delete newtree;
 		goto Error;
-
-	} else {
-
-		// ok, accept this hierarchy tree!
-		TreePtr[NumTrees] = newtree;
-		NumTrees++;
-
-		// Insert to hash table for fast name based search
-		StringClass lower_case_name(newtree->Get_Name(),true);
-		_strlwr(lower_case_name.Peek_Buffer());
-		TreeHash.Insert(lower_case_name,newtree);
 	}
 
 	return 0;
@@ -231,6 +220,23 @@ Error:
 
 	return 1;
 
+}
+
+bool HTreeManagerClass::Add_Tree(HTreeClass * tree)
+{
+	if (tree == nullptr || NumTrees >= MAX_TREES || Get_Tree_ID(tree->Get_Name()) != -1) {
+		return false;
+	}
+
+	// ok, accept this hierarchy tree!
+	TreePtr[NumTrees] = tree;
+	NumTrees++;
+
+	// Insert to hash table for fast name based search
+	StringClass lower_case_name(tree->Get_Name(),true);
+	_strlwr(lower_case_name.Peek_Buffer());
+	TreeHash.Insert(lower_case_name,tree);
+	return true;
 }
 
 /***********************************************************************************************

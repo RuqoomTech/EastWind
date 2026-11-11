@@ -1216,6 +1216,47 @@ WW3DErrorType MeshClass::Load_W3D(ChunkLoadClass & cload)
 
 
 /***********************************************************************************************
+ * MeshClass::Load_W3X -- creates a mesh out of a parsed W3X mesh                              *
+ *                                                                                             *
+ * The render object state is derived exactly as Load_W3D does it, so the caller can wrap the  *
+ * mesh in a PrimitivePrototypeClass.                                                          *
+ *=============================================================================================*/
+bool MeshClass::Load_W3X(const W3xMesh & mesh, const char * name, const W3xHierarchy * tree,
+	const std::map<std::string, std::string> & textureFiles)
+{
+	Free();
+
+	Model = NEW_REF(MeshModelClass,());
+	if (Model == nullptr) {
+		WWDEBUG_SAY(("MeshClass::Load_W3X - Failed to allocate model"));
+		return false;
+	}
+	if (!Model->Load_W3X(mesh, name, tree, textureFiles)) {
+		Free();
+		return false;
+	}
+
+	int col_bits = (Model->W3dAttributes & W3D_MESH_FLAG_COLLISION_TYPE_MASK) >> W3D_MESH_FLAG_COLLISION_TYPE_SHIFT;
+	Set_Collision_Type( col_bits << 1 );
+	Set_Hidden(Model->W3dAttributes & W3D_MESH_FLAG_HIDDEN);
+
+	// A W3X mesh has one pass-0 shader and no shader array.
+	ShaderClass shader = Model->Get_Single_Shader(0);
+	int is_translucent = Model->Get_Flag(MeshModelClass::SORT);
+	is_translucent |= (shader.Get_Alpha_Test() == ShaderClass::ALPHATEST_ENABLE);
+	int is_alpha = (shader.Get_Dst_Blend_Func() != ShaderClass::DSTBLEND_ZERO ||
+							shader.Get_Src_Blend_Func() != ShaderClass::SRCBLEND_ONE) && (shader.Get_Alpha_Test() != ShaderClass::ALPHATEST_ENABLE);
+	int is_additive = (shader.Get_Dst_Blend_Func() == ShaderClass::DSTBLEND_ONE &&
+							shader.Get_Src_Blend_Func() == ShaderClass::SRCBLEND_ONE);
+	Set_Translucent(is_translucent);
+	Set_Alpha(is_alpha);
+	Set_Additive(is_additive);
+
+	return true;
+}
+
+
+/***********************************************************************************************
  * MeshClass::Cast_Ray -- compute a ray intersection with this mesh                            *
  *                                                                                             *
  * INPUT:                                                                                      *

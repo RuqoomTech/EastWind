@@ -64,6 +64,8 @@ public:
 	~HTreeManagerClass();
 
 	int							Load_Tree(ChunkLoadClass & cload);
+	// Takes an in-memory tree like Load_Tree does after loading. False, and the caller deletes it, when the name exists or the array is full.
+	bool							Add_Tree(HTreeClass * tree);
 	int							Num_Trees() { return NumTrees; }
 	HTreeClass *				Get_Tree(const char * name);
 	HTreeClass *				Get_Tree(int id);

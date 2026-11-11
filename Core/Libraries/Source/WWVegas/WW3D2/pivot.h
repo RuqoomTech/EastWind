@@ -38,6 +38,7 @@
 #pragma once
 
 #include "WWLib/always.h"
+#include "WWLib/wwstring.h"
 #include "WWMath/vector3.h"
 #include "WWMath/matrix3d.h"
 #include "WWMath/quat.h"
@@ -81,7 +82,7 @@ public:
 	}
 
 public:
-	char							Name[W3D_NAME_LEN];
+	StringClass				Name;
 	PivotClass *			Parent;
 	Matrix3D					BaseTransform;		// base-pose transform (relative to parent).
 	Matrix3D					Transform;				// computed transform for this pivot

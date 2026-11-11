@@ -682,6 +682,28 @@ WW3DErrorType HLodDefClass::Load_W3D(ChunkLoadClass & cload)
 }
 
 
+bool HLodDefClass::Load_W3X(const char * name, const char * hierarchyName, const std::vector<std::pair<std::string,int>> & subObjects)
+{
+	Free();
+
+	Name = ::_strdup(name);
+	HierarchyTreeName = ::strdup(hierarchyName != nullptr ? hierarchyName : "");
+	LodCount = 1;
+	Lod = W3DNEWARRAY SubObjectArrayClass[LodCount];
+
+	SubObjectArrayClass & array = Lod[0];
+	array.MaxScreenSize = NO_MAX_SCREEN_SIZE;
+	array.ModelCount = (int)subObjects.size();
+	array.ModelName = W3DNEWARRAY char * [array.ModelCount];
+	array.BoneIndex = W3DNEWARRAY int [array.ModelCount];
+	for (int imodel=0; imodel<array.ModelCount; ++imodel) {
+		array.ModelName[imodel] = ::strdup(subObjects[imodel].first.c_str());
+		array.BoneIndex[imodel] = subObjects[imodel].second;
+	}
+	return true;
+}
+
+
 /***********************************************************************************************
  * HLodDefClass::read_header -- loads the HLodDef header from a W3d file                       *
  *                                                                                             *

@@ -62,6 +62,17 @@
 #include "hrawanim.h"
 #include "motchan.h"
 #include "ww3d.h"
+#include "w3xparse.h"
+
+// A W3D name field is not always NUL terminated; read at most its size.
+static void Copy_W3D_Name(StringClass & dst, const char * src, int size)
+{
+	char buf[W3D_NAME_LEN + 1];
+	WWASSERT(size <= W3D_NAME_LEN);
+	strncpy(buf, src, size);
+	buf[size] = 0;
+	dst = buf;
+}
 
 /***********************************************************************************************
  * HTreeClass::HTreeClass -- constructor                                                       *
@@ -94,9 +105,9 @@ void HTreeClass::Init_Default()
 	Pivot[0].BaseTransform.Make_Identity();
 	Pivot[0].Transform.Make_Identity();
 	Pivot[0].IsVisible = true;
-	strcpy(Pivot[0].Name,"RootTransform");
+	Pivot[0].Name = "RootTransform";
 	//::strcpy (Name, "Default");
-	Name[0] = 0;
+	Name = "";
 
 
 
@@ -140,7 +151,7 @@ HTreeClass::HTreeClass(const HTreeClass & src) :
 	Pivot(nullptr),
 	ScaleFactor(1.0f)
 {
-	memcpy(&Name,&src.Name,sizeof(Name));
+	Name = src.Name;
 
 	NumPivots = src.NumPivots;
 	if (NumPivots > 0) {
@@ -207,7 +218,7 @@ int HTreeClass::Load_W3D(ChunkLoadClass & cload)
 	/*
 	** Allocate the array of pivots
 	*/
-	memcpy(Name,header.Name,W3D_NAME_LEN);
+	Copy_W3D_Name(Name,header.Name,W3D_NAME_LEN);
 	NumPivots = header.NumPivots;
 	if (NumPivots < 1) {
 		return LOAD_ERROR;
@@ -273,7 +284,7 @@ bool HTreeClass::read_pivots(ChunkLoadClass & cload,bool pre30)
 		Pivot[0].BaseTransform.Make_Identity();
 		Pivot[0].Transform.Make_Identity();
 		Pivot[0].IsVisible = true;
-		strcpy(Pivot[0].Name,"RootTransform");
+		Pivot[0].Name = "RootTransform";
 		first_piv++;
 	}
 
@@ -283,7 +294,7 @@ bool HTreeClass::read_pivots(ChunkLoadClass & cload,bool pre30)
 			return false;
 		}
 
-		memcpy(Pivot[pidx].Name,piv.Name,W3D_NAME_LEN);
+		Copy_W3D_Name(Pivot[pidx].Name,piv.Name,W3D_NAME_LEN);
 		Pivot[pidx].Index = pidx;
 
 		Pivot[pidx].BaseTransform.Make_Identity();
@@ -334,6 +345,48 @@ bool HTreeClass::read_pivots(ChunkLoadClass & cload,bool pre30)
 			Pivot[pidx].Parent = &(Pivot[piv.ParentIdx]);
 		}
 
+	}
+
+	Pivot[0].Transform.Make_Identity();
+	Pivot[0].IsVisible = true;
+
+	return true;
+}
+
+
+bool HTreeClass::Load_W3X(const W3xHierarchy & tree, const char * name)
+{
+	Free();
+
+	const int count = (int)tree.pivots.size();
+	if (count < 1) {
+		return false;
+	}
+
+	// Base_Update needs pivot 0 as the only root and every parent before its children.
+	for (int pidx=0; pidx < count; pidx++) {
+		const int parent = tree.pivots[pidx].parent;
+		if ((pidx == 0) != (parent < 0) || parent >= pidx) {
+			return false;
+		}
+	}
+
+	Name = name;
+	NumPivots = count;
+	Pivot = MSGW3DNEWARRAY("HTreeClass::Pivot") PivotClass[NumPivots];
+
+	Matrix3D mtx;
+	for (int pidx=0; pidx < NumPivots; pidx++) {
+		const W3xPivot & src = tree.pivots[pidx];
+
+		Pivot[pidx].Name = src.name.c_str();
+		Pivot[pidx].Index = pidx;
+
+		Pivot[pidx].BaseTransform.Make_Identity();
+		Pivot[pidx].BaseTransform.Translate(src.translation);
+		Pivot[pidx].BaseTransform.postMul(Build_Matrix3D(src.rotation, mtx));
+
+		Pivot[pidx].Parent = (src.parent < 0) ? nullptr : &(Pivot[src.parent]);
 	}
 
 	Pivot[0].Transform.Make_Identity();

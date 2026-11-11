@@ -181,7 +181,6 @@ static ShaderClass					_BoxShader;
  *=============================================================================================*/
 BoxRenderObjClass::BoxRenderObjClass()
 {
-	memset(Name,0,sizeof(Name));
 	Color.Set(1,1,1);
 	Opacity = 0.25f;
 	ObjSpaceCenter.Set(0,0,0);
@@ -203,7 +202,11 @@ BoxRenderObjClass::BoxRenderObjClass()
  *=============================================================================================*/
 BoxRenderObjClass::BoxRenderObjClass(const W3dBoxStruct & def)
 {
-	Set_Name(def.Name);
+	// The W3D name field is not always NUL terminated; read at most its size.
+	char name[2*W3D_NAME_LEN + 1];
+	strncpy(name, def.Name, 2*W3D_NAME_LEN);
+	name[2*W3D_NAME_LEN] = 0;
+	Set_Name(name);
 	W3dUtilityClass::Convert_Color(def.Color,&Color);
 	W3dUtilityClass::Convert_Vector(def.Center,&ObjSpaceCenter);
 	W3dUtilityClass::Convert_Vector(def.Extent,&ObjSpaceExtent);
@@ -307,8 +310,7 @@ const char * BoxRenderObjClass::Get_Name() const
 void BoxRenderObjClass::Set_Name(const char * name)
 {
 	WWASSERT(name != nullptr);
-	size_t nameLen = strlcpy(Name, name, ARRAY_SIZE(Name));
-	(void)nameLen; WWASSERT(nameLen < ARRAY_SIZE(Name));
+	Name = name;
 }
 
 

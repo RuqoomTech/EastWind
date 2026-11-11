@@ -64,6 +64,7 @@ typedef enum
 {
 	FILE_TYPE_COMPLETELY_UNKNOWN = 0,	// MBL 08.15.2002 - compile error with FILE_TYPE_UNKNOWN, is constant
 	FILE_TYPE_W3D,
+	FILE_TYPE_W3X,
 	FILE_TYPE_TGA,
 	FILE_TYPE_DDS,
 } GameFileType;
@@ -116,6 +117,12 @@ char const * GameFileClass::File_Name() const
 
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
+// W3X models live in the same folders as W3D ones.
+inline static Bool isModelFileType( GameFileType fileType )
+{
+	return (fileType == FILE_TYPE_W3D || fileType == FILE_TYPE_W3X);
+}
+
 inline static Bool isImageFileType( GameFileType fileType )
 {
 	return (fileType == FILE_TYPE_TGA || fileType == FILE_TYPE_DDS);
@@ -130,6 +137,8 @@ static GameFileType getFileType( char const *filename )
 		// test the extension to recognize a few key file types
 		if( stricmp( extension, ".w3d" ) == 0 )
 			return FILE_TYPE_W3D;
+		else if( stricmp( extension, ".w3x" ) == 0 )
+			return FILE_TYPE_W3X;
 		else if( stricmp( extension, ".tga" ) == 0 )
 			return FILE_TYPE_TGA;
 		else if( stricmp( extension, ".dds" ) == 0 )
@@ -169,7 +178,7 @@ char const * GameFileClass::Set_Name( char const *filename )
 	GameFileType fileType = getFileType(filename);
 
 	// We need to be able to grab w3d's from a localization dir, since Germany hates exploding people units.
-	if( fileType == FILE_TYPE_W3D )
+	if( isModelFileType(fileType) )
 	{
 		static const char *localizedPathFormat = "Data/%s/Art/W3D/";
 		sprintf(m_filePath,localizedPathFormat, GetRegistryLanguage().str());
@@ -194,7 +203,7 @@ char const * GameFileClass::Set_Name( char const *filename )
 	if( m_fileExists == FALSE )
 	{
 		// all .w3d files are in W3D_DIR_PATH, all .tga files are in TGA_DIR_PATH
-		if( fileType == FILE_TYPE_W3D )
+		if( isModelFileType(fileType) )
 		{
 
 			static_assert(ARRAY_SIZE(m_filePath) >= ARRAY_SIZE(W3D_DIR_PATH), "Incorrect array size");
@@ -224,7 +233,7 @@ char const * GameFileClass::Set_Name( char const *filename )
 	if( m_fileExists == FALSE )
 	{
 
-		if( fileType == FILE_TYPE_W3D )
+		if( isModelFileType(fileType) )
 		{
 
 			static_assert(ARRAY_SIZE(m_filePath) >= ARRAY_SIZE(LEGACY_W3D_DIR_PATH), "Incorrect array size");
@@ -254,7 +263,7 @@ char const * GameFileClass::Set_Name( char const *filename )
 	if( m_fileExists == FALSE )
 	{
 
-		if( fileType == FILE_TYPE_W3D )
+		if( isModelFileType(fileType) )
 		{
 
 			static_assert(ARRAY_SIZE(m_filePath) >= ARRAY_SIZE(TEST_W3D_DIR_PATH), "Incorrect array size");
@@ -280,7 +289,7 @@ char const * GameFileClass::Set_Name( char const *filename )
 	// We allow the user to load their own images for various assets (like the control bar)
 	if( m_fileExists == FALSE  && TheGlobalData)
 	{
-		if( fileType == FILE_TYPE_W3D )
+		if( isModelFileType(fileType) )
 		{
 			sprintf(m_filePath,USER_W3D_DIR_PATH, TheGlobalData->getPath_UserData().str());
 			strlcat(m_filePath, filename, ARRAY_SIZE(m_filePath));

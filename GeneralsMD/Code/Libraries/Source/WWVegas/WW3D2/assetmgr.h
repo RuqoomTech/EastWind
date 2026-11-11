@@ -347,6 +347,7 @@ protected:
 
 	PrototypeLoaderClass *			Find_Prototype_Loader(int chunk_id);
 	bool									Load_Prototype(ChunkLoadClass & cload);
+	bool									Load_W3X_Assets(FileClass & w3xfile);	// defined in w3xload.cpp
 
 	/*
 	** Compile time control over the dynamic arrays:

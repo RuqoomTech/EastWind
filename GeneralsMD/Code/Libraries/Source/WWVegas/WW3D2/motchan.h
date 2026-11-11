@@ -67,6 +67,8 @@ public:
 	~MotionChannelClass();
 
 	bool	Load_W3D(ChunkLoadClass & cload);
+	// Takes (lastFrame - firstFrame + 1) * vectorLen floats; the same state Load_W3D leaves.
+	bool	Init(uint32 pivot, uint32 type, int vectorLen, int firstFrame, int lastFrame, const float * data);
 	WWINLINE int Get_Type() const { return Type; }
 	WWINLINE int Get_Pivot() const { return PivotIdx; }
 	WWINLINE void Set_Pivot(int idx) { PivotIdx=idx; }
@@ -162,6 +164,8 @@ public:
 	~BitChannelClass();
 
 	bool	Load_W3D(ChunkLoadClass & cload);
+	// bits holds one bit per frame, least significant bit first, (lastFrame - firstFrame + 8) / 8 bytes.
+	bool	Init(uint32 pivot, uint32 type, int defaultVal, int firstFrame, int lastFrame, const uint8 * bits);
 	WWINLINE int	Get_Type() const { return Type; }
 	WWINLINE int	Get_Pivot() const { return PivotIdx; }
 	WWINLINE int	Get_Bit(int frame) const;

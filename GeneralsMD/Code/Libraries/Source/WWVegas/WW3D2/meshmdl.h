@@ -53,6 +53,12 @@
 #include "meshmatdesc.h"
 #include "WW3D2/dx9list.h"
 
+#include <map>
+#include <string>
+
+struct W3xMesh;
+struct W3xHierarchy;
+
 class TextureClass;
 class RenderInfoClass;
 class SpecialRenderInfoClass;
@@ -225,6 +231,12 @@ public:
 	// Load the w3d file format
 	virtual WW3DErrorType				Load_W3D(ChunkLoadClass & cload) override;
 
+	// Builds the model from a parsed W3X mesh. name is the final runtime name. tree is needed for a skin.
+	// textureFiles maps a lower case texture id to its file (from the .xml declarations); may be empty.
+	// False, with the model untouched, when the mesh cannot be used.
+	bool								Load_W3X(const W3xMesh & mesh, const char * name, const W3xHierarchy * tree,
+												const std::map<std::string, std::string> & textureFiles);
+
 	/////////////////////////////////////////////////////////////////////////////////////
 	//	Decal interface
 	/////////////////////////////////////////////////////////////////////////////////////
@@ -340,3 +352,11 @@ protected:
 	friend class DX9MeshRendererClass;
 	friend class DX9PolygonRendererClass;
 };
+
+// Pure helpers of MeshModelClass::Load_W3X (no device needed).
+// The file for a texture id: the declared File without its directory, else "<id>.tga".
+std::string W3x_Texture_File(const std::string & id, const std::map<std::string, std::string> & textureFiles);
+// SecondaryTextureBlendMode (0 scale, 1 scale2x, 2 detail blend, 3 and others detail blend) as a shader function.
+ShaderClass::DetailColorFuncType W3x_Detail_Color_Func(int secondaryBlendMode);
+// The W3D_MESH_FLAG_* bits of a W3X mesh (geometry type, cast shadow, hidden, two sided).
+uint32 W3x_Mesh_Attributes(const W3xMesh & mesh, bool twoSided);

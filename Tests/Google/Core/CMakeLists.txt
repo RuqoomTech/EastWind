@@ -14,7 +14,12 @@ set(COREI_GOOGLETEST_SRC
     Libraries/WWVegas/WW3D2/gpuskin_test.cpp
     Libraries/WWVegas/WW3D2/hlod_test.cpp
     Libraries/WWVegas/WW3D2/skincache_test.cpp
+    Libraries/WWVegas/WW3D2/w3xbuild_test.cpp
     Libraries/WWVegas/WW3D2/w3xconvert_test.cpp
+    Libraries/WWVegas/WW3D2/w3xparse_test.cpp
+    Libraries/WWVegas/WW3D2/w3xnames_test.cpp
+    Libraries/WWVegas/WW3D2/w3xmesh_test.cpp
+    Libraries/WWVegas/WW3D2/w3xload_test.cpp
     Libraries/WWVegas/WWMath/WWMathCalls.h
     Libraries/WWVegas/WWMath/WWMathDumps.h
     Libraries/WWVegas/WWMath/WWMathKeys.h

@@ -55,6 +55,9 @@
 #include "WWLib/chunkio.h"
 #include "assetmgr.h"
 #include "htree.h"
+#include "w3xparse.h"
+#include <algorithm>
+#include <vector>
 
 /***********************************************************************************************
  * NodeMotionStruct::NodeMotionStruct -- constructor                                           *
@@ -123,8 +126,6 @@ HRawAnimClass::HRawAnimClass() :
 	FrameRate(0),
 	NodeMotion(nullptr)
 {
-	memset(Name,0,W3D_NAME_LEN);
-	memset(HierarchyName,0,W3D_NAME_LEN);
 }
 
 
@@ -211,13 +212,23 @@ int HRawAnimClass::Load_W3D(ChunkLoadClass & cload)
 		pre30 = true;
 	}
 
-	static_assert(ARRAY_SIZE(Name) >= ARRAY_SIZE(aheader.HierarchyName), "Incorrect array size");
-	strcpy(Name, aheader.HierarchyName);
-	strlcat(Name, ".", ARRAY_SIZE(Name));
-	strlcat(Name, aheader.Name, ARRAY_SIZE(Name));
+	// The W3D name fields are not always NUL terminated; read at most their size.
+	char hname[W3D_NAME_LEN + 1];
+	char aname[W3D_NAME_LEN + 1];
+	strncpy(hname, aheader.HierarchyName, W3D_NAME_LEN);
+	hname[W3D_NAME_LEN] = 0;
+	strncpy(aname, aheader.Name, W3D_NAME_LEN);
+	aname[W3D_NAME_LEN] = 0;
 
-	static_assert(ARRAY_SIZE(HierarchyName) >= ARRAY_SIZE(aheader.HierarchyName), "Incorrect array size");
-	strcpy(HierarchyName, aheader.HierarchyName);
+	Name = hname;
+	Name += ".";
+	Name += aname;
+	// W3D animations keep the old fixed size (2*W3D_NAME_LEN, with the NUL)
+	if (Name.Get_Length() > 2*W3D_NAME_LEN - 1) {
+		Name.Erase(2*W3D_NAME_LEN - 1, Name.Get_Length() - (2*W3D_NAME_LEN - 1));
+	}
+
+	HierarchyName = hname;
 
 	HTreeClass * base_pose = WW3DAssetManager::Get_Instance()->Get_HTree(HierarchyName);
 	if (base_pose == nullptr) {
@@ -291,6 +302,90 @@ Error:
 	Free();
 	return LOAD_ERROR;
 
+}
+
+bool HRawAnimClass::Load_W3X(const W3xAnimation & anim, const char * name, const char * hierarchyName, const HTreeClass * tree)
+{
+	Free();
+
+	// 16-bit frame numbers, like the W3D channel header.
+	if (tree == nullptr || anim.numFrames == 0 || anim.numFrames > 0xFFFF || anim.frameRate == 0) {
+		return false;
+	}
+
+	Name = name;
+	HierarchyName = hierarchyName;
+	NumNodes = tree->Num_Pivots();
+	NumFrames = (int)anim.numFrames;
+	FrameRate = (float)anim.frameRate;
+	NodeMotion = W3DNEWARRAY NodeMotionStruct[ NumNodes ];
+
+	for (const W3xChannel & c : anim.channels) {
+
+		// Same as Load_W3D: a channel on a missing bone is thrown away.
+		if (c.pivot >= (uint32)NumNodes) {
+			WWDEBUG_SAY(("Animation %s refers to missing bone %u, channel dropped.", Name.Peek_Buffer(), c.pivot));
+			continue;
+		}
+
+		const bool quat = (c.type == W3X_CHANNEL_ORIENTATION);
+		const size_t len = quat ? 4 : 1;
+		const size_t frames = c.values.size() / len;
+		if (frames == 0 || (size_t)c.firstFrame + frames > 0x10000) {
+			continue;
+		}
+		const int first = (int)c.firstFrame;
+		const int last = first + (int)frames - 1;
+		NodeMotionStruct & motion = NodeMotion[c.pivot];
+
+		if (c.type == W3X_CHANNEL_VISIBILITY) {
+			// RA3 writes true as -1: any non-zero value is visible. Outside the range the bone stays visible.
+			std::vector<uint8> bits((frames + 7) / 8, 0);
+			for (size_t f = 0; f < frames; f++) {
+				if (c.values[f] != 0.0f) {
+					bits[f >> 3] |= (uint8)(1 << (f & 7));
+				}
+			}
+			BitChannelClass * bitchan = W3DNEW BitChannelClass;
+			if (!bitchan->Init(c.pivot, BIT_CHANNEL_VIS, 1, first, last, bits.data())) {
+				delete bitchan;
+				continue;
+			}
+			delete motion.Vis;
+			motion.Vis = bitchan;
+			continue;
+		}
+
+		uint32 type;
+		MotionChannelClass ** slot;
+		switch (c.type) {
+			case W3X_CHANNEL_X_TRANSLATION:	type = ANIM_CHANNEL_X; slot = &motion.X; break;
+			case W3X_CHANNEL_Y_TRANSLATION:	type = ANIM_CHANNEL_Y; slot = &motion.Y; break;
+			case W3X_CHANNEL_Z_TRANSLATION:	type = ANIM_CHANNEL_Z; slot = &motion.Z; break;
+			default:								type = ANIM_CHANNEL_Q; slot = &motion.Q; break;
+		}
+
+		// A partial channel would snap to identity outside its range; hold the first and last key instead.
+		const int lo = 0;
+		const int hi = std::max(last, NumFrames - 1);
+		std::vector<float> padded((size_t)(hi - lo + 1) * len);
+		for (int f = lo; f <= hi; f++) {
+			const size_t src = (size_t)std::min<int>(std::max<int>(f - first, 0), (int)frames - 1);
+			for (size_t i = 0; i < len; i++) {
+				padded[(size_t)(f - lo) * len + i] = c.values[src * len + i];
+			}
+		}
+
+		MotionChannelClass * chan = W3DNEW MotionChannelClass;
+		if (!chan->Init(c.pivot, type, (int)len, lo, hi, padded.data())) {
+			delete chan;
+			continue;
+		}
+		delete *slot;
+		*slot = chan;
+	}
+
+	return true;
 }
 
 /***********************************************************************************************

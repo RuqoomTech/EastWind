@@ -72,10 +72,10 @@ PivotClass::PivotClass() :
 	Unused(false)
 #endif
 {
-	Name[0] = 0;
 }
 
 PivotClass::PivotClass(const PivotClass& that) :
+	Name(that.Name),
 	Parent(that.Parent),
 	BaseTransform(that.BaseTransform),
 	Transform(that.Transform),
@@ -93,7 +93,6 @@ PivotClass::PivotClass(const PivotClass& that) :
 	Unused(that.Unused)
 #endif
 {
-	memcpy(Name, that.Name, sizeof(Name));
 #ifdef LAZY_CAP_MTX_ALLOC
 	if (that.CapTransformPtr != nullptr)
 	{
@@ -107,7 +106,7 @@ PivotClass& PivotClass::operator=(const PivotClass& that)
 {
 	if (this != &that)
 	{
-		memcpy(Name, that.Name, sizeof(Name));
+		Name = that.Name;
 		Parent = that.Parent;
 		BaseTransform = that.BaseTransform;
 		Transform = that.Transform;

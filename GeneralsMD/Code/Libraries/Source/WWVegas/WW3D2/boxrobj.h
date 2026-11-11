@@ -37,6 +37,7 @@
 #pragma once
 
 #include "WWLib/always.h"
+#include "WWLib/wwstring.h"
 #include "WW3D2/rendobj.h"
 #include "w3d_file.h"
 #include "shader.h"
@@ -101,7 +102,7 @@ protected:
 	void									render_box(RenderInfoClass & rinfo,const Vector3 & center,const Vector3 & extent);
 	void									vis_render_box(SpecialRenderInfoClass & rinfo,const Vector3 & center,const Vector3 & extent);
 
-	char									Name[2*W3D_NAME_LEN];
+	StringClass							Name;
 	Vector3								Color;
 	Vector3								ObjSpaceCenter;
 	Vector3								ObjSpaceExtent;

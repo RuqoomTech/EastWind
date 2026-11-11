@@ -39,6 +39,7 @@
 
 #include "WWLib/always.h"
 #include "pivot.h"
+#include "WWLib/wwstring.h"
 #include "WWMath/quat.h"
 #include "WWMath/matrix3d.h"
 #include "WWMath/vector3.h"
@@ -51,6 +52,7 @@ class MeshClass;
 class ChunkLoadClass;
 class ChunkSaveClass;
 class HRawAnimClass;
+struct W3xHierarchy;
 
 /*
 
@@ -82,9 +84,12 @@ public:
 	~HTreeClass();
 
 	int					Load_W3D(ChunkLoadClass & cload);
+	// Builds the tree from a parsed W3X hierarchy with the state Load_W3D gives; name is the final, full-length name.
+	bool					Load_W3X(const W3xHierarchy & tree, const char * name);
 	void					Init_Default();
 
 	WWINLINE const char *		Get_Name()								const { return Name; }
+		void					Set_Name(const char * name)			{ Name = name; }
 	WWINLINE int					Num_Pivots()							const { return NumPivots; }
 	int					Get_Bone_Index(const char * name)	const;
 	const char *		Get_Bone_Name(int boneid)				const;
@@ -156,7 +161,7 @@ public:
 
 private:
 
-	char					Name[W3D_NAME_LEN];
+	StringClass			Name;
 	int					NumPivots;
 	PivotClass *		Pivot;
 	float					ScaleFactor;

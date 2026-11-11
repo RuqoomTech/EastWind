@@ -40,9 +40,12 @@
 
 #include "WWLib/always.h"
 #include "WW3D2/hanim.h"
+#include "WWLib/wwstring.h"
 
 class MotionChannelClass;
 class BitChannelClass;
+class HTreeClass;
+struct W3xAnimation;
 
 struct NodeMotionStruct
 {
@@ -85,9 +88,14 @@ public:
 	virtual ~HRawAnimClass() override;
 
 	int							Load_W3D(ChunkLoadClass & cload);
+	// name is the full "<hierarchy>.<anim>" key. Partial channels are padded to the whole animation and visibility
+	// channels become bit channels (see the native W3X design). BinaryMove is not applied yet.
+	bool							Load_W3X(const W3xAnimation & anim, const char * name, const char * hierarchyName, const HTreeClass * tree);
 
 	virtual const char *				Get_Name() const override { return Name; }
 	virtual const char *				Get_HName() const override { return HierarchyName; }
+	void								Set_Name(const char * name) { Name = name; }
+	void								Set_HName(const char * name) { HierarchyName = name; }
 	virtual int							Get_Num_Frames() override { return NumFrames; }
 	virtual float							Get_Frame_Rate() override { return FrameRate; }
 	virtual float							Get_Total_Time() override { return (float)NumFrames / FrameRate; }
@@ -111,8 +119,8 @@ public:
 
 private:
 
-	char							Name[2*W3D_NAME_LEN];
-	char							HierarchyName[W3D_NAME_LEN];
+	StringClass					Name;
+	StringClass					HierarchyName;
 
 	int							NumFrames;
 	int							NumNodes;

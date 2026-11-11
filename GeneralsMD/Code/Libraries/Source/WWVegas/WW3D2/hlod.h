@@ -42,6 +42,9 @@
 #include "WW3D2/proto.h"
 #include "WW3D2/w3derr.h"
 #include "WW3D2/proxy.h"
+#include <string>
+#include <utility>
+#include <vector>
 
 
 class DistLODClass;
@@ -289,6 +292,8 @@ public:
 	~HLodDefClass();
 
 	WW3DErrorType				Load_W3D(ChunkLoadClass & cload);
+	// One LOD with no screen-size limit, like the converter's W3D HLod. subObjects are (model name, bone index).
+	bool							Load_W3X(const char * name, const char * hierarchyName, const std::vector<std::pair<std::string,int>> & subObjects);
 	WW3DErrorType				Save(ChunkSaveClass & csave);
 	const char *				Get_Name() const { return Name; }
 	void							Initialize(HLodClass &src_lod);

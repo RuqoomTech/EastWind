@@ -191,6 +191,27 @@ bool MotionChannelClass::Load_W3D(ChunkLoadClass & cload)
 }
 
 
+bool MotionChannelClass::Init(uint32 pivot, uint32 type, int vectorLen, int firstFrame, int lastFrame, const float * data)
+{
+	Free();
+
+	if (data == nullptr || vectorLen < 1 || firstFrame < 0 || lastFrame < firstFrame) {
+		return false;
+	}
+
+	FirstFrame = firstFrame;
+	LastFrame  = lastFrame;
+	VectorLen  = vectorLen;
+	Type       = type;
+	PivotIdx   = pivot;
+
+	const unsigned int num_floats = (LastFrame - FirstFrame + 1) * VectorLen;
+	Data = MSGW3DNEWARRAY("MotionChannelClass::Data") float32[num_floats];
+	memcpy(Data, data, num_floats * sizeof(float));
+	return true;
+}
+
+
 
 /***********************************************************************************************
  * BitChannelClass::BitChannelClass -- Constructor for BitChannelClass                         *
@@ -248,6 +269,27 @@ void BitChannelClass::Free()
 {
 	delete[] Bits;
 	Bits = nullptr;
+}
+
+
+bool BitChannelClass::Init(uint32 pivot, uint32 type, int defaultVal, int firstFrame, int lastFrame, const uint8 * bits)
+{
+	Free();
+
+	if (bits == nullptr || firstFrame < 0 || lastFrame < firstFrame) {
+		return false;
+	}
+
+	FirstFrame = firstFrame;
+	LastFrame = lastFrame;
+	Type = type;
+	PivotIdx = pivot;
+	DefaultVal = defaultVal;
+
+	const uint32 numbytes = ((uint32)(LastFrame - FirstFrame + 1) + 7) / 8;
+	Bits = MSGW3DNEWARRAY("BitChannelClass::Bits") uint8[numbytes];
+	memcpy(Bits, bits, numbytes);
+	return true;
 }
 
 

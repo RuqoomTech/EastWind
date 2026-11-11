@@ -123,6 +123,7 @@ set(WW3D2_SRC
     meshmdl.cpp
     meshmdl.h
     meshmdlio.cpp
+    meshmdlw3x.cpp
     #metalmap.cpp
     #metalmap.h
     #missingtexture.cpp

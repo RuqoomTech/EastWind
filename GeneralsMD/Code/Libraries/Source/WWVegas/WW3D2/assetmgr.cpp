@@ -621,6 +621,19 @@ bool WW3DAssetManager::Load_3D_Assets( const char * filename )
 
 	FileClass * file = _TheFileFactory->Get_File( filename );
 	if ( file ) {
+		const size_t len = strlen( filename );
+		if ( !file->Is_Available() && len > 4 && _stricmp( filename + len - 4, ".w3d" ) == 0 ) {
+			// X.w3d wins; only when it is missing do we look for the native X.w3x.
+			StringClass w3x_name( filename, true );
+			w3x_name.Peek_Buffer()[len - 1] = 'x';
+			FileClass * w3x_file = _TheFileFactory->Get_File( w3x_name );
+			if ( w3x_file && w3x_file->Is_Available() ) {
+				_TheFileFactory->Return_File( file );
+				file = w3x_file;
+			} else if ( w3x_file ) {
+				_TheFileFactory->Return_File( w3x_file );
+			}
+		}
 		if ( file->Is_Available() ) {
 			result = WW3DAssetManager::Load_3D_Assets( *file );
 		} else {
@@ -648,6 +661,13 @@ bool WW3DAssetManager::Load_3D_Assets( const char * filename )
 bool WW3DAssetManager::Load_3D_Assets(FileClass & w3dfile)
 {
 	WWPROFILE( "WW3DAssetManager::Load_3D_Assets" );
+
+	const char * file_name = w3dfile.File_Name();
+	const size_t name_len = file_name ? strlen( file_name ) : 0;
+	if (name_len > 4 && _stricmp( file_name + name_len - 4, ".w3x" ) == 0) {
+		return Load_W3X_Assets( w3dfile );
+	}
+
 	if (!w3dfile.Open()) {
 		return false;
 	}

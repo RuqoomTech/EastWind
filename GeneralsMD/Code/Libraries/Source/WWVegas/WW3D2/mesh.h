@@ -44,6 +44,12 @@
 #include "lightenvironment.h"	//added for 'Generals'
 #include "WW3D2/skincache.h"
 
+#include <map>
+#include <string>
+
+struct W3xMesh;
+struct W3xHierarchy;
+
 class MeshBuilderClass;
 class HModelClass;
 class AuxMeshDataClass;
@@ -125,6 +131,9 @@ public:
 	/////////////////////////////////////////////////////////////////////////////
 	WW3DErrorType					Init(const MeshBuilderClass & builder,MaterialInfoClass * matinfo,const char * name,const char * hmodelname);
 	WW3DErrorType					Load_W3D(ChunkLoadClass & cload);
+	// Builds the mesh from a parsed W3X mesh (see MeshModelClass::Load_W3X); false if it cannot be used.
+	bool								Load_W3X(const W3xMesh & mesh, const char * name, const W3xHierarchy * tree,
+											const std::map<std::string, std::string> & textureFiles);
 	void								Generate_Culling_Tree();
 	MeshModelClass *				Get_Model();
 	MeshModelClass *				Peek_Model();

@@ -236,6 +236,10 @@ set(WW3D2_SRC
     w3dexclusionlist.h
     w3xconvert.cpp
     w3xconvert.h
+    w3xload.cpp
+    w3xload.h
+    w3xparse.cpp
+    w3xparse.h
     ww3d.cpp
     ww3d.h
     ww3dformat.cpp
