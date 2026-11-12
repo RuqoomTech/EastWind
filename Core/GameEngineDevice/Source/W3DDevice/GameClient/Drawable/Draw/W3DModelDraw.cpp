@@ -221,6 +221,7 @@ enum ACBits CPP_11(: Int)
 	MAINTAIN_FRAME_ACROSS_STATES2,
 	MAINTAIN_FRAME_ACROSS_STATES3,
 	MAINTAIN_FRAME_ACROSS_STATES4,
+	ANIMATE_BY_CONSTRUCTION_PERCENT,
 
 	AC_BITS_COUNT
 };
@@ -237,6 +238,7 @@ static const char *const ACBitsNames[] =
 	"MAINTAIN_FRAME_ACROSS_STATES2",
 	"MAINTAIN_FRAME_ACROSS_STATES3",
 	"MAINTAIN_FRAME_ACROSS_STATES4",
+	"ANIMATE_BY_CONSTRUCTION_PERCENT",
 
 	nullptr
 };
@@ -2102,6 +2104,23 @@ void W3DModelDraw::doDrawModule(const Matrix3D* transformMtx)
 	}
 
 	adjustAnimSpeedToMovementSpeed();
+
+	// Build-up animations follow the construction progress instead of the clock.
+	if (m_curState && testFlagBit(m_curState->m_flags, ANIMATE_BY_CONSTRUCTION_PERCENT)
+		&& m_renderObject && m_renderObject->Class_ID() == RenderObjClass::CLASSID_HLOD)
+	{
+		const Object *obj = getDrawable()->getObject();
+		const Real pct = obj ? obj->getConstructionPercent() : -1.0f;
+		if (pct >= 0.0f)
+		{
+			float framenum, dummy;
+			int mode, numFrames;
+			HLodClass* hlod = (HLodClass*)m_renderObject;
+			HAnimClass* anim = hlod->Peek_Animation_And_Info(framenum, numFrames, mode, dummy);
+			if (anim && numFrames > 1)
+				hlod->Set_Animation(anim, (numFrames - 1) * clamp(0.0f, pct, 100.0f) / 100.0f, RenderObjClass::ANIM_MODE_MANUAL);
+		}
+	}
 
 	// set our position in the render object to our position of the drawable
 	if (m_renderObject)

@@ -191,6 +191,14 @@ bool MeshModelClass::Load_W3X(const W3xMesh &mesh, const char *name, const W3xHi
 	W3xShading shading;
 	W3x_Map_Shader(mesh, has_uv, shading, warnings);
 
+	// A missing file would bind the engine's missing-texture bitmap, so it is not bound at all.
+	bool missing_diffuse = false;
+	if (!shading.textureId.empty() && !W3x_Texture_Exists(W3x_Texture_File(shading.textureId, textureFiles))) {
+		missing_diffuse = true;
+		warnings.push_back("its diffuse texture " + shading.textureId + " does not exist and is dropped");
+		shading.textureId.clear();
+	}
+
 	const W3xMaterial &mat = mesh.material;
 	const bool default_w3d = _stricmp(mat.shaderName.c_str(), "DefaultW3D.fx") == 0;
 
@@ -198,7 +206,10 @@ bool MeshModelClass::Load_W3X(const W3xMesh &mesh, const char *name, const W3xHi
 	const W3xConstant *texture_1 = Find_Constant(mat, "Texture_1");
 	const bool wants_second = !shading.textureId.empty() && num_textures && num_textures->asInt >= 2
 		&& texture_1 && texture_1->kind == W3xConstant::Texture && !texture_1->text.empty();
-	const bool has_second = wants_second && mesh.uvSets.size() >= 2 && mesh.uvSets[1].size() == count;
+	const bool second_missing = wants_second && !W3x_Texture_Exists(W3x_Texture_File(texture_1->text, textureFiles));
+	if (second_missing)
+		warnings.push_back("Texture_1 " + texture_1->text + " does not exist and is dropped");
+	const bool has_second = wants_second && !second_missing && mesh.uvSets.size() >= 2 && mesh.uvSets[1].size() == count;
 	if (wants_second && !has_second)
 		warnings.push_back("Texture_1 is dropped because the mesh has no second TexCoords set");
 
@@ -210,6 +221,8 @@ bool MeshModelClass::Load_W3X(const W3xMesh &mesh, const char *name, const W3xHi
 	// Same conversion Load_W3D applies to the shader chunk.
 	ShaderClass shader;
 	W3dUtilityClass::Convert_Shader(shading.shader, &shader);
+	if (missing_diffuse)
+		shader.Set_Texturing(ShaderClass::TEXTURING_DISABLE);
 	if (has_second) {
 		const W3xConstant *blend = Find_Constant(mat, "SecondaryTextureBlendMode");
 		shader.Set_Post_Detail_Color_Func(W3x_Detail_Color_Func(blend ? blend->asInt : 0));
@@ -220,6 +233,9 @@ bool MeshModelClass::Load_W3X(const W3xMesh &mesh, const char *name, const W3xHi
 	*/
 	Reset((int)mesh.triangles.size(), (int)count, 1);
 	W3dAttributes = W3x_Mesh_Attributes(mesh, shading.twoSided);
+	// An untextured FX mesh (sorted or blended) would draw as a solid blob. Hidden keeps the sub-object name.
+	if (missing_diffuse && (mesh.sortLevel > 0 || shader.Get_Dst_Blend_Func() != ShaderClass::DSTBLEND_ZERO))
+		W3dAttributes |= W3D_MESH_FLAG_HIDDEN;
 	SortLevel = (char)std::min(std::max(mesh.sortLevel, 0), (int)MAX_SORT_LEVEL);
 	Set_Name(name);
 
